@@ -1,7 +1,7 @@
 import type { Dict } from "./en";
 
 export const de: Dict = {
-  nav: { dashboard: "Dashboard", newBattle: "Neue Battle", analysis: "Analysis Center", profiles: "Face Profiles", history: "Verlauf", settings: "Einstellungen" },
+  nav: { dashboard: "Dashboard", newBattle: "Neue Battle", analysis: "Analysis Center", profiles: "Face Profiles", history: "Verlauf", settings: "Einstellungen", sideView: "Seitenansicht" },
   common: {
     person1: "Person 1", person2: "Person 2", back: "Zurück", delete: "Löschen", cancel: "Abbrechen", confirm: "Bestätigen", save: "Speichern", loading: "Lädt…",
     open: "Öffnen", close: "Schließen", replace: "Ersetzen", remove: "Entfernen", skip: "Überspringen", next: "Weiter", replay: "Wiederholen", details: "Details",
@@ -62,6 +62,24 @@ export const de: Dict = {
     sigmaOverall: "σ Gesamt", sigmaProportion: "σ Proportion", sigmaHarmony: "σ Harmonie", sigmaSymmetry: "σ Symmetrie",
     uncertaintyMethod: "Monte-Carlo-Landmark-Jitter (gaußsch, σ skaliert mit Gesichtsgröße und Bildqualität), deterministischer Seed",
     poseLine: "Yaw {yaw}° · Pitch {pitch}° · Roll {roll}° · neutral {neutral} % (Lächeln {smile} %, Kiefer {jaw} %, Blinzeln {blink} %)",
+  },
+  side: {
+    title: "Seitenansicht", newTitle: "Neue Seitenansicht-Analyse", newSub: "Profilmessungen, die ein Frontalfoto nicht liefern kann: Kiefer-, Kinn-, Nasen- und Halswinkel. Landmark-Modelle sind bei echten Profilen unzuverlässig, deshalb setzt du 16 Standardpunkte selbst – mit Lupe für Präzision.",
+    dropTitle: "Profilfoto hier ablegen", dropSub: "echte Seitenansicht (90°), neutraler Ausdruck, Lippen geschlossen, Ohr sichtbar · JPEG, PNG, WebP",
+    g1: "Echtes Profil: die abgewandte Braue und das abgewandte Auge sind verdeckt", g2: "Natürliche Kopfhaltung (Blick geradeaus), Kamera auf Augenhöhe", g3: "Lippen geschlossen, neutraler Ausdruck, Haare hinter dem Ohr", g4: "Kinn und Hals frei (kein Kragen, keine Hand)", g5: "Gleichmäßiges Licht; die Kontur von Stirn bis Hals muss sichtbar sein",
+    placing: "Setzen: {name}", placed: "{n} von {total} Punkten gesetzt", allPlaced: "Alle Punkte gesetzt – prüfen und dann speichern.", hintTitle: "Wohin klicken", nextPoint: "Nächster Punkt",
+    undo: "Letzten Punkt zurücknehmen", reset: "Alle Punkte entfernen", nudge: "Punkt auswählen und mit den Pfeiltasten um 1 px verschieben (Shift: 5 px). Jeder Punkt lässt sich auch ziehen.",
+    loupe: "Lupe", facing: "Blickrichtung", facingLeft: "links", facingRight: "rechts", points: "Punkte", measurements: "Profilmessungen", scored: "bewertet", descriptive: "beschreibend",
+    score: "Profil-Harmonie-Index", scoreSub: "Mittlerer Harmonie-Index der {n} bewerteten Messungen; getrennt vom Frontalscore.", preview: "Vorschau", previewSub: "Live-Vorschau – finale Werte werden beim Speichern berechnet.",
+    notUsable: "Platzierung nicht nutzbar", issues: "Platzierungsprüfung", assumptions: "Annahmen & Konventionen", uncertainty: "Platzierungs-Empfindlichkeit", uncertaintyNote: "σ jedes Werts bei ±{px} px gaußschem Jitter aller Punkte ({n} Samples, deterministischer Seed).",
+    profile: "Profil", newProfile: "Neues Profil", existingProfile: "Vorhandenes Profil", label: "Name oder Label", save: "Analysieren & speichern", saving: "Speichert…", missing: "Alle 16 Punkte setzen und die Einwilligung bestätigen.",
+    storeImage: "Foto speichern", storeImageHint: "Verschlüsselt auf diesem Server gespeichert. Ohne diese Option werden nur die 16 Koordinaten und die Ergebnisse gesichert.",
+    consentRights: "Ich bin zur Nutzung dieses Fotos berechtigt und die abgebildete Person ist mit dieser Analyse einverstanden.", consentAdult: "Die Person ist volljährig (18+).",
+    columns: { measurement: "Messung", value: "Wert", range: "Referenz", source: "Quelle", index: "Index", sigma: "σ" },
+    detail: { what: "Was gemessen wird", how: "Wie gemessen wird", reference: "Referenzbereich & Quelle", limitations: "Einschränkungen", landmarks: "Verwendete Landmarks", value: "Messwert", index: "Harmonie-Index", deviation: "Außerhalb des Bereichs um" },
+    layerAll: "Alle Punkte", inRange: "im Bereich", outOfRange: "außerhalb", notScored: "nicht bewertet", openResult: "Seitenansicht öffnen", deleteConfirm: "Diese Seitenansicht-Analyse endgültig löschen?",
+    empty: "Noch keine Seitenansicht-Analysen.", list: "Seitenansichten", latest: "Letzter Profil-Index", historyTab: "Seitenansichten", dashboardTile: "Seitenansichten", quickStart: "Seitenansicht", quickStartSub: "16 Profil-Landmarks auf einem Seitenfoto setzen für Kiefer-, Kinn-, Nasen- und Halswinkel.",
+    photoNotStored: "Foto nicht gespeichert – nur die gesetzten Punkte werden gezeigt.",
   },
   profiles: { title: "Face Profiles", sub: "Jede analysierte Person erhält ein Profil mit Analysehistorie.", empty: "Noch keine Profile.", analyses: "Analysen", latest: "Letzter Score", noImage: "Kein Bild gespeichert", rename: "Umbenennen", label: "Label" },
   history: { title: "Verlauf", sub: "Vergangene Battles und gespeicherte Analysen.", battles: "Battles", analyses: "Analysen", empty: "Noch kein Verlauf.", verdict: "Ergebnis" },

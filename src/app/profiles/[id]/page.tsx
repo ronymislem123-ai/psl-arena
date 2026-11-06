@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProfileDetail } from "@/components/profiles/profiles";
 import { requireUser } from "@/server/auth";
-import { getProfile, listAnalyses } from "@/server/repos";
+import { getProfile, listAnalyses, listSideAnalyses } from "@/server/repos";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Profile" };
@@ -12,5 +12,5 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const user = await requireUser(`/profiles/${id}`);
   const profile = getProfile(user.id, id);
   if (!profile) notFound();
-  return <ProfileDetail profile={profile} analyses={listAnalyses(user.id, { profileId: id })} />;
+  return <ProfileDetail profile={profile} analyses={listAnalyses(user.id, { profileId: id })} sideAnalyses={listSideAnalyses(user.id, { profileId: id })} />;
 }

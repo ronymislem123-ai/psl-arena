@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SIDE_LANDMARK_ORDER } from "@/engine/side-view";
 
 export const pointSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
 
@@ -40,6 +41,19 @@ export const createAnalysisSchema = z.object({
   storeImage: z.boolean().default(false),
   consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),
   input: analysisInputSchema,
+});
+
+export const sidePointsSchema = z.object(Object.fromEntries(SIDE_LANDMARK_ORDER.map((id) => [id, pointSchema])) as Record<(typeof SIDE_LANDMARK_ORDER)[number], typeof pointSchema>);
+
+export const createSideAnalysisSchema = z.object({
+  profileId: z.string().optional(),
+  profileLabel: z.string().trim().min(1).max(60).optional(),
+  imageDataUrl: z.string().max(12_000_000).optional(),
+  storeImage: z.boolean().default(false),
+  consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),
+  imageWidth: z.number().int().positive().max(20_000),
+  imageHeight: z.number().int().positive().max(20_000),
+  points: sidePointsSchema,
 });
 
 export const createBattleSchema = z.object({

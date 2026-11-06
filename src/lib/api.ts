@@ -1,6 +1,7 @@
 "use client";
 import type { AnalysisInput } from "@/engine/types";
-import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow } from "@/server/repos";
+import type { SidePoints } from "@/engine/side-view";
+import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow, SideAnalysisRecord, SideAnalysisSummary } from "@/server/repos";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -26,6 +27,18 @@ export const api = {
     consent: { rightsConfirmed: true; adultsConfirmed: true };
     input: AnalysisInput;
   }) => request<{ analysis: AnalysisRecord }>("/api/analyses", { method: "POST", body: JSON.stringify(payload) }),
+  createSideAnalysis: (payload: {
+    profileId?: string;
+    profileLabel?: string;
+    imageDataUrl?: string;
+    storeImage: boolean;
+    consent: { rightsConfirmed: true; adultsConfirmed: true };
+    imageWidth: number;
+    imageHeight: number;
+    points: SidePoints;
+  }) => request<{ sideAnalysis: SideAnalysisRecord }>("/api/side-analyses", { method: "POST", body: JSON.stringify(payload) }),
+  listSideAnalyses: (profileId?: string) => request<{ sideAnalyses: SideAnalysisSummary[] }>(`/api/side-analyses${profileId ? `?profileId=${profileId}` : ""}`),
+  deleteSideAnalysis: (id: string) => request<{ deleted: boolean }>(`/api/side-analyses/${id}`, { method: "DELETE" }),
   createBattle: (analysisAId: string, analysisBId: string) => request<{ battle: BattleRecord }>("/api/battles", { method: "POST", body: JSON.stringify({ analysisAId, analysisBId }) }),
   listProfiles: () => request<{ profiles: ProfileRow[] }>("/api/profiles"),
   listAnalyses: (profileId?: string) => request<{ analyses: AnalysisSummary[] }>(`/api/analyses${profileId ? `?profileId=${profileId}` : ""}`),

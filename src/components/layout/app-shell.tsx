@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Clock3, LayoutDashboard, LogOut, Settings, Swords, UserRound, Users, Zap } from "lucide-react";
+import { Clock3, DraftingCompass, LayoutDashboard, LogOut, Settings, Swords, UserRound, Users, Zap } from "lucide-react";
 import { BRAND } from "@/config/brand";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -17,6 +17,7 @@ export interface ShellUser {
 const NAV = [
   { href: "/", key: "nav.dashboard", icon: LayoutDashboard },
   { href: "/battle/new", key: "nav.newBattle", icon: Swords },
+  { href: "/side-view", key: "nav.sideView", icon: DraftingCompass },
   { href: "/profiles", key: "nav.profiles", icon: Users },
   { href: "/history", key: "nav.history", icon: Clock3 },
   { href: "/settings", key: "nav.settings", icon: Settings },
@@ -64,7 +65,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
           {NAV.map((n) => (
             <Link
               key={n.href}
-              href={n.href}
+              href={n.href === "/side-view" ? "/side-view/new" : n.href}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
                 isActive(n.href) ? "bg-accent/15 text-fg-0 border border-accent/30" : "text-fg-2 hover:text-fg-0 hover:bg-white/5 border border-transparent",
@@ -114,9 +115,9 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
           </div>
         </header>
         <main className="flex-1 px-4 md:px-8 py-6 md:py-8 pb-28 md:pb-10 max-w-[1500px] w-full mx-auto">{children}</main>
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 border-t border-line bg-bg-1/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-6 border-t border-line bg-bg-1/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10px]", isActive(n.href) ? "text-accent" : "text-fg-2")}>
+            <Link key={n.href} href={n.href === "/side-view" ? "/side-view/new" : n.href} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10px]", isActive(n.href) ? "text-accent" : "text-fg-2")}>
               <n.icon size={18} />
               {t(n.key)}
             </Link>

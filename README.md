@@ -46,6 +46,7 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 | Scoring | Original T1 system (+10 inside T1; T2–T5 undefined in the material, so never invented) **plus** the PSL ARENA harmony index (0–100, tolerance-based), category indices, proportion/structure/symmetry/overall scores, coverage and confidence. See `docs/SCORING.md`. |
 | Uncertainty | Monte-Carlo landmark jitter (deterministic seed) → σ for every score and ratio. |
 | Battle | 9 rounds (harmony, 7 categories, symmetry) + overall. Round and final decisions use a margin derived from both sides' uncertainty; low coverage/confidence ⇒ *inconclusive*; small differences ⇒ *draw*. |
+| Side view | Profile module for lateral photos: 16 guided manual landmarks (3× loupe, dragging, arrow-key nudging), 16 measurements (gonial, cervicomental, mentocervical, nasofrontal, nasofacial, nasomental, nasolabial, mentolabial angles, facial convexity, Holdaway H, Merrifield Z, lower-face height, lip–chin ratio, Goode projection, dorsal profile, chin meridian) with sourced reference ranges, placement check, Monte-Carlo placement sensitivity and a separate profile harmony index. See `docs/SIDE_VIEW.md`. |
 | Visualisation | Interactive SVG overlay with 10 analysis layers (landmarks, eyes, brows, midface, nose, mouth, jaw, thirds, ratios, symmetry), full-mesh toggle, click-to-inspect landmarks, draggable hairline, neck-point placement. |
 | Accounts | Local e-mail/password accounts (scrypt-hashed), database-backed sessions in HttpOnly SameSite cookies (30 days), login rate limiting, same-origin check on mutating requests, per-account data isolation on every query, hashed one-time recovery codes for password reset plus an operator CLI fallback, optional TOTP two-factor authentication (RFC 6238, QR enrollment, encrypted secret, replay protection, recovery codes as backup factor). |
 | Persistence | SQLite (`data/psl-arena.sqlite`): users, sessions, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
@@ -84,7 +85,7 @@ The Docker volume `arena-data` holds the SQLite database, the encrypted photos a
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` / `build` / `start` | Next.js |
-| `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, database) on real landmark fixtures |
+| `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, side view, database) on real landmark fixtures |
 | `npm run test:e2e` | Playwright end-to-end (upload → analysis → battle → analysis center). Needs `npx playwright install chromium` once. |
 | `npm run typecheck` / `npm run lint` | TypeScript / ESLint |
 | `npm run prepare-assets` | Re-copy the WASM runtime and verify the model |
@@ -101,6 +102,7 @@ Serve the app over HTTPS when it is reachable from other machines: the session c
 - `docs/ARCHITECTURE.md` — system architecture, pipeline, modules
 - `docs/RATIOS.md` — the 42 ratios + 7 additional measurements, landmark mapping, statuses and conventions
 - `docs/SCORING.md` — tiers, harmony index, weights, dependency handling, uncertainty, battle rules
+- `docs/SIDE_VIEW.md` — the side-view (profile) module: landmarks, measurements, sources, checks
 - `docs/DATA_MODEL.md` — database schema
 - `docs/PRIVACY.md` — data handling and ethics
 - `docs/TEST_REPORT.md` — what was tested, partially tested, not tested

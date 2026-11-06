@@ -144,6 +144,35 @@ CREATE TABLE IF NOT EXISTS battle_sessions (
   margin REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_battle_created ON battle_sessions(user_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS side_analyses (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  profile_id TEXT NOT NULL REFERENCES face_profiles(id) ON DELETE CASCADE,
+  image_id TEXT REFERENCES images(id) ON DELETE SET NULL,
+  engine_version TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  image_width INTEGER NOT NULL,
+  image_height INTEGER NOT NULL,
+  facing TEXT NOT NULL,
+  points_json TEXT NOT NULL,
+  result_json TEXT NOT NULL,
+  score REAL,
+  score_sigma REAL,
+  scored_count INTEGER NOT NULL,
+  analyzable INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_side_profile ON side_analyses(profile_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_side_user ON side_analyses(user_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS side_measurements (
+  analysis_id TEXT NOT NULL REFERENCES side_analyses(id) ON DELETE CASCADE,
+  measurement_id TEXT NOT NULL,
+  value REAL,
+  in_range INTEGER,
+  deviation REAL,
+  index_score REAL,
+  value_sigma REAL,
+  PRIMARY KEY (analysis_id, measurement_id)
+);
 CREATE TABLE IF NOT EXISTS settings (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   key TEXT NOT NULL,
@@ -156,17 +185,18 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 );
 `;
 
-export const SCHEMA_VERSION = "4";
+export const SCHEMA_VERSION = "5";
 
 type DB = Database.Database;
 declare global {
   var __pslArenaDb: DB | undefined;
 }
 
-/** Brings a v1 database (single local user, no auth) up to the current schema. */
+/** Brings an older database (v1 single local user, v4 without side-view tables) up to the current schema. */
 function migrate(db: DB) {
   // v1 → v4: an existing users table gets missing account/TOTP columns before the
   // unique e-mail index in SCHEMA is created. A fresh database skips this (no table yet).
+  // v4 → v5 only adds tables (side_analyses, side_measurements), handled by the SCHEMA exec below.
   const cols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name);
   if (cols.length > 0) {
     const wanted = [

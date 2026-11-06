@@ -41,6 +41,8 @@
 | `battle.ts` | `resolveBattle(a, b) → BattleResult`. |
 | `explain.ts` | Structured per-ratio explanations for the UI. |
 
+`side-view.ts` — the lateral (profile) module: 16 manual landmark ids, 16 measurement definitions with sourced ranges, placement check (errors block, warnings inform), scale-free measurement, index/score, Monte-Carlo placement sensitivity. Independent of the frontal pipeline; see `docs/SIDE_VIEW.md`.
+
 ### `src/lib/vision` (browser only)
 `landmarker.ts` (lazy singleton, CPU delegate with GPU fallback option), `image.ts` (decode/downscale, EXIF orientation), `detect.ts` (faces → pixel meshes, blendshapes, matrices), `quality.ts` (pixel statistics on a normalised face crop), `hairline.ts` (midline skin→hair transition scan), `pipeline.ts` (prepare image → `AnalysisInput`).
 

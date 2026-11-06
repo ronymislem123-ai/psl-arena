@@ -3,6 +3,7 @@
  * invisible (queries filter by user_id, never by id alone).
  */
 import type { AnalysisInput, AnalysisResult, BattleResult } from "@/engine/types";
+import type { SidePoints, SideViewResult } from "@/engine/side-view";
 import { getDb, newId } from "./db";
 import { deleteAllImageFiles, deleteImageFile } from "./images";
 
@@ -17,6 +18,9 @@ export interface ProfileRow {
   latestAnalysisId: string | null;
   latestOverall: number | null;
   latestAt: string | null;
+  sideAnalysisCount: number;
+  latestSideId: string | null;
+  latestSideScore: number | null;
 }
 
 export interface AnalysisSummary {
@@ -74,7 +78,10 @@ SELECT p.id, p.label, p.image_id AS imageId, p.note, p.created_at AS createdAt, 
   (SELECT COUNT(*) FROM analysis_sessions a WHERE a.profile_id = p.id) AS analysisCount,
   (SELECT a.id FROM analysis_sessions a WHERE a.profile_id = p.id ORDER BY a.created_at DESC LIMIT 1) AS latestAnalysisId,
   (SELECT a.overall FROM analysis_sessions a WHERE a.profile_id = p.id ORDER BY a.created_at DESC LIMIT 1) AS latestOverall,
-  (SELECT a.created_at FROM analysis_sessions a WHERE a.profile_id = p.id ORDER BY a.created_at DESC LIMIT 1) AS latestAt
+  (SELECT a.created_at FROM analysis_sessions a WHERE a.profile_id = p.id ORDER BY a.created_at DESC LIMIT 1) AS latestAt,
+  (SELECT COUNT(*) FROM side_analyses s WHERE s.profile_id = p.id) AS sideAnalysisCount,
+  (SELECT s.id FROM side_analyses s WHERE s.profile_id = p.id ORDER BY s.created_at DESC LIMIT 1) AS latestSideId,
+  (SELECT s.score FROM side_analyses s WHERE s.profile_id = p.id ORDER BY s.created_at DESC LIMIT 1) AS latestSideScore
 FROM face_profiles p WHERE p.user_id = ?`;
 
 export function listProfiles(userId: string): ProfileRow[] {
@@ -105,7 +112,9 @@ export function deleteProfile(userId: string, id: string): boolean {
   const db = getDb();
   const p = getProfile(userId, id);
   if (!p) return false;
-  const imgs = db.prepare("SELECT DISTINCT image_id AS id FROM analysis_sessions WHERE profile_id = ? AND user_id = ? AND image_id IS NOT NULL").all(id, userId) as { id: string }[];
+  const imgs = db
+    .prepare("SELECT DISTINCT image_id AS id FROM analysis_sessions WHERE profile_id = ? AND user_id = ? AND image_id IS NOT NULL UNION SELECT DISTINCT image_id AS id FROM side_analyses WHERE profile_id = ? AND user_id = ? AND image_id IS NOT NULL")
+    .all(id, userId, id, userId) as { id: string }[];
   db.prepare("DELETE FROM face_profiles WHERE id = ? AND user_id = ?").run(id, userId);
   if (p.imageId) deleteImageFile(p.imageId);
   for (const i of imgs) deleteImageFile(i.id);
@@ -167,15 +176,94 @@ export function insertAnalysis(args: { userId: string; profileId: string; imageI
   return getAnalysis(userId, id)!;
 }
 
+/** Removes an image file once no analysis, side analysis or profile references it any more. */
+function dropImageIfOrphaned(imageId: string) {
+  const stillUsed = getDb()
+    .prepare("SELECT 1 FROM analysis_sessions WHERE image_id = ? UNION SELECT 1 FROM side_analyses WHERE image_id = ? UNION SELECT 1 FROM face_profiles WHERE image_id = ? LIMIT 1")
+    .get(imageId, imageId, imageId);
+  if (!stillUsed) deleteImageFile(imageId);
+}
+
 export function deleteAnalysis(userId: string, id: string): boolean {
   const db = getDb();
   const row = db.prepare("SELECT image_id FROM analysis_sessions WHERE id = ? AND user_id = ?").get(id, userId) as { image_id: string | null } | undefined;
   if (!row) return false;
   db.prepare("DELETE FROM analysis_sessions WHERE id = ? AND user_id = ?").run(id, userId);
-  if (row.image_id) {
-    const stillUsed = db.prepare("SELECT 1 FROM analysis_sessions WHERE image_id = ? UNION SELECT 1 FROM face_profiles WHERE image_id = ? LIMIT 1").get(row.image_id, row.image_id);
-    if (!stillUsed) deleteImageFile(row.image_id);
-  }
+  if (row.image_id) dropImageIfOrphaned(row.image_id);
+  return true;
+}
+
+// ---------------------------------------------------------------- side-view analyses
+export interface SideAnalysisSummary {
+  id: string;
+  profileId: string;
+  profileLabel: string;
+  imageId: string | null;
+  createdAt: string;
+  engineVersion: string;
+  imageWidth: number;
+  imageHeight: number;
+  facing: "left" | "right";
+  score: number | null;
+  scoreSigma: number | null;
+  scoredCount: number;
+  analyzable: boolean;
+}
+
+export interface SideAnalysisRecord extends SideAnalysisSummary {
+  points: SidePoints;
+  result: SideViewResult;
+}
+
+const SIDE_SELECT = `
+SELECT s.id, s.profile_id AS profileId, p.label AS profileLabel, s.image_id AS imageId, s.created_at AS createdAt, s.engine_version AS engineVersion,
+  s.image_width AS imageWidth, s.image_height AS imageHeight, s.facing, s.score, s.score_sigma AS scoreSigma, s.scored_count AS scoredCount, s.analyzable
+FROM side_analyses s JOIN face_profiles p ON p.id = s.profile_id WHERE s.user_id = ?`;
+
+function mapSideSummary(r: Record<string, unknown>): SideAnalysisSummary {
+  return { ...(r as unknown as SideAnalysisSummary), analyzable: !!r.analyzable };
+}
+
+export function listSideAnalyses(userId: string, opts: { profileId?: string; limit?: number } = {}): SideAnalysisSummary[] {
+  const db = getDb();
+  const limit = opts.limit ?? 100;
+  const rows = opts.profileId
+    ? db.prepare(`${SIDE_SELECT} AND s.profile_id = ? ORDER BY s.created_at DESC LIMIT ?`).all(userId, opts.profileId, limit)
+    : db.prepare(`${SIDE_SELECT} ORDER BY s.created_at DESC LIMIT ?`).all(userId, limit);
+  return (rows as Record<string, unknown>[]).map(mapSideSummary);
+}
+
+export function getSideAnalysis(userId: string, id: string): SideAnalysisRecord | null {
+  const row = getDb().prepare(`${SIDE_SELECT} AND s.id = ?`).get(userId, id) as Record<string, unknown> | undefined;
+  if (!row) return null;
+  const full = getDb().prepare("SELECT points_json, result_json FROM side_analyses WHERE id = ? AND user_id = ?").get(id, userId) as { points_json: string; result_json: string };
+  return { ...mapSideSummary(row), points: JSON.parse(full.points_json) as SidePoints, result: JSON.parse(full.result_json) as SideViewResult };
+}
+
+export function insertSideAnalysis(args: { userId: string; profileId: string; imageId: string | null; imageWidth: number; imageHeight: number; points: SidePoints; result: SideViewResult }): SideAnalysisRecord {
+  const db = getDb();
+  const id = newId("side");
+  const t = now();
+  const { result, userId } = args;
+  const tx = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO side_analyses (id, user_id, profile_id, image_id, engine_version, created_at, image_width, image_height, facing, points_json, result_json, score, score_sigma, scored_count, analyzable)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(id, userId, args.profileId, args.imageId, result.engineVersion, t, args.imageWidth, args.imageHeight, result.facing, JSON.stringify(args.points), JSON.stringify(result), result.score, result.scoreSigma, result.scoredCount, result.analyzable ? 1 : 0);
+    const sm = db.prepare("INSERT INTO side_measurements (analysis_id, measurement_id, value, in_range, deviation, index_score, value_sigma) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    for (const m of result.measurements) sm.run(id, m.id, m.value, m.inRange === null ? null : m.inRange ? 1 : 0, m.deviation, m.index, m.valueSigma);
+    db.prepare("UPDATE face_profiles SET updated_at = ? WHERE id = ? AND user_id = ?").run(t, args.profileId, userId);
+  });
+  tx();
+  return getSideAnalysis(userId, id)!;
+}
+
+export function deleteSideAnalysis(userId: string, id: string): boolean {
+  const db = getDb();
+  const row = db.prepare("SELECT image_id FROM side_analyses WHERE id = ? AND user_id = ?").get(id, userId) as { image_id: string | null } | undefined;
+  if (!row) return false;
+  db.prepare("DELETE FROM side_analyses WHERE id = ? AND user_id = ?").run(id, userId);
+  if (row.image_id) dropImageIfOrphaned(row.image_id);
   return true;
 }
 
@@ -229,6 +317,7 @@ export function stats(userId: string) {
     profiles: c("SELECT COUNT(*) AS n FROM face_profiles WHERE user_id = ?"),
     analyses: c("SELECT COUNT(*) AS n FROM analysis_sessions WHERE user_id = ?"),
     battles: c("SELECT COUNT(*) AS n FROM battle_sessions WHERE user_id = ?"),
+    sideAnalyses: c("SELECT COUNT(*) AS n FROM side_analyses WHERE user_id = ?"),
     images: c("SELECT COUNT(*) AS n FROM images WHERE user_id = ?"),
     averageOverall: avg.v,
     bestAnalysis: best ? mapAnalysisSummary(best) : null,
@@ -252,6 +341,7 @@ export function deleteAllData(userId: string) {
   deleteAllImageFiles(userId);
   const tx = db.transaction(() => {
     db.prepare("DELETE FROM battle_sessions WHERE user_id = ?").run(userId);
+    db.prepare("DELETE FROM side_analyses WHERE user_id = ?").run(userId);
     db.prepare("DELETE FROM analysis_sessions WHERE user_id = ?").run(userId);
     db.prepare("DELETE FROM face_profiles WHERE user_id = ?").run(userId);
     db.prepare("DELETE FROM images WHERE user_id = ?").run(userId);
@@ -265,6 +355,7 @@ export function exportAll(userId: string) {
     profiles: listProfiles(userId),
     analyses: listAnalyses(userId, { limit: 10_000 }).map((a) => getAnalysis(userId, a.id)),
     battles: listBattles(userId, 10_000).map((b) => getBattle(userId, b.id)),
+    sideAnalyses: listSideAnalyses(userId, { limit: 10_000 }).map((a) => getSideAnalysis(userId, a.id)),
     settings: getSettings(userId),
   };
 }

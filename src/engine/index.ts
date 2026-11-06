@@ -13,3 +13,5 @@ export { alignMesh, buildLandmarks, MESH_INDEX, MESH_POINT_COUNT, FACE_OVAL, EYE
 export { explainRatio, formatValue, formatT1 } from "./explain";
 export { buildFeatures } from "./scoring/features";
 export { computeAdditional } from "./ratios/additional";
+export { analyzeSideView, detectFacing, findIssues, formatSideRange, formatSideValue, SIDE_BY_ID, SIDE_DEFAULT_CONFIG, SIDE_DEFINITIONS, SIDE_LANDMARK_ORDER, SIDE_VIEW_VERSION } from "./side-view";
+export type { SideAssumptionCode, SideIssue, SideIssueCode, SideLandmarkId, SideMeasurementDefinition, SideMeasurementId, SideMeasurementResult, SidePoints, SideSource, SideViewConfig, SideViewResult } from "./side-view";

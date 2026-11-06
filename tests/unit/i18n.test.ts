@@ -5,7 +5,31 @@ import { MESH_INDEX } from "@/engine/landmarks/mesh-map";
 import { ADDITIONAL_DEFINITIONS, CATEGORY_ORDER, RATIO_DEFINITIONS } from "@/engine/ratios/database";
 import { additionalNote, battleSummary, featureSummary, issueText, localizedExplanation, metricText, symmetryMetricLabel, tierText, unavailableText, verdictReason, warningTexts } from "@/lib/i18n/engine-text";
 import { ADDITIONAL_TEXTS_DE, CATEGORY_TEXTS_DE, LANDMARK_LABELS_DE, RATIO_TEXTS_DE, ratioText } from "@/lib/i18n/ratio-texts";
+import { SIDE_DEFINITIONS, SIDE_LANDMARK_ORDER } from "@/engine/side-view";
+import { SIDE_ASSUMPTION_TEXTS, SIDE_ISSUE_TEXTS, SIDE_LANDMARK_TEXTS, SIDE_MEASUREMENT_TEXTS_DE, sideMeasurementText } from "@/lib/i18n/side-texts";
 import { inputFromFixture, loadFixture } from "./helpers";
+
+describe("side-view texts", () => {
+  it("cover every measurement, landmark, issue and assumption in both languages", () => {
+    for (const d of SIDE_DEFINITIONS) {
+      const de = SIDE_MEASUREMENT_TEXTS_DE[d.id];
+      expect(de, d.id).toBeTruthy();
+      expect(de.name).not.toBe(d.name);
+      expect(de.methodology.length).toBeGreaterThan(10);
+      expect(de.limitations.length).toBe(d.limitations.length);
+      expect(sideMeasurementText(d.id, "en").name).toBe(d.name);
+      expect(sideMeasurementText(d.id, "de").name).toBe(de.name);
+    }
+    for (const id of SIDE_LANDMARK_ORDER) {
+      expect(SIDE_LANDMARK_TEXTS.en[id].hint.length).toBeGreaterThan(10);
+      expect(SIDE_LANDMARK_TEXTS.de[id].hint.length).toBeGreaterThan(10);
+    }
+    for (const lang of ["en", "de"] as const) {
+      expect(Object.keys(SIDE_ISSUE_TEXTS[lang]).sort()).toEqual(["anteriorOrder", "gonionLevel", "lowResolution", "neckOrder", "tragionLevel", "verticalOrder"]);
+      expect(Object.keys(SIDE_ASSUMPTION_TEXTS[lang]).sort()).toEqual(["imageVertical", "manualPlacement", "proxies", "separateFromFrontal"]);
+    }
+  });
+});
 
 describe("German measurement texts", () => {
   it("cover every ratio, category, additional measurement and landmark", () => {

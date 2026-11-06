@@ -8,9 +8,16 @@
 ## Landmark model limitations (2D frontal)
 * Gonion, zygion and frontotemporale are soft-tissue stand-ins (low precision); frontal gonial angles are systematically larger than lateral ones.
 * The mesh has no hairline, ears or neck: trichion is estimated by an image scan (adjustable/confirmable), neck points are manual, ear measurements are unavailable.
-* Profile-only measurements (cervicomental angle, true gonial angle, chin projection, nasal dorsum) are reported as not measurable; a lateral-photo mode would be the next step.
+* Profile-only measurements (cervicomental angle, gonial angle, chin projection, nasal dorsum) are reported as not measurable in the frontal analysis; they are covered by the side-view module (`docs/SIDE_VIEW.md`) from a separate lateral photo with manual landmarks.
 * Occlusions (glasses, hair over brows, hands) are not detected automatically; the quality step relies on pose, expression and pixel statistics. Perspective distortion cannot be measured from one image — the user-declared capture distance only adjusts confidence.
 * Eyebrow tilt follows the mesh brow contour; brows hidden by hair or heavily groomed reduce accuracy.
+
+## Side-view module
+* Landmarks are placed manually (no lateral landmark model); the placement sensitivity (σ) is reported, but a systematic misplacement is not detectable beyond the order/level checks.
+* The image vertical stands in for the true vertical / Frankfort horizontal; Z angle, height ratios and the chin meridian depend on the head posture in the photo. A tilt correction from the tragion–orbitale line would need the orbitale, which is not placed.
+* The soft-tissue gonial angle uses the gonion–tragion line as the ramus proxy; it is not the cephalometric bony angle (the guide range 115–130° is applied as provided).
+* No frontal↔side fusion: the profile harmony index is reported separately and is not part of battles.
+* The mentolabial angle, dorsal profile and chin meridian are descriptive only (no sourced numeric target in the material).
 
 ## Product / engineering
 * **Accounts:** local e-mail/password login with per-account isolation, recovery-code password reset and optional TOTP two-factor authentication exist. Still missing: e-mail verification, e-mail-based reset links (no mail transport), WebAuthn/passkeys, an admin role for managing accounts (sign-up can only be locked globally via `PSL_ARENA_ALLOW_SIGNUP`; operators use the CLI).
@@ -21,4 +28,4 @@
 * **Performance:** hairline estimation samples pixels one at a time (fine for ≤1600 px images; could be vectorised). Uncertainty simulation runs 40 samples server-side per analysis (~100 ms).
 * **GPU delegate:** CPU WASM is used by default (deterministic, works headless); GPU can be enabled in `landmarker.ts`.
 * **Accessibility:** keyboard access for the SVG landmark picker is limited to the list view; colour contrast is tuned for dark mode only (no light theme).
-* **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, export/delete-all and change-password through the UI (covered at API/unit level).
+* **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, export/delete-all and change-password through the UI (covered at API/unit level), side-view point dragging and arrow-key nudging through the UI (placement by clicking is covered end-to-end).

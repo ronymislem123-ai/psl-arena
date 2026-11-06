@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Boxes, Images, Scan, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, Boxes, DraftingCompass, Images, Scan, Sparkles, Swords, Trophy, Users } from "lucide-react";
 import { BRAND } from "@/config/brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -32,6 +32,11 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles }: { 
                   <Swords size={18} /> {t("dashboard.quickStart")} <ArrowRight size={16} />
                 </Button>
               </Link>
+              <Link href="/side-view/new">
+                <Button size="lg" variant="outline" title={t("side.quickStartSub")}>
+                  <DraftingCompass size={18} /> {t("side.quickStart")}
+                </Button>
+              </Link>
               <Link href="/profiles">
                 <Button size="lg" variant="outline">
                   <Users size={18} /> {t("nav.profiles")}
@@ -56,10 +61,11 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles }: { 
       </section>
 
       <section>
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
           <StatTile label={t("dashboard.profiles")} value={stats.profiles} icon={<Users size={18} />} />
           <StatTile label={t("dashboard.analyses")} value={stats.analyses} icon={<Scan size={18} />} tone="cyan" />
           <StatTile label={t("dashboard.battles")} value={stats.battles} icon={<Swords size={18} />} tone="violet" />
+          <StatTile label={t("side.dashboardTile")} value={stats.sideAnalyses} icon={<DraftingCompass size={18} />} tone="cyan" />
           <StatTile label={t("dashboard.avgOverall")} value={fmt.score(stats.averageOverall, 1)} icon={<Sparkles size={18} />} tone="mint" />
           <StatTile label={t("dashboard.storedImages")} value={stats.images} icon={<Images size={18} />} tone="amber" />
         </div>

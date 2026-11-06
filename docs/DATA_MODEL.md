@@ -14,11 +14,13 @@ Raw inputs, calculated values and interpreted scores are stored separately.
 | `landmarks` | semantic landmarks per analysis (raw + aligned coords, source, precision, confidence, mesh index) | (analysis_id, landmark_id) |
 | `ratio_measurements` | calculated ratio values with availability, confidence, T1 flag, tier, points, index, deviation, σ | (analysis_id, ratio_id) |
 | `category_scores` | category indices with coverage/confidence | (analysis_id, category_id) |
+| `side_analyses` | one per side-view (profile) analysis | id, profile_id, image_id, engine_version, image size, facing, `points_json` (16 manual landmarks), `result_json` (full `SideViewResult`), score, score_sigma, scored_count, analyzable |
+| `side_measurements` | per-measurement values of a side analysis (value, in-range flag, deviation, index, σ) | (analysis_id, measurement_id) |
 | `battle_sessions` | head-to-head results (`result_json` = `BattleResult`), verdict, overall A/B, diff, margin | id, analysis_a_id, analysis_b_id, profile ids |
 | `settings` | server-side key/value settings | (user_id, key) |
 
-`schema_meta` stores the schema version; `getDb()` migrates a v1 database in place (adds the account columns and the sessions table).
+`schema_meta` stores the schema version (5); `getDb()` migrates older databases in place (v1: account columns and the sessions table; v4: the side-view tables).
 
-History views are built from `analysis_sessions` and `battle_sessions` (ordered by `created_at`). Deleting a profile cascades to its analyses and battles and removes orphaned image files; deleting all data wipes every table and the encrypted image directory.
+History views are built from `analysis_sessions`, `side_analyses` and `battle_sessions` (ordered by `created_at`). Deleting a profile cascades to its analyses, side analyses and battles and removes orphaned image files; deleting all data wipes every table and the encrypted image directory.
 
 Files: `<PSL_ARENA_DATA_DIR>/psl-arena.sqlite` (WAL mode), `<PSL_ARENA_DATA_DIR>/images/<id>.bin` (AES-256-GCM: 12-byte IV ‖ 16-byte tag ‖ ciphertext), `<PSL_ARENA_DATA_DIR>/image.key` (mode 0600; or `PSL_ARENA_IMAGE_KEY`).

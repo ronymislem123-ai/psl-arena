@@ -16,9 +16,11 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | `i18n.test.ts` | every ratio/category/additional measurement/landmark has German texts; every engine message (tier, unavailability, quality issue, metric, feature summary, symmetry label, additional note, warning, battle verdict/summary) carries a code and renders in German without falling back to English |
 | `totp.test.ts` (isolated temp database) | base32 round-trip, RFC 6238 appendix-B vectors, ±1-step window, replay rejection, otpauth URI; enrollment (password re-auth, encrypted pending secret, wrong first code rejected), challenge flow (bad token, wrong code, single use), recovery code as second factor, per-challenge attempt budget, challenge expiry, disabling needs password + unused code |
 | `recovery.test.ts` (isolated temp database) | 8 unambiguous codes stored only as hashes; reset with a code in any formatting changes the password once, signs every session out and decrements the count; wrong/used codes and unknown e-mails fail with a generic error; regeneration needs the password and invalidates the old set; code guessing is rate-limited; the operator CLI script writes hashes the app verifies |
+| `side-view.test.ts` | 16 side-view measurements (13 scored, 3 descriptive) with sourced ranges and the app tolerance rule; every angle and ratio of a synthetic profile matches values computed by hand (NFA, CMA, NLA, FCA, H, Z, GA, MCA, NFC, NMA, MLA; LFH, LCR, Goode, dorsum, chin meridian); descriptive measures never scored; index 100 inside the range; invariance under mirroring (facing detection), translation and scale; angles invariant under rotation while vertical-dependent measures change (documented); deterministic Monte-Carlo σ (short-arm angles more sensitive); placement errors (vertical order, nasal tip not most anterior, neck above chin) block the analysis with no values; level/resolution warnings keep it analyzable |
+| `side-store.test.ts` (isolated temp database) | schema v5, create with encrypted photo + 16 measurement rows, profile counters, stats/export, attach to an existing profile, rejection of unusable placements / out-of-image points / unknown profile, account isolation, delete with image cleanup, cascade from profile, delete-all |
 | `auth.test.ts` (isolated temp database) | v1→v2 schema migration in place, scrypt hashing with random salts, password policy, e-mail normalisation, legacy-data adoption on first sign-up, duplicate/incorrect credentials, cross-account isolation of profiles, session create/find/expire/destroy with hashed storage, password change signing other devices out, per-client rate limiting, account deletion cascade, cross-site mutation rejection |
 
-### End-to-end (`npm run test:e2e`, Playwright) — 9 passed
+### End-to-end (`npm run test:e2e`, Playwright) — 11 passed
 | Test | Steps verified |
 | --- | --- |
 | unauthenticated access is blocked | API returns 401, image route returns 401, pages redirect to `/login?next=…` |
@@ -29,6 +31,8 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | API | `/api/ratios` returns 42 + 7 without login, `/api/stats` ok when signed in, malformed analysis body ⇒ 400, a second account gets 404 for the first account's analysis and an empty list |
 | mobile layout & installability | 390 px viewport renders setup page and dashboard; manifest (standalone, 192/512/maskable icons all served), service worker served uncached, manifest link, `viewport-fit=cover`, camera-friendly `accept="image/*"` |
 | battle without stored photos | second battle with storage off: arena renders the session copies (data URLs), no `/api/images` requests, server image count unchanged |
+| side view: placement → result → history | upload the synthetic profile fixture → loupe follows the pointer → 16 points placed in guided order (step list, counter, auto-advance) → preview with facing direction → undo/re-place → a wrong placement switches the preview to "unusable" with the explicit reason → label, encrypted photo opt-in, consent → saved → result page (facing, 13 scored / 3 descriptive, stored image, 16 rows with hand-known values, guide/literature badges, construction layer with angle arc, detail dialog) → history tab, API list, profile counters, profile page → German texts; no page errors |
+| side view API | 422 for an unusable placement, 400 without consent, 404 for another account's record |
 | landmark layers & locale | nose / symmetry / jaw / thirds layers draw measurement lines on the stored photo; an analysis without a stored photo shows the landmark wireframe fallback; switching the language to German relabels the navigation, the ratio table, the ratio detail dialog, the feature overview and the quality tab |
 
 ### Static checks
@@ -53,6 +57,7 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * Browsers other than Chromium (Safari/Firefox WASM SIMD behaviour); "Add to Home Screen" on a real phone and the service-worker offline path were verified manually against the production build in Chromium, not on devices.
 * E-mail verification, e-mail-based reset links (no mail transport) and WebAuthn (not implemented). QR scanning itself is not automated (the e2e uses the manual key).
 * Accessibility audit (screen reader, full keyboard operation of the SVG picker).
+* Side-view point dragging and arrow-key nudging through the UI (the handlers are exercised manually; placement by clicking, undo and re-placing are automated). Real profile photos were not part of the automated suite (synthetic silhouette fixture); the measurement geometry is verified by hand-computed values.
 
 ## 4. Known results on the fixtures (for reproducibility)
 `DUMP=1 npx vitest run tests/unit/dump.test.ts` prints the 42-ratio table for the four frontal fixtures with values, T1 flags, index and confidence, plus category and overall scores.
