@@ -22,7 +22,7 @@ const NAV = [
   { href: "/settings", key: "nav.settings", icon: Settings },
 ] as const;
 
-const BARE_PREFIXES = ["/login", "/signup"];
+const BARE_PREFIXES = ["/login", "/signup", "/reset"];
 
 export function AppShell({ children, user }: { children: ReactNode; user: ShellUser | null }) {
   const { t } = useT();

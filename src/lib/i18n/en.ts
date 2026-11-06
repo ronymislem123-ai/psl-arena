@@ -79,7 +79,7 @@ export const en = {
     signupDisabled: "Sign-up is disabled on this server. Ask the administrator for an account.",
     email: "E-mail", name: "Display name", nameHint: "Optional, shown in the app.", password: "Password", passwordHint: "At least 10 characters.", confirm: "Repeat password",
     mismatch: "The passwords do not match.", noAccount: "No account yet?", haveAccount: "Already have an account?", logout: "Sign out", logoutAll: "Sign out everywhere else",
-    localNote: "Local account on this installation. No e-mail is sent; there is no password reset — keep your password safe.",
+    localNote: "Local account on this installation. No e-mails are sent — keep your password and your recovery codes safe.",
     account: "Account", signedInAs: "Signed in as", memberSince: "Member since", changePassword: "Change password", currentPassword: "Current password", newPassword: "New password",
     passwordChanged: "Password changed. Other devices were signed out.", deleteAccount: "Delete account", deleteAccountHint: "Deletes your account with all profiles, analyses, battles and photos. Enter your password to confirm.",
     deleteAccountConfirm: "Really delete the account and all of its data? This cannot be undone.", sessionsCleared: "Other sessions were signed out.",

@@ -79,7 +79,7 @@ export const de: Dict = {
     signupDisabled: "Die Registrierung ist auf diesem Server deaktiviert. Bitte beim Administrator ein Konto anfragen.",
     email: "E-Mail", name: "Anzeigename", nameHint: "Optional, wird in der App angezeigt.", password: "Passwort", passwordHint: "Mindestens 10 Zeichen.", confirm: "Passwort wiederholen",
     mismatch: "Die Passwörter stimmen nicht überein.", noAccount: "Noch kein Konto?", haveAccount: "Schon ein Konto?", logout: "Abmelden", logoutAll: "Überall sonst abmelden",
-    localNote: "Lokales Konto dieser Installation. Es werden keine E-Mails versendet und es gibt kein Zurücksetzen – Passwort sicher aufbewahren.",
+    localNote: "Lokales Konto dieser Installation. Es werden keine E-Mails versendet – Passwort und Wiederherstellungscodes sicher aufbewahren.",
     account: "Konto", signedInAs: "Angemeldet als", memberSince: "Konto seit", changePassword: "Passwort ändern", currentPassword: "Aktuelles Passwort", newPassword: "Neues Passwort",
     passwordChanged: "Passwort geändert. Andere Geräte wurden abgemeldet.", deleteAccount: "Konto löschen", deleteAccountHint: "Löscht dein Konto mit allen Profilen, Analysen, Battles und Fotos. Zur Bestätigung Passwort eingeben.",
     deleteAccountConfirm: "Konto und alle Daten wirklich löschen? Das kann nicht rückgängig gemacht werden.", sessionsCleared: "Andere Sitzungen wurden abgemeldet.",
