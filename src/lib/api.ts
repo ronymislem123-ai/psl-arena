@@ -2,7 +2,7 @@
 import type { AnalysisInput } from "@/engine/types";
 import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow } from "@/server/repos";
 
-const AUTH_URLS = ["/api/auth/login", "/api/auth/signup", "/api/auth/me", "/api/auth/logout"];
+const AUTH_URLS = ["/api/auth/login", "/api/auth/signup", "/api/auth/me", "/api/auth/logout", "/api/auth/recovery/reset"];
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -36,7 +36,10 @@ export const api = {
   renameProfile: (id: string, label: string) => request<{ profile: ProfileRow }>(`/api/profiles/${id}`, { method: "PATCH", body: JSON.stringify({ label }) }),
   deleteAll: () => request<{ deleted: boolean }>("/api/data", { method: "DELETE" }),
   // auth
-  signup: (data: { email: string; password: string; name?: string }) => request<{ user: AuthUserDto }>("/api/auth/signup", { method: "POST", body: JSON.stringify(data) }),
+  signup: (data: { email: string; password: string; name?: string }) => request<{ user: AuthUserDto; recoveryCodes: string[] }>("/api/auth/signup", { method: "POST", body: JSON.stringify(data) }),
+  resetPassword: (data: { email: string; code: string; newPassword: string }) => request<{ user: AuthUserDto; remainingCodes: number }>("/api/auth/recovery/reset", { method: "POST", body: JSON.stringify(data) }),
+  recoveryStatus: () => request<{ remaining: number; total: number }>("/api/auth/recovery/codes"),
+  regenerateCodes: (password: string) => request<{ codes: string[]; remaining: number; total: number }>("/api/auth/recovery/codes", { method: "POST", body: JSON.stringify({ password }) }),
   login: (data: { email: string; password: string }) => request<{ user: AuthUserDto }>("/api/auth/login", { method: "POST", body: JSON.stringify(data) }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST", body: "{}" }),
   me: () => request<{ user: AuthUserDto }>("/api/auth/me"),

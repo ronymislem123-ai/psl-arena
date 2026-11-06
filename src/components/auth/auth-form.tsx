@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/controls";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { RecoveryCodes } from "./recovery-codes";
 
 export function AuthForm({ mode, next, signupAllowed = true, firstAccount = false }: { mode: "login" | "signup"; next?: string; signupAllowed?: boolean; firstAccount?: boolean }) {
   const { t } = useT();
@@ -18,7 +19,12 @@ export function AuthForm({ mode, next, signupAllowed = true, firstAccount = fals
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [codes, setCodes] = useState<string[] | null>(null);
   const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const finish = () => {
+    router.push(target);
+    router.refresh();
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,10 +35,13 @@ export function AuthForm({ mode, next, signupAllowed = true, firstAccount = fals
     }
     setBusy(true);
     try {
-      if (mode === "signup") await api.signup({ email, password, name: name || undefined });
-      else await api.login({ email, password });
-      router.push(target);
-      router.refresh();
+      if (mode === "signup") {
+        const res = await api.signup({ email, password, name: name || undefined });
+        setCodes(res.recoveryCodes ?? []);
+        return;
+      }
+      await api.login({ email, password });
+      finish();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -49,6 +58,11 @@ export function AuthForm({ mode, next, signupAllowed = true, firstAccount = fals
           </span>
           <span className="font-display font-bold tracking-[0.14em]">{BRAND.name}</span>
         </div>
+        {codes ? (
+          <div className="glass-strong rounded-3xl p-6 md:p-8">
+            <RecoveryCodes codes={codes} onContinue={finish} />
+          </div>
+        ) : (
         <form onSubmit={submit} className="glass-strong rounded-3xl p-6 md:p-8 space-y-5" data-testid={`auth-${mode}`}>
           <div>
             <h1 className="font-display text-2xl font-bold">{mode === "login" ? t("auth.loginTitle") : t("auth.signupTitle")}</h1>
@@ -66,6 +80,13 @@ export function AuthForm({ mode, next, signupAllowed = true, firstAccount = fals
           <Field label={t("auth.password")} hint={mode === "signup" ? t("auth.passwordHint") : undefined}>
             <Input type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 10 : 1} value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
+          {mode === "login" && (
+            <div className="-mt-2 text-right text-xs">
+              <Link href={`/reset${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-fg-2 hover:text-fg-0 underline underline-offset-2">
+                {t("auth.forgot")}
+              </Link>
+            </div>
+          )}
           {mode === "signup" && (
             <Field label={t("auth.confirm")}>
               <Input type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
@@ -98,6 +119,7 @@ export function AuthForm({ mode, next, signupAllowed = true, firstAccount = fals
             )}
           </div>
         </form>
+        )}
         <p className="mt-6 text-center text-xs text-fg-3">{t("auth.localNote")}</p>
       </div>
     </div>

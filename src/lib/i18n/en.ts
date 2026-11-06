@@ -83,6 +83,12 @@ export const en = {
     account: "Account", signedInAs: "Signed in as", memberSince: "Member since", changePassword: "Change password", currentPassword: "Current password", newPassword: "New password",
     passwordChanged: "Password changed. Other devices were signed out.", deleteAccount: "Delete account", deleteAccountHint: "Deletes your account with all profiles, analyses, battles and photos. Enter your password to confirm.",
     deleteAccountConfirm: "Really delete the account and all of its data? This cannot be undone.", sessionsCleared: "Other sessions were signed out.",
+    forgot: "Forgot password?", resetTitle: "Reset password", resetSub: "Enter your e-mail, one of your recovery codes and a new password.", resetAction: "Set new password",
+    recoveryCode: "Recovery code", recoveryCodePlaceholder: "ABCDE-FGHJK", resetDone: "Password updated and signed in. {n} recovery code(s) left.", resetDoneNoCodes: "Password updated. You have no recovery codes left — generate new ones in Settings → Account now.",
+    codesTitle: "Save your recovery codes", codesSub: "Each code resets your password once if you forget it. They are shown only now and stored hashed. Keep them somewhere safe, e.g. a password manager.",
+    codesCopy: "Copy", codesCopied: "Copied", codesDownload: "Download", codesContinue: "I have saved my codes", codesRemaining: "{n} of {total} recovery codes unused", codesNone: "No recovery codes left — generate new ones.",
+    codesRegenerate: "Generate new recovery codes", codesRegenerateHint: "Replaces all existing codes. Enter your password to confirm.", codesNew: "New recovery codes", codesWarnLow: "Only {n} code(s) left.",
+    recovery: "Recovery", noEmailNote: "This installation sends no e-mails. Without a recovery code, the server operator can reset the password with `npm run reset-password -- <e-mail>`.",
   },
 } as const;
 

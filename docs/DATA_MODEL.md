@@ -6,6 +6,7 @@ Raw inputs, calculated values and interpreted scores are stored separately.
 | --- | --- | --- |
 | `users` | accounts (e-mail unique, scrypt hash + salt, last login); a legacy `local` row from v1 is adopted by the first account | id, name, email, password_hash, password_salt |
 | `sessions` | login sessions; id = SHA-256 of the cookie token | id, user_id, created_at, expires_at, last_seen_at, user_agent |
+| `recovery_codes` | one-time password-reset codes; id = SHA-256(user id : code) | id, user_id, created_at, used_at |
 | `images` | encrypted photo files (opt-in) | id, mime, width, height, bytes, sha256, encrypted, path |
 | `face_profiles` | one per analysed person | id, label, image_id, note, timestamps |
 | `analysis_sessions` | one per analysis run | id, profile_id, image_id, engine_version, image size, `config_json`, `input_json` (raw mesh, blendshapes, matrix, quality metrics), `result_json` (full `AnalysisResult`), denormalised overall/harmony/proportion/symmetry/confidence/coverage/quality_level/analyzable |

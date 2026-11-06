@@ -83,5 +83,11 @@ export const de: Dict = {
     account: "Konto", signedInAs: "Angemeldet als", memberSince: "Konto seit", changePassword: "Passwort ändern", currentPassword: "Aktuelles Passwort", newPassword: "Neues Passwort",
     passwordChanged: "Passwort geändert. Andere Geräte wurden abgemeldet.", deleteAccount: "Konto löschen", deleteAccountHint: "Löscht dein Konto mit allen Profilen, Analysen, Battles und Fotos. Zur Bestätigung Passwort eingeben.",
     deleteAccountConfirm: "Konto und alle Daten wirklich löschen? Das kann nicht rückgängig gemacht werden.", sessionsCleared: "Andere Sitzungen wurden abgemeldet.",
+    forgot: "Passwort vergessen?", resetTitle: "Passwort zurücksetzen", resetSub: "Gib deine E-Mail, einen deiner Wiederherstellungscodes und ein neues Passwort ein.", resetAction: "Neues Passwort setzen",
+    recoveryCode: "Wiederherstellungscode", recoveryCodePlaceholder: "ABCDE-FGHJK", resetDone: "Passwort aktualisiert und angemeldet. Noch {n} Wiederherstellungscode(s) übrig.", resetDoneNoCodes: "Passwort aktualisiert. Du hast keine Wiederherstellungscodes mehr – erzeuge jetzt neue unter Einstellungen → Konto.",
+    codesTitle: "Wiederherstellungscodes sichern", codesSub: "Jeder Code setzt dein Passwort einmal zurück, falls du es vergisst. Sie werden nur jetzt angezeigt und gehasht gespeichert. Bewahre sie sicher auf, z. B. in einem Passwortmanager.",
+    codesCopy: "Kopieren", codesCopied: "Kopiert", codesDownload: "Herunterladen", codesContinue: "Ich habe meine Codes gesichert", codesRemaining: "{n} von {total} Wiederherstellungscodes unbenutzt", codesNone: "Keine Wiederherstellungscodes mehr – erzeuge neue.",
+    codesRegenerate: "Neue Wiederherstellungscodes erzeugen", codesRegenerateHint: "Ersetzt alle vorhandenen Codes. Zur Bestätigung Passwort eingeben.", codesNew: "Neue Wiederherstellungscodes", codesWarnLow: "Nur noch {n} Code(s) übrig.",
+    recovery: "Wiederherstellung", noEmailNote: "Diese Installation versendet keine E-Mails. Ohne Wiederherstellungscode kann der Server-Betreiber das Passwort mit `npm run reset-password -- <E-Mail>` zurücksetzen.",
   },
 };

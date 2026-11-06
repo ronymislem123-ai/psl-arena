@@ -160,8 +160,82 @@ export function deleteAccount(userId: string, password: string) {
   getDb().prepare("DELETE FROM users WHERE id = ?").run(userId); // cascades to sessions, profiles, analyses, battles, settings
 }
 
-// ---------------------------------------------------------------- sessions
+// ---------------------------------------------------------------- recovery codes
+export const RECOVERY_CODE_COUNT = 8;
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
 const sha = (token: string) => createHash("sha256").update(token).digest("hex");
+
+export function normalizeRecoveryCode(code: string): string {
+  return String(code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function recoveryHash(userId: string, code: string): string {
+  return sha(`${userId}:${normalizeRecoveryCode(code)}`);
+}
+
+function randomCode(): string {
+  const bytes = randomBytes(10);
+  let out = "";
+  for (let i = 0; i < 10; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  return `${out.slice(0, 5)}-${out.slice(5)}`;
+}
+
+/** Replaces all codes of the user with a fresh set and returns the plain codes (shown once). */
+export function generateRecoveryCodes(userId: string): string[] {
+  const db = getDb();
+  const codes = Array.from({ length: RECOVERY_CODE_COUNT }, randomCode);
+  const t = now();
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM recovery_codes WHERE user_id = ?").run(userId);
+    const ins = db.prepare("INSERT INTO recovery_codes (id, user_id, created_at) VALUES (?, ?, ?)");
+    for (const c of codes) ins.run(recoveryHash(userId, c), userId, t);
+  });
+  tx();
+  return codes;
+}
+
+export function recoveryCodeStatus(userId: string): { remaining: number; total: number } {
+  const row = getDb().prepare("SELECT COUNT(*) AS n FROM recovery_codes WHERE user_id = ? AND used_at IS NULL").get(userId) as { n: number };
+  return { remaining: row.n, total: RECOVERY_CODE_COUNT };
+}
+
+/** Regenerates codes after re-authentication with the password. */
+export function regenerateRecoveryCodes(userId: string, password: string): string[] {
+  const row = getDb().prepare("SELECT password_hash, password_salt FROM users WHERE id = ?").get(userId) as { password_hash: string; password_salt: string } | undefined;
+  if (!row || !verifyPassword(String(password ?? ""), row.password_hash, row.password_salt)) throw new ServiceError(401, "The password is incorrect.");
+  return generateRecoveryCodes(userId);
+}
+
+/**
+ * Sets a new password after proving possession of an unused recovery code.
+ * The code is consumed, every session of the account is destroyed and the
+ * remaining-code count is returned so the UI can warn when codes run out.
+ */
+export function resetPasswordWithRecoveryCode(input: { email: string; code: string; newPassword: string }, client = "local"): { user: AuthUser; remainingCodes: number } {
+  const email = normalizeEmail(input.email);
+  checkRateLimit(client, email);
+  const pwError = validatePassword(input.newPassword);
+  if (pwError) throw new ServiceError(400, pwError);
+  const db = getDb();
+  const user = db.prepare("SELECT id, email, name, created_at FROM users WHERE email = ?").get(email) as { id: string; email: string; name: string; created_at: string } | undefined;
+  const normalized = normalizeRecoveryCode(input.code);
+  const codeRow = user && normalized.length === 10 ? (db.prepare("SELECT id FROM recovery_codes WHERE id = ? AND user_id = ? AND used_at IS NULL").get(recoveryHash(user.id, normalized), user.id) as { id: string } | undefined) : undefined;
+  if (!user || !codeRow) {
+    recordFailure(client, email);
+    throw new ServiceError(401, "E-mail or recovery code is incorrect.");
+  }
+  const { hash, salt } = hashPassword(input.newPassword);
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE users SET password_hash = ?, password_salt = ?, last_login_at = ? WHERE id = ?").run(hash, salt, now(), user.id);
+    db.prepare("UPDATE recovery_codes SET used_at = ? WHERE id = ?").run(now(), codeRow.id);
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(user.id);
+  });
+  tx();
+  clearFailures(client, email);
+  return { user: rowToUser(user), remainingCodes: recoveryCodeStatus(user.id).remaining };
+}
+
+// ---------------------------------------------------------------- sessions
 
 export function createSession(userId: string, userAgent?: string | null): { token: string; expiresAt: Date } {
   const token = randomBytes(32).toString("hex");

@@ -31,6 +31,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_agent TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE TABLE IF NOT EXISTS recovery_codes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  used_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_recovery_user ON recovery_codes(user_id);
 CREATE TABLE IF NOT EXISTS images (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -138,7 +145,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 );
 `;
 
-export const SCHEMA_VERSION = "2";
+export const SCHEMA_VERSION = "3";
 
 type DB = Database.Database;
 declare global {

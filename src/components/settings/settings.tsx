@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, KeyRound, LogOut, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Input, Select, Toggle } from "@/components/ui/controls";
+import { RecoveryCodes } from "@/components/auth/recovery-codes";
 import { PageHeader } from "@/components/layout/app-shell";
 import { BRAND } from "@/config/brand";
 import { ENGINE_VERSION } from "@/engine/analysis";
@@ -36,6 +37,7 @@ export function SettingsView({ account }: { account: AccountInfo }) {
       <PageHeader kicker={t("nav.settings")} title={t("settings.title")} />
       <div className="grid gap-5 lg:grid-cols-2">
         <AccountCard account={account} />
+        <RecoveryCard />
         <Card>
           <CardHeader title={t("settings.appearance")} />
           <CardBody className="space-y-2">
@@ -215,6 +217,77 @@ function AccountCard({ account }: { account: AccountInfo }) {
             </div>
           )}
         </form>
+      </CardBody>
+    </Card>
+  );
+}
+
+function RecoveryCard() {
+  const { t } = useT();
+  const [status, setStatus] = useState<{ remaining: number; total: number } | null>(null);
+  const [password, setPassword] = useState("");
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.recoveryStatus().then(setStatus).catch(() => setStatus(null));
+  }, []);
+  const regenerate = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await api.regenerateCodes(password);
+      setCodes(res.codes);
+      setStatus({ remaining: res.remaining, total: res.total });
+      setPassword("");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader
+        title={t("auth.recovery")}
+        icon={<KeyRound size={18} />}
+        subtitle={status ? (status.remaining > 0 ? t("auth.codesRemaining", { n: status.remaining, total: status.total }) : t("auth.codesNone")) : "…"}
+        action={status && status.remaining > 0 && status.remaining <= 2 ? <span className="text-xs text-amber">{t("auth.codesWarnLow", { n: status.remaining })}</span> : undefined}
+      />
+      <CardBody className="grid gap-6 md:grid-cols-2">
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void regenerate();
+          }}
+        >
+          <div className="text-sm font-medium">{t("auth.codesRegenerate")}</div>
+          <p className="text-xs text-fg-3">{t("auth.codesRegenerateHint")}</p>
+          <Field label={t("auth.password")}>
+            <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          <Button type="submit" size="sm" variant="outline" loading={busy} disabled={!password} data-testid="regenerate-codes">
+            <KeyRound size={14} /> {t("auth.codesRegenerate")}
+          </Button>
+          {err && (
+            <div className="text-sm text-[#ff8fa3]" role="alert">
+              {err}
+            </div>
+          )}
+          <p className="text-xs text-fg-3">{t("auth.noEmailNote")}</p>
+        </form>
+        <div>
+          {codes ? (
+            <>
+              <div className="text-sm font-medium mb-2">{t("auth.codesNew")}</div>
+              <RecoveryCodes codes={codes} compact />
+              <p className="mt-2 text-xs text-fg-3">{t("auth.codesSub")}</p>
+            </>
+          ) : (
+            <p className="text-sm text-fg-3">{t("auth.codesSub")}</p>
+          )}
+        </div>
       </CardBody>
     </Card>
   );

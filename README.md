@@ -22,7 +22,13 @@ npm start
 
 Requirements: Node ≥ 20.19 (tested on Node 22). SQLite is embedded (`better-sqlite3`, native binary installed by npm). No external services, no API keys.
 
-On first start, open the app and create the first account (e-mail + password, min. 10 characters). Accounts are local to this installation; there is no e-mail verification and no password reset, so keep the password safe. Data created before accounts existed is assigned to the first account. Set `PSL_ARENA_ALLOW_SIGNUP=false` to stop further sign-ups once your accounts exist.
+On first start, open the app and create the first account (e-mail + password, min. 10 characters). Accounts are local to this installation and no e-mails are sent. Each account gets **8 one-time recovery codes** (shown once at sign-up, regenerable in Settings → Account); "Forgot password?" on the login page resets the password with e-mail + code. If all codes are lost, the server operator can set a new password with
+
+```bash
+npm run reset-password -- user@example.com
+```
+
+Data created before accounts existed is assigned to the first account. Set `PSL_ARENA_ALLOW_SIGNUP=false` to stop further sign-ups once your accounts exist.
 
 The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is vendored so the app works fully offline. If it is missing, download it from
 `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`.
@@ -39,7 +45,7 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 | Uncertainty | Monte-Carlo landmark jitter (deterministic seed) → σ for every score and ratio. |
 | Battle | 9 rounds (harmony, 7 categories, symmetry) + overall. Round and final decisions use a margin derived from both sides' uncertainty; low coverage/confidence ⇒ *inconclusive*; small differences ⇒ *draw*. |
 | Visualisation | Interactive SVG overlay with 10 analysis layers (landmarks, eyes, brows, midface, nose, mouth, jaw, thirds, ratios, symmetry), full-mesh toggle, click-to-inspect landmarks, draggable hairline, neck-point placement. |
-| Accounts | Local e-mail/password accounts (scrypt-hashed), database-backed sessions in HttpOnly SameSite cookies (30 days), login rate limiting, same-origin check on mutating requests, per-account data isolation on every query. |
+| Accounts | Local e-mail/password accounts (scrypt-hashed), database-backed sessions in HttpOnly SameSite cookies (30 days), login rate limiting, same-origin check on mutating requests, per-account data isolation on every query, hashed one-time recovery codes for password reset plus an operator CLI fallback. |
 | Persistence | SQLite (`data/psl-arena.sqlite`): users, sessions, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
 | UI | Next.js 16 App Router, React 19, Tailwind 4, framer-motion; dark premium HUD design; EN/DE; reduced-motion support; responsive (desktop side-by-side, mobile stacked). |
 
@@ -52,6 +58,7 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 | `npm run test:e2e` | Playwright end-to-end (upload → analysis → battle → analysis center). Needs `npx playwright install chromium` once. |
 | `npm run typecheck` / `npm run lint` | TypeScript / ESLint |
 | `npm run prepare-assets` | Re-copy the WASM runtime and verify the model |
+| `npm run reset-password -- <e-mail>` | Operator fallback: set a new (or generated temporary) password for an account and sign it out everywhere |
 
 ## Configuration
 

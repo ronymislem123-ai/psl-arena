@@ -43,6 +43,13 @@ test.describe("PSL ARENA end-to-end", () => {
     await page.getByLabel(/^Password/).fill("ui strong password 42");
     await page.getByLabel(/Repeat password/).fill("ui strong password 42");
     await page.getByRole("button", { name: "Create account" }).click();
+    // recovery codes are shown once after sign-up
+    await expect(page.getByTestId("recovery-codes")).toBeVisible();
+    const codeTexts = await page.getByTestId("recovery-code-list").locator("li").allTextContents();
+    expect(codeTexts).toHaveLength(8);
+    expect(codeTexts[0]).toMatch(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
+    await shot(page, "27-recovery-codes");
+    await page.getByTestId("codes-continue").click();
     await page.waitForURL((u) => u.pathname === "/");
     await expect(page.getByText("UI Tester").first()).toBeVisible();
     // this fresh account sees nothing of the other account
@@ -51,6 +58,33 @@ test.describe("PSL ARENA end-to-end", () => {
     await page.getByTestId("logout").click();
     await page.waitForURL(/\/login/);
     expect((await page.request.get("/api/auth/me")).status()).toBe(401);
+
+    // forgot password → reset with a recovery code
+    await page.getByRole("link", { name: "Forgot password?" }).click();
+    await page.waitForURL(/\/reset/);
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel(/E-mail/).fill(email);
+    await page.getByLabel(/Recovery code/).fill(codeTexts[0]);
+    await page.getByLabel(/New password/).fill("ui reset password 42");
+    await page.getByLabel(/Repeat password/).fill("ui reset password 42");
+    await shot(page, "28-reset-form");
+    await page.getByRole("button", { name: "Set new password" }).click();
+    await expect(page.getByRole("status")).toContainText("7 recovery code");
+    await page.waitForURL((u) => u.pathname === "/", { timeout: 15_000 });
+    // old password rejected, new one accepted, used code rejected
+    expect((await page.request.post("/api/auth/login", { data: { email, password: "ui strong password 42" } })).status()).toBe(401);
+    expect((await page.request.post("/api/auth/login", { data: { email, password: "ui reset password 42" } })).ok()).toBeTruthy();
+    expect((await page.request.post("/api/auth/recovery/reset", { data: { email, code: codeTexts[0], newPassword: "ui reset password 43" } })).status()).toBe(401);
+    // settings: regenerate codes with the password
+    await page.goto("/settings");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/7 of 8 recovery codes unused/)).toBeVisible();
+    const regenForm = page.getByTestId("regenerate-codes").locator("xpath=ancestor::form");
+    await regenForm.getByLabel(/^Password/).fill("ui reset password 42");
+    await page.getByTestId("regenerate-codes").click();
+    await expect(page.getByTestId("recovery-code-list").locator("li")).toHaveCount(8);
+    await expect(page.getByText(/8 of 8 recovery codes unused/)).toBeVisible();
+    await shot(page, "29-settings-recovery");
   });
 
   test("dashboard renders", async ({ page }) => {

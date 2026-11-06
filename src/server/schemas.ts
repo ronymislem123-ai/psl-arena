@@ -73,3 +73,5 @@ export const signupSchema = z.object({
 export const loginSchema = z.object({ email: z.string().min(3).max(254), password: z.string().min(1).max(200) });
 export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(200), newPassword: z.string().min(1).max(200) });
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(200) });
+export const resetPasswordSchema = z.object({ email: z.string().min(3).max(254), code: z.string().min(10).max(20), newPassword: z.string().min(1).max(200) });
+export const regenerateCodesSchema = z.object({ password: z.string().min(1).max(200) });
