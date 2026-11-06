@@ -10,6 +10,8 @@ import { BROW_LOWER_L, BROW_LOWER_R, BROW_UPPER_L, BROW_UPPER_R, CONTOUR_L, CONT
 import { RATIO_BY_ID } from "@/engine/ratios/database";
 import { formatValue } from "@/engine/explain";
 import { midlineX } from "@/engine/scoring/symmetry";
+import { useT } from "@/lib/i18n";
+import { landmarkLabel, landmarkNote } from "@/lib/i18n/ratio-texts";
 import type { AnalysisResult, LandmarkMap, Point, RatioId, SemanticLandmark, SemanticLandmarkId } from "@/engine/types";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +56,7 @@ const C = {
 
 export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMesh, scanning, edit, highlight, className, compact, onSelect, selectedId }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { lang } = useT();
   const [hover, setHover] = useState<SemanticLandmarkId | null>(null);
   const [drag, setDrag] = useState(false);
   const [neckFirst, setNeckFirst] = useState<Point | null>(null);
@@ -428,11 +431,11 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
       </svg>
       {info && !compact && (
         <div className="absolute left-2 bottom-2 max-w-[85%] glass-strong rounded-xl px-3 py-2 text-xs pointer-events-none">
-          <div className="font-medium text-fg-0">{info.label}</div>
+          <div className="font-medium text-fg-0">{landmarkLabel(info.id, lang, info.label)}</div>
           <div className="text-fg-2 font-mono text-[11px] mt-0.5">
             ({info.raw.x.toFixed(0)}, {info.raw.y.toFixed(0)}) px · {info.source} · {info.precision} · conf {(info.confidence * 100).toFixed(0)} %{info.meshIndex != null ? ` · mesh #${info.meshIndex}` : info.meshIndices ? ` · mesh ${info.meshIndices.join("/")}` : ""}
           </div>
-          {info.note && <div className="text-fg-3 mt-0.5">{info.note}</div>}
+          {landmarkNote(info.noteCode, lang, info.note) && <div className="text-fg-3 mt-0.5">{landmarkNote(info.noteCode, lang, info.note)}</div>}
         </div>
       )}
     </div>

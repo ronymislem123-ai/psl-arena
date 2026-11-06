@@ -10,9 +10,11 @@ import { Progress } from "@/components/ui/progress";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { PageHeader } from "@/components/layout/app-shell";
 import { LandmarkCanvas, LAYERS, type LayerId } from "@/components/viz/landmark-canvas";
-import { ADDITIONAL_BY_ID, CATEGORY_META, RATIO_BY_ID, RATIO_DEFINITIONS } from "@/engine/ratios/database";
-import { explainRatio, formatT1, formatValue } from "@/engine/explain";
-import type { AnalysisResult, RatioResult, SemanticLandmark } from "@/engine/types";
+import { ADDITIONAL_BY_ID, RATIO_BY_ID, RATIO_DEFINITIONS } from "@/engine/ratios/database";
+import { formatT1, formatValue } from "@/engine/explain";
+import { additionalNote, featureGroupLabel, featureLabel, featureNote, featureSummary, issueText, landmarkDisplayLabel, localizedExplanation, metricText, sourceText, symmetryMetricLabel, symmetryNote, unavailableText, warningTexts } from "@/lib/i18n/engine-text";
+import { additionalText, categoryText, landmarkNote, ratioText } from "@/lib/i18n/ratio-texts";
+import type { AnalysisResult, FeatureObservation, RatioResult, SemanticLandmark } from "@/engine/types";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { useSessionImage } from "@/lib/session-images";
@@ -79,8 +81,9 @@ function ImagePanel({ result, src, width, height, layer, showMesh, onSelect, sel
 }
 
 function Overview({ result, src, width, height }: { result: AnalysisResult; src: string | null; width: number; height: number }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const s = result.scores;
+  const warnings = warningTexts(result, lang);
   const inT1 = result.ratios.filter((r) => r.inT1).map((r) => RATIO_BY_ID[r.id]);
   const notable = result.ratios.filter((r) => r.availability === "available" && r.inT1 === false && (r.index ?? 100) < 50).sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).slice(0, 8);
   const uncertain = result.ratios.filter((r) => r.availability === "available" && r.uncertain);
@@ -92,12 +95,12 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
             <ImagePanel result={result} src={src} width={width} height={height} layer="ratios" />
           </CardBody>
         </Card>
-        {result.warnings.length > 0 && (
+        {warnings.length > 0 && (
           <Card>
             <CardHeader title={t("analysis.warnings")} icon={<AlertTriangle size={18} className="text-amber" />} />
             <CardBody>
               <ul className="space-y-1.5 text-sm text-fg-1">
-                {result.warnings.map((w, i) => (
+                {warnings.map((w, i) => (
                   <li key={i} className="flex gap-2">
                     <span className="text-amber">•</span>
                     {w}
@@ -116,7 +119,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
               <div className="flex-1 w-full space-y-3">
                 <div className="font-display text-xl font-semibold">{scoreLabel(s.overall, t)}</div>
                 <div className="text-xs text-fg-3">
-                  0.8 × {t("analysis.proportion")} + 0.2 × {t("analysis.symmetryScore")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
+                  {t("analysis.overallFormula")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -137,11 +140,11 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
           </CardBody>
         </Card>
         <Card>
-          <CardHeader title={t("analysis.overview")} subtitle="Category indices (0–100), confidence-weighted" />
+          <CardHeader title={t("analysis.overview")} subtitle={t("analysis.categoryIndices")} />
           <CardBody className="space-y-2.5">
             {result.categories.map((c) => (
               <div key={c.id} className="grid grid-cols-[120px_1fr_auto] items-center gap-3">
-                <div className="text-sm">{CATEGORY_META[c.id].label}</div>
+                <div className="text-sm">{categoryText(c.id, lang).label}</div>
                 <Progress value={c.index} tone={scoreTone(c.index)} />
                 <div className="text-right font-mono text-xs num w-24 text-fg-2">
                   {fmt.score(c.index)} <span className="text-fg-3">· {c.coverage.available}/{c.coverage.total}</span>
@@ -155,7 +158,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
           <CardBody>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label={t("analysis.t1Count")} value={`${result.original.t1Count}/${result.original.evaluableCount}`} />
-              <Stat label="Points (T1 × 10)" value={`${result.original.pointsFromT1}/${result.original.theoreticalMax}`} />
+              <Stat label={t("analysis.points")} value={`${result.original.pointsFromT1}/${result.original.theoreticalMax}`} />
               <Stat label={t("analysis.coverageAdjusted")} value={result.original.coverageAdjustedT1Percent == null ? "—" : `${result.original.coverageAdjustedT1Percent.toFixed(0)} %`} />
               <Stat label={t("analysis.originalPercent")} value={result.original.originalPercent == null ? t("analysis.notComputable") : `${result.original.originalPercent.toFixed(0)} %`} />
             </div>
@@ -170,7 +173,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
           </CardBody>
         </Card>
         <div className="grid gap-5 md:grid-cols-3">
-          <ListCard title={t("analysis.strengths")} items={inT1.map((d) => `${d.abbreviation} · ${d.name}`)} tone="mint" />
+          <ListCard title={t("analysis.strengths")} items={inT1.map((d) => `${d.abbreviation} · ${ratioText(d.id, lang).name}`)} tone="mint" />
           <ListCard title={t("analysis.notable")} items={notable.map((r) => `${RATIO_BY_ID[r.id].abbreviation} ${formatValue(r.value, RATIO_BY_ID[r.id].unit)} (T1 ${formatT1(RATIO_BY_ID[r.id])})`)} tone="amber" />
           <ListCard title={t("analysis.uncertainAreas")} items={uncertain.map((r) => `${RATIO_BY_ID[r.id].abbreviation} · ${fmt.pct(r.confidence)}`)} tone="rose" />
         </div>
@@ -211,7 +214,7 @@ function ListCard({ title, items, tone }: { title: string; items: string[]; tone
 }
 
 function RatioTable({ result, src, width, height }: { result: AnalysisResult; src: string | null; width: number; height: number }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [open, setOpen] = useState<RatioResult | null>(null);
   const [filter, setFilter] = useState<"all" | "available" | "t1" | "outside" | "unavailable">("all");
   const rows = result.ratios.filter((r) => {
@@ -222,17 +225,17 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
     return true;
   });
   const def = open ? RATIO_BY_ID[open.id] : null;
-  const expl = open ? explainRatio(open, result.landmarks) : null;
+  const expl = open ? localizedExplanation(open, result.landmarks, lang) : null;
   return (
     <Card>
       <CardHeader
         title={t("analysis.ratios")}
         action={
           <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="h-8 text-xs">
-            <option value="all">All</option>
+            <option value="all">{t("analysis.all")}</option>
             <option value="available">{t("analysis.evaluable")}</option>
             <option value="t1">T1</option>
-            <option value="outside">Outside T1</option>
+            <option value="outside">{t("analysis.outsideT1")}</option>
             <option value="unavailable">{t("analysis.unavailable")}</option>
           </Select>
         }
@@ -255,12 +258,12 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
               const d = RATIO_BY_ID[r.id];
               const avail = r.availability === "available";
               return (
-                <tr key={r.id} className="border-t border-line hover:bg-white/3 cursor-pointer" onClick={() => setOpen(r)}>
+                <tr key={r.id} className="border-t border-line hover:bg-white/3 cursor-pointer" onClick={() => setOpen(r)} title={avail ? undefined : unavailableText(r, lang)}>
                   <td className="py-2 font-mono text-xs text-fg-3">{d.number}</td>
                   <td className="py-2">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{d.abbreviation}</span>
-                      <span className="text-xs text-fg-3 hidden md:inline truncate max-w-[220px]">{d.name}</span>
+                      <span className="text-xs text-fg-3 hidden md:inline truncate max-w-[220px]">{ratioText(d.id, lang).name}</span>
                       <Badge tone={statusTone(d.status)} className="px-1 py-0 text-[9px]">{t(`analysis.status.${d.status}`)}</Badge>
                     </div>
                   </td>
@@ -270,7 +273,7 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
                   </td>
                   <td className="py-2 pl-4 font-mono text-xs text-fg-2">{formatT1(d)}</td>
                   <td className="py-2 pl-4">
-                    {avail ? r.tier ? <Badge tone="mint">{r.tier} +{r.tierPoints}</Badge> : <Badge tone="amber">outside T1</Badge> : <Badge tone="muted">{r.availability === "excluded" ? t("analysis.excluded") : "n/a"}</Badge>}
+                    {avail ? r.tier ? <Badge tone="mint">{r.tier} +{r.tierPoints}</Badge> : <Badge tone="amber">{t("analysis.outsideT1")}</Badge> : <Badge tone="muted">{r.availability === "excluded" ? t("analysis.excluded") : "n/a"}</Badge>}
                   </td>
                   <td className="py-2 pl-4">
                     <div className="flex items-center gap-2">
@@ -285,14 +288,14 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
           </tbody>
         </table>
       </CardBody>
-      <Dialog open={!!open} onClose={() => setOpen(null)} title={def ? `${def.abbreviation} — ${def.name}` : ""} wide>
+      <Dialog open={!!open} onClose={() => setOpen(null)} title={def ? `${def.abbreviation} — ${ratioText(def.id, lang).name}` : ""} wide>
         {open && def && expl && (
           <div className="grid gap-5 md:grid-cols-[1fr_1fr]">
             <div className="space-y-3 text-sm">
               <div className="flex flex-wrap gap-2">
                 <Badge tone={statusTone(def.status)}>{t(`analysis.status.${def.status}`)}</Badge>
-                <Badge tone="cyan">{CATEGORY_META[def.category].label}</Badge>
-                {open.availability === "available" && (open.tier ? <Badge tone="mint">{open.tier} · +{open.tierPoints}</Badge> : <Badge tone="amber">outside T1 · tier undetermined</Badge>)}
+                <Badge tone="cyan">{categoryText(def.category, lang).label}</Badge>
+                {open.availability === "available" && (open.tier ? <Badge tone="mint">{open.tier} · +{open.tierPoints}</Badge> : <Badge tone="amber">{t("analysis.outsideT1")} · {t("analysis.tierUndetermined")}</Badge>)}
               </div>
               <Row k={t("analysis.detail.what")} v={expl.what} />
               <Row k={t("analysis.detail.how")} v={expl.how} />
@@ -313,7 +316,7 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
                 }
               />
               <Row k={t("analysis.detail.landmarks")} v={expl.landmarkLabels.join(", ") || "—"} />
-              <div className="text-[11px] text-fg-3">{def.source}</div>
+              <div className="text-[11px] text-fg-3">{sourceText(lang)}</div>
             </div>
             <div>
               {src ? <LandmarkCanvas imageSrc={src} width={width} height={height} result={result} layer={layerForCategory(def.category)} highlight={def.landmarks} compact /> : <Empty>{t("profiles.noImage")}</Empty>}
@@ -339,7 +342,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 function Landmarks({ result, src, width, height }: { result: AnalysisResult; src: string | null; width: number; height: number }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const showMeshDefault = useSettings((s) => s.showMeshByDefault);
   const [layer, setLayer] = useState<LayerId>("landmarks");
   const [showMesh, setShowMesh] = useState(showMeshDefault);
@@ -369,13 +372,13 @@ function Landmarks({ result, src, width, height }: { result: AnalysisResult; src
         </CardBody>
       </Card>
       <Card>
-        <CardHeader title={sel ? sel.label : t("analysis.landmarks")} subtitle={sel ? `${sel.source} · ${sel.precision} · ${fmt.pct(sel.confidence)}` : `${result.landmarks.length} semantic landmarks · roll ${result.mesh.rollDeg.toFixed(1)}°`} />
+        <CardHeader title={sel ? landmarkDisplayLabel(sel, lang) : t("analysis.landmarks")} subtitle={sel ? `${sel.source} · ${sel.precision} · ${fmt.pct(sel.confidence)}${landmarkNote(sel.noteCode, lang, sel.note) ? ` · ${landmarkNote(sel.noteCode, lang, sel.note)}` : ""}` : `${result.landmarks.length} ${t("analysis.semanticLandmarks")} · ${t("analysis.roll")} ${result.mesh.rollDeg.toFixed(1)}°`} />
         <CardBody>
           <div className="max-h-[520px] overflow-y-auto scrollbar-thin divide-y divide-line">
             {result.landmarks.map((l) => (
               <button key={l.id} onClick={() => setSel(l)} className={cn("w-full text-left py-2 flex items-center justify-between gap-2 text-xs hover:bg-white/3 px-1 -mx-1 rounded", sel?.id === l.id && "bg-accent/10")}>
                 <span className="truncate">
-                  {l.label} <span className="text-fg-3">· {l.region}</span>
+                  {landmarkDisplayLabel(l, lang)} <span className="text-fg-3">· {l.region}</span>
                 </span>
                 <span className="font-mono text-fg-3 shrink-0">
                   {l.raw.x.toFixed(0)},{l.raw.y.toFixed(0)} · {l.source[0]}/{l.precision[0]} · {fmt.pct(l.confidence)}
@@ -390,7 +393,7 @@ function Landmarks({ result, src, width, height }: { result: AnalysisResult; src
 }
 
 function Symmetry({ result, src, width, height }: { result: AnalysisResult; src: string | null; width: number; height: number }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const s = result.symmetry;
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
@@ -400,16 +403,16 @@ function Symmetry({ result, src, width, height }: { result: AnalysisResult; src:
         </CardBody>
       </Card>
       <Card>
-        <CardHeader title={t("analysis.symmetry")} subtitle={s.note} action={<ScoreRing value={s.score} size={72} stroke={6} animate={false} />} />
+        <CardHeader title={t("analysis.symmetry")} subtitle={symmetryNote(s, lang)} action={<ScoreRing value={s.score} size={72} stroke={6} animate={false} />} />
         <CardBody className="space-y-2">
           <div className="text-xs text-fg-3 mb-2">
             {t("common.confidence")} {fmt.pct(s.confidence)} · σ {s.sigma?.toFixed(1) ?? "—"}
           </div>
           {s.metrics.map((m) => (
             <div key={m.id} className="grid grid-cols-[1fr_auto_80px] items-center gap-3 text-sm">
-              <div className="truncate">{m.label}</div>
+              <div className="truncate">{symmetryMetricLabel(m, lang)}</div>
               <div className="font-mono text-xs text-fg-2 num">
-                {m.unit === "deg" ? `${m.value.toFixed(1)}°` : m.unit === "percent" ? `${m.value.toFixed(1)} %` : `${(m.value * 100).toFixed(1)} % IPD`} <span className="text-fg-3">/ tol {m.unit === "deg" ? `${m.tolerance}°` : m.unit === "percent" ? `${m.tolerance} %` : `${(m.tolerance * 100).toFixed(0)} %`}</span>
+                {m.unit === "deg" ? `${m.value.toFixed(1)}°` : m.unit === "percent" ? `${m.value.toFixed(1)} %` : `${(m.value * 100).toFixed(1)} % IPD`} <span className="text-fg-3">/ {t("analysis.tolerance")} {m.unit === "deg" ? `${m.tolerance}°` : m.unit === "percent" ? `${m.tolerance} %` : `${(m.tolerance * 100).toFixed(0)} %`}</span>
               </div>
               <Progress value={m.score} tone={scoreTone(m.score)} animate={false} />
             </div>
@@ -421,52 +424,50 @@ function Symmetry({ result, src, width, height }: { result: AnalysisResult; src:
 }
 
 function Features({ result }: { result: AnalysisResult }) {
-  const { t } = useT();
-  const groups: { id: string; label: string }[] = [
-    { id: "eyesBrows", label: "A · Eyes & Brows" },
-    { id: "midface", label: "B · Midface & Cheekbones" },
-    { id: "jawChin", label: "C · Jaw & Chin" },
-    { id: "noseLips", label: "D · Nose & Lips" },
-    { id: "overall", label: "E · Overall Facial Structure" },
-  ];
+  const { t, lang } = useT();
+  const groups: FeatureObservation["group"][] = ["eyesBrows", "midface", "jawChin", "noseLips", "overall"];
   const kindTone = (k: string) => (k === "measured" ? "mint" : k === "approximate" ? "cyan" : k === "visual-estimate" ? "amber" : "muted");
   return (
     <div className="space-y-5">
-      <p className="text-sm text-fg-2">Geometric features reuse the measured ratios; visual properties are explicitly marked as not determinable from 2D landmarks. None of these observations are added to the overall score a second time.</p>
+      <p className="text-sm text-fg-2">{t("analysis.featuresIntro")}</p>
       <div className="grid gap-5 md:grid-cols-2">
         {groups.map((g) => (
-          <Card key={g.id}>
-            <CardHeader title={g.label} />
+          <Card key={g}>
+            <CardHeader title={featureGroupLabel(g, lang)} />
             <CardBody>
               <ul className="divide-y divide-line">
-                {result.features.filter((f) => f.group === g.id).map((f) => (
-                  <li key={f.id} className="py-2 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm">{f.label}</div>
-                      <div className="text-xs text-fg-2">{f.summary}</div>
-                      {f.note && <div className="text-[11px] text-fg-3">{f.note}</div>}
-                    </div>
-                    <Badge tone={kindTone(f.kind)}>{t(`analysis.kinds.${f.kind}`)}</Badge>
-                  </li>
-                ))}
+                {result.features.filter((f) => f.group === g).map((f) => {
+                  const note = featureNote(f, lang);
+                  return (
+                    <li key={f.id} className="py-2 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm">{featureLabel(f, lang)}</div>
+                        <div className="text-xs text-fg-2">{featureSummary(f, lang, result.symmetry.metrics)}</div>
+                        {note && <div className="text-[11px] text-fg-3">{note}</div>}
+                      </div>
+                      <Badge tone={kindTone(f.kind)}>{t(`analysis.kinds.${f.kind}`)}</Badge>
+                    </li>
+                  );
+                })}
               </ul>
             </CardBody>
           </Card>
         ))}
         <Card>
-          <CardHeader title={t("analysis.additional")} subtitle="Outside the 42-ratio core scoring" />
+          <CardHeader title={t("analysis.additional")} subtitle={t("analysis.additionalSub")} />
           <CardBody>
             <ul className="divide-y divide-line">
               {result.additional.map((m) => {
                 const d = ADDITIONAL_BY_ID[m.id];
+                const tx = additionalText(m.id, lang);
                 return (
                   <li key={m.id} className="py-2">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium">{d.name}</div>
-                      <Badge tone={m.availability === "available" ? "cyan" : "muted"}>{m.availability === "available" ? (d.status === "measurable" ? "measured" : "raw only") : "unavailable"}</Badge>
+                      <div className="text-sm font-medium">{tx.name}</div>
+                      <Badge tone={m.availability === "available" ? "cyan" : "muted"}>{m.availability === "available" ? (d.status === "measurable" ? t("analysis.measuredTag") : t("analysis.rawOnly")) : t("analysis.unavailableTag")}</Badge>
                     </div>
-                    <div className="text-xs text-fg-2 mt-0.5">{m.note}</div>
-                    {d.referenceValue && <div className="text-[11px] text-fg-3">Reference: {d.referenceValue}</div>}
+                    <div className="text-xs text-fg-2 mt-0.5">{additionalNote(m, lang)}</div>
+                    {tx.referenceValue && <div className="text-[11px] text-fg-3">{t("analysis.reference")}: {tx.referenceValue}</div>}
                   </li>
                 );
               })}
@@ -479,7 +480,7 @@ function Features({ result }: { result: AnalysisResult }) {
 }
 
 function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: string }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const q = result.quality;
   const u = result.uncertainty;
   return (
@@ -488,18 +489,21 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
         <CardHeader title={t("analysis.quality")} action={<Badge tone={levelTone(q.level)}>{t(`quality.${q.level}`)} · {fmt.pct(q.score)}</Badge>} />
         <CardBody className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
-            {q.metrics.map((m) => (
-              <div key={m.id} className="rounded-xl border border-line bg-bg-1/50 p-3">
-                <div className="text-[10px] uppercase tracking-wider text-fg-3">{m.label}</div>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono num">
-                    {m.value} <span className="text-fg-3 text-xs">{m.unit}</span>
-                  </span>
-                  <Badge tone={levelTone(m.level)}>{t(`quality.${m.level}`)}</Badge>
+            {q.metrics.map((m) => {
+              const mt = metricText(m, lang);
+              return (
+                <div key={m.id} className="rounded-xl border border-line bg-bg-1/50 p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-fg-3">{mt.label}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono num">
+                      {m.value} <span className="text-fg-3 text-xs">{mt.unit}</span>
+                    </span>
+                    <Badge tone={levelTone(m.level)}>{t(`quality.${m.level}`)}</Badge>
+                  </div>
+                  <div className="text-[10px] text-fg-3 mt-1">{mt.hint}</div>
                 </div>
-                <div className="text-[10px] text-fg-3 mt-1">{m.hint}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wider text-fg-3 mb-1">{t("analysis.pose")} / {t("analysis.expression")}</div>
@@ -512,7 +516,7 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
               {q.issues.map((i, k) => (
                 <li key={k} className={cn("flex gap-2 text-sm", i.severity === "error" ? "text-[#ff8fa3]" : i.severity === "warning" ? "text-amber" : "text-fg-2")}>
                   {i.severity === "error" ? <XCircle size={16} className="shrink-0 mt-0.5" /> : i.severity === "warning" ? <AlertTriangle size={16} className="shrink-0 mt-0.5" /> : <Info size={16} className="shrink-0 mt-0.5" />}
-                  <span>{i.message}</span>
+                  <span>{issueText(i, lang)}</span>
                 </li>
               ))}
             </ul>
@@ -529,19 +533,19 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
                 <Stat label="σ proportion" value={u.proportionSigma.toFixed(2)} />
                 <Stat label="σ harmony" value={u.harmonySigma.toFixed(2)} />
                 <Stat label="σ symmetry" value={u.symmetrySigma.toFixed(2)} />
-                <Stat label="samples" value={String(u.samples)} />
-                <Stat label="jitter σ (px)" value={u.jitterPx.toFixed(2)} />
+                <Stat label={t("analysis.samples")} value={String(u.samples)} />
+                <Stat label={t("analysis.jitter")} value={u.jitterPx.toFixed(2)} />
                 {result.categories.map((c) => (
-                  <Stat key={c.id} label={`σ ${CATEGORY_META[c.id].label}`} value={c.sigma?.toFixed(2) ?? "—"} />
+                  <Stat key={c.id} label={`σ ${categoryText(c.id, lang).label}`} value={c.sigma?.toFixed(2) ?? "—"} />
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-fg-3">Uncertainty simulation disabled.</div>
+              <div className="text-sm text-fg-3">{t("analysis.uncertaintyDisabled")}</div>
             )}
           </CardBody>
         </Card>
         <Card>
-          <CardHeader title="Configuration" />
+          <CardHeader title={t("analysis.configuration")} />
           <CardBody className="text-sm text-fg-1 font-mono space-y-1">
             <div>includeReconstructed = {String(result.config.includeReconstructed)}</div>
             <div>captureDistance = {result.config.captureDistance}</div>
@@ -549,7 +553,7 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
             <div>engine = {result.engineVersion} · id = {analysisId}</div>
             <div className="pt-2">
               <a href={`/api/analyses/${analysisId}`} target="_blank" rel="noreferrer">
-                <Button variant="outline" size="sm">Raw JSON</Button>
+                <Button variant="outline" size="sm">{t("analysis.rawJson")}</Button>
               </a>
             </div>
           </CardBody>

@@ -7,8 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { PageHeader } from "@/components/layout/app-shell";
 import { Arena, BattleSummaryLinks, type ArenaSide } from "./arena";
-import { RATIO_BY_ID, RATIO_DEFINITIONS, CATEGORY_META } from "@/engine/ratios/database";
+import { RATIO_BY_ID, RATIO_DEFINITIONS } from "@/engine/ratios/database";
 import { formatT1, formatValue } from "@/engine/explain";
+import { battleRoundLabel, battleSummary, verdictReason } from "@/lib/i18n/engine-text";
+import { categoryText, ratioText } from "@/lib/i18n/ratio-texts";
 import type { BattleResult, RatioId } from "@/engine/types";
 import { useT } from "@/lib/i18n";
 import { useSessionImage } from "@/lib/session-images";
@@ -39,7 +41,7 @@ export function BattleView({ battle, a: a0, b: b0, createdAt }: { battle: Battle
           <Arena battle={battle} a={a} b={b} onFinished={() => setFinished(true)} />
           {finished && (
             <div className="glass rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <p className="text-sm text-fg-1">{battle.summary}</p>
+              <p className="text-sm text-fg-1">{battleSummary(battle, { a: a.label, b: b.label }, lang)}</p>
               <BattleSummaryLinks a={a} b={b} />
             </div>
           )}
@@ -52,12 +54,12 @@ export function BattleView({ battle, a: a0, b: b0, createdAt }: { battle: Battle
 }
 
 function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: ArenaSide }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const verdictText = battle.verdict === "A" ? `${a.label} — ${t("battle.winner")}` : battle.verdict === "B" ? `${b.label} — ${t("battle.winner")}` : battle.verdict === "draw" ? t("battle.verdictDraw") : t("battle.verdictInconclusive");
   return (
     <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
       <Card strong>
-        <CardHeader title={t("battle.reveal")} subtitle={battle.verdictReason} />
+        <CardHeader title={t("battle.reveal")} subtitle={verdictReason(battle, lang)} />
         <CardBody className="space-y-5">
           <div className="flex items-center justify-around">
             <div className="text-center">
@@ -92,7 +94,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
               </div>
             ))}
           </div>
-          <p className="text-sm text-fg-1">{battle.summary}</p>
+          <p className="text-sm text-fg-1">{battleSummary(battle, { a: a.label, b: b.label }, lang)}</p>
           <BattleSummaryLinks a={a} b={b} />
         </CardBody>
       </Card>
@@ -105,7 +107,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
                 {battle.rounds.map((r, i) => (
                   <tr key={r.id} className="border-t border-line">
                     <td className="py-2 font-mono text-xs text-fg-3 w-8">{String(i + 1).padStart(2, "0")}</td>
-                    <td className="py-2">{r.label}</td>
+                    <td className="py-2">{battleRoundLabel(r, lang)}</td>
                     <td className={cn("py-2 text-right num font-mono", r.winner === "A" && "text-mint")}>{fmt.score(r.a)}</td>
                     <td className={cn("py-2 text-right num font-mono", r.winner === "B" && "text-mint")}>{fmt.score(r.b)}</td>
                     <td className="py-2 text-right text-xs text-fg-3 font-mono">±{r.margin.toFixed(1)}</td>
@@ -131,7 +133,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
                     <li key={k.ratioId} className="flex items-center gap-3 text-sm">
                       <Badge tone={k.favours === "A" ? "accent" : "violet"}>{k.favours === "A" ? a.label : b.label}</Badge>
                       <span className="font-medium">{def.abbreviation}</span>
-                      <span className="text-fg-3 text-xs truncate flex-1">{def.name}</span>
+                      <span className="text-fg-3 text-xs truncate flex-1">{ratioText(def.id, lang).name}</span>
                       <span className="font-mono text-xs num">
                         {formatValue(k.a, def.unit)} · {formatValue(k.b, def.unit)}
                       </span>
@@ -149,7 +151,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
 }
 
 function Compare({ a, b }: { a: ArenaSide; b: ArenaSide }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const ra = Object.fromEntries(a.analysis.ratios.map((r) => [r.id, r]));
   const rb = Object.fromEntries(b.analysis.ratios.map((r) => [r.id, r]));
   return (
@@ -167,7 +169,7 @@ function Compare({ a, b }: { a: ArenaSide; b: ArenaSide }) {
                     <div className="h-2 rounded-full bg-accent" style={{ width: `${ca.index ?? 0}%` }} />
                   </div>
                 </div>
-                <div className="text-xs text-fg-2 w-28 text-center">{CATEGORY_META[ca.id].label}</div>
+                <div className="text-xs text-fg-2 w-28 text-center">{categoryText(ca.id, lang).label}</div>
                 <div className="flex items-center gap-2">
                   <div className="w-full max-w-[320px]">
                     <div className="h-2 rounded-full bg-violet" style={{ width: `${cb.index ?? 0}%` }} />
@@ -195,9 +197,9 @@ function Compare({ a, b }: { a: ArenaSide; b: ArenaSide }) {
                 <th className="text-right py-2">{a.label}</th>
                 <th className="text-right py-2">{b.label}</th>
                 <th className="text-left py-2 pl-4">{t("analysis.columns.t1")}</th>
-                <th className="text-right py-2">Idx A</th>
-                <th className="text-right py-2">Idx B</th>
-                <th className="text-right py-2">Δ</th>
+                <th className="text-right py-2">{t("battle.idxA")}</th>
+                <th className="text-right py-2">{t("battle.idxB")}</th>
+                <th className="text-right py-2">{t("battle.delta")}</th>
               </tr>
             </thead>
             <tbody>
@@ -208,8 +210,8 @@ function Compare({ a, b }: { a: ArenaSide; b: ArenaSide }) {
                 return (
                   <tr key={def.id} className="border-t border-line">
                     <td className="py-1.5 font-mono text-fg-3">{def.number}</td>
-                    <td className="py-1.5">
-                      <span className="font-medium">{def.abbreviation}</span> <Badge tone={statusTone(def.status)} className="ml-1 px-1 py-0 text-[9px]">{def.status[0].toUpperCase()}</Badge>
+                    <td className="py-1.5" title={ratioText(def.id, lang).name}>
+                      <span className="font-medium">{def.abbreviation}</span> <Badge tone={statusTone(def.status)} className="ml-1 px-1 py-0 text-[9px]">{t(`analysis.status.${def.status}`)[0]}</Badge>
                     </td>
                     <td className={cn("py-1.5 text-right font-mono num", x.inT1 && "text-mint")}>{x.availability === "available" ? formatValue(x.value, def.unit) : "—"}</td>
                     <td className={cn("py-1.5 text-right font-mono num", y.inT1 && "text-mint")}>{y.availability === "available" ? formatValue(y.value, def.unit) : "—"}</td>

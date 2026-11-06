@@ -56,25 +56,36 @@ export function resolveBattle(A: AnalysisResult, B: AnalysisResult): BattleResul
 
   let verdict: Verdict;
   let reason: string;
+  let verdictCode: BattleResult["verdictCode"];
+  let verdictParams: Record<string, number> = {};
   const covA = A.coverage.fraction;
   const covB = B.coverage.fraction;
   if (!A.quality.analyzable || !B.quality.analyzable) {
     verdict = "inconclusive";
+    verdictCode = "qualityFailed";
     reason = "At least one image failed the quality check; no verdict is possible.";
   } else if (overallA == null || overallB == null) {
     verdict = "inconclusive";
+    verdictCode = "noOverall";
     reason = "An overall score could not be computed for at least one person.";
   } else if (covA < MIN_COVERAGE_FOR_VERDICT || covB < MIN_COVERAGE_FOR_VERDICT) {
     verdict = "inconclusive";
+    verdictCode = "lowCoverage";
+    verdictParams = { covA: Math.round(covA * 100), covB: Math.round(covB * 100), min: MIN_COVERAGE_FOR_VERDICT * 100 };
     reason = `Scoring coverage is too low (${Math.round(covA * 100)} % vs ${Math.round(covB * 100)} %; at least ${MIN_COVERAGE_FOR_VERDICT * 100} % required).`;
   } else if (A.scores.confidence < MIN_CONFIDENCE_FOR_VERDICT || B.scores.confidence < MIN_CONFIDENCE_FOR_VERDICT) {
     verdict = "inconclusive";
+    verdictCode = "lowConfidence";
     reason = "Measurement confidence is too low for a conclusive result (image quality, pose or expression).";
   } else if (Math.abs(diff as number) <= mOverall) {
     verdict = "draw";
+    verdictCode = "draw";
+    verdictParams = { diff: Math.abs(diff as number), margin: mOverall };
     reason = `The overall difference (${Math.abs(diff as number).toFixed(1)} points) lies within the measurement uncertainty (±${mOverall.toFixed(1)}).`;
   } else {
     verdict = (diff as number) > 0 ? "B" : "A";
+    verdictCode = "winner";
+    verdictParams = { diff: Math.abs(diff as number), margin: mOverall };
     reason = `Overall difference of ${Math.abs(diff as number).toFixed(1)} points exceeds the uncertainty margin of ±${mOverall.toFixed(1)}.`;
   }
 
@@ -119,6 +130,8 @@ export function resolveBattle(A: AnalysisResult, B: AnalysisResult): BattleResul
     margin: mOverall,
     verdict,
     verdictReason: reason,
+    verdictCode,
+    verdictParams,
     coverageA: covA,
     coverageB: covB,
     confidenceA: A.scores.confidence,

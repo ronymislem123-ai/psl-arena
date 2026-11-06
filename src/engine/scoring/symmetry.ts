@@ -35,7 +35,7 @@ export function computeSymmetry(map: LandmarkMap, quality: QualityReport): Symme
   const pl = map.pupil_L;
   const mid = midlineX(map);
   if (!pr || !pl || mid === null) {
-    return { score: null, metrics: [], confidence: 0, note: "Pupils not available." };
+    return { score: null, metrics: [], confidence: 0, note: "Pupils not available.", noteCode: "pupilsMissing" };
   }
   const ipd = dist(pr.aligned, pl.aligned);
   const metrics: SymmetryMetric[] = [];
@@ -94,5 +94,6 @@ export function computeSymmetry(map: LandmarkMap, quality: QualityReport): Symme
       Math.abs(quality.pose.yaw) > 6
         ? "Head yaw inflates apparent asymmetry; symmetry confidence reduced."
         : "Bilateral landmark comparison after roll normalisation, relative to a fitted facial midline.",
+    noteCode: Math.abs(quality.pose.yaw) > 6 ? "yawInflates" : "standard",
   };
 }

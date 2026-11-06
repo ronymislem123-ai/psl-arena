@@ -166,7 +166,7 @@ export function ProfileDetail({ profile, analyses }: { profile: ProfileRow; anal
                 ))}
               </svg>
             )}
-            <div className="text-xs text-fg-3 mt-2">{scores.length} data points</div>
+            <div className="text-xs text-fg-3 mt-2">{scores.length} {t("analysis.dataPoints")}</div>
           </CardBody>
         </Card>
       </div>

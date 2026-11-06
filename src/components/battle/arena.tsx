@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScoreRing, useCountUp } from "@/components/ui/score-ring";
 import { FaceThumb } from "@/components/shared/face-thumb";
 import { useT } from "@/lib/i18n";
+import { battleRoundLabel, verdictReason } from "@/lib/i18n/engine-text";
 import { useSettings } from "@/lib/settings";
 import { cn, fmt } from "@/lib/utils";
 import { imageUrl } from "@/lib/api";
@@ -80,7 +81,7 @@ export function Arena({ battle, a, b, onFinished }: { battle: BattleResult; a: A
       {/* top bar */}
       <div className="relative flex items-center justify-between px-4 md:px-6 py-3 border-b border-line">
         <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.25em] text-cyan/80">
-          <Swords size={14} /> {t("battle.arena")} · {phase === "rounds" ? `${t("battle.round")} ${String(round + 1).padStart(2, "0")}/${rounds.length}` : phase}
+          <Swords size={14} /> {t("battle.arena")} · {phase === "rounds" ? `${t("battle.round")} ${String(round + 1).padStart(2, "0")}/${rounds.length}` : phase === "done" ? t("battle.done") : phase === "intro" ? t("battle.phaseIntro") : phase === "scan" ? t("battle.phaseScan") : t("battle.phaseReveal")}
         </div>
         <div className="flex items-center gap-2">
           <div className="font-mono text-xs text-fg-2 num">
@@ -188,7 +189,7 @@ function ScanDots() {
 }
 
 function RoundCenter({ round, index }: { round: BattleRound; index: number }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const va = useCountUp(round.a, 1100);
   const vb = useCountUp(round.b, 1100);
   return (
@@ -196,7 +197,7 @@ function RoundCenter({ round, index }: { round: BattleRound; index: number }) {
       <div className="font-mono text-[10px] md:text-xs uppercase tracking-[0.3em] text-cyan/80">
         {t("battle.round")} {String(index + 1).padStart(2, "0")}
       </div>
-      <div className="mt-1 font-display text-lg md:text-2xl font-bold uppercase tracking-wide">{round.label}</div>
+      <div className="mt-1 font-display text-lg md:text-2xl font-bold uppercase tracking-wide">{battleRoundLabel(round, lang)}</div>
       <div className="mt-4 flex items-center justify-center gap-3 md:gap-6">
         <span className={cn("font-display text-3xl md:text-5xl font-bold num", round.winner === "A" ? "text-mint text-glow" : "text-[#9db6ff]")}>{va == null ? "—" : va.toFixed(0)}</span>
         <span className="text-fg-3">:</span>
@@ -231,12 +232,12 @@ function RoundBars({ round, labelA, labelB }: { round: BattleRound; labelA: stri
 }
 
 function MiniRound({ r, index, labelA, labelB }: { r: BattleRound; index: number; labelA: string; labelB: string }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   return (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-bg-1/50 px-3 py-2">
       <div className="font-mono text-[10px] text-fg-3 w-6">{String(index + 1).padStart(2, "0")}</div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium truncate">{r.label}</div>
+        <div className="text-xs font-medium truncate">{battleRoundLabel(r, lang)}</div>
         <div className="text-[10px] text-fg-3 truncate">
           {r.winner === "A" ? labelA : r.winner === "B" ? labelB : r.winner === "draw" ? t("battle.draw") : "n/a"} · ±{r.margin.toFixed(1)}
         </div>
@@ -251,7 +252,7 @@ function MiniRound({ r, index, labelA, labelB }: { r: BattleRound; index: number
 }
 
 function Reveal({ battle, a, b, phase }: { battle: BattleResult; a: ArenaSide; b: ArenaSide; phase: Phase }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const title = battle.verdict === "A" ? a.label : battle.verdict === "B" ? b.label : battle.verdict === "draw" ? t("battle.verdictDraw") : t("battle.verdictInconclusive");
   return (
     <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 180, damping: 18 }} className="text-center relative">
@@ -272,7 +273,7 @@ function Reveal({ battle, a, b, phase }: { battle: BattleResult; a: ArenaSide; b
         )}
       </motion.div>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} className="mt-2 text-xs text-fg-2 max-w-xs mx-auto">
-        {battle.verdictReason}
+        {verdictReason(battle, lang)}
       </motion.div>
     </motion.div>
   );

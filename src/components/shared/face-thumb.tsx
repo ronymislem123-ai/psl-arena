@@ -2,6 +2,7 @@
 import { UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { imageUrl } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 export function FaceThumb({ imageId, label, size = 56, className, src }: { imageId?: string | null; label?: string; size?: number; className?: string; src?: string | null }) {
   const url = src ?? imageUrl(imageId);
@@ -20,7 +21,8 @@ export function FaceThumb({ imageId, label, size = 56, className, src }: { image
 }
 
 export function VerdictBadge({ verdict, labelA, labelB, className }: { verdict: string; labelA: string; labelB: string; className?: string }) {
-  const text = verdict === "A" ? `${labelA} wins` : verdict === "B" ? `${labelB} wins` : verdict === "draw" ? "Draw" : "Inconclusive";
+  const { t } = useT();
+  const text = verdict === "A" ? `${labelA} ${t("battle.wins")}` : verdict === "B" ? `${labelB} ${t("battle.wins")}` : verdict === "draw" ? t("battle.draw") : t("battle.inconclusive");
   const tone = verdict === "A" || verdict === "B" ? "bg-mint-soft text-mint border-mint/30" : verdict === "draw" ? "bg-cyan-soft text-cyan border-cyan/30" : "bg-amber-soft text-amber border-amber/30";
   return <span className={cn("inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium", tone, className)}>{text}</span>;
 }

@@ -13,6 +13,7 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | `engine.test.ts` (real landmark fixtures of four frontal portraits + one turned head + one rotated image) | 35/42 evaluable with hairline, 6 incomplete, original percentage not computable, plausible anthropometric ranges (ESR, BIG, N/H, EME, GS), symmetry present, uncertainty σ > 0, 40+ feature observations, 7 additional measurements; determinism; smile detection lowers mouth-ratio confidence; yaw 32° ⇒ not analyzable; 87° roll normalised (pupils level); hairline-dependent ratios unavailable without trichion (29 evaluable); NW only with manual neck points; reconstructed ratios excluded by config (6 excluded, uncertainty off); incomplete ratios always unmeasured |
 | `battle.test.ts` | identical inputs ⇒ draw with zero diff and no key differences; 9 rounds with consistent verdict/scores; unusable image ⇒ inconclusive; low coverage ⇒ inconclusive |
 | `symmetry.test.ts` | mirrored face ⇒ 100; mouth/jaw asymmetry penalised; yaw lowers confidence |
+| `i18n.test.ts` | every ratio/category/additional measurement/landmark has German texts; every engine message (tier, unavailability, quality issue, metric, feature summary, symmetry label, additional note, warning, battle verdict/summary) carries a code and renders in German without falling back to English |
 | `auth.test.ts` (isolated temp database) | v1→v2 schema migration in place, scrypt hashing with random salts, password policy, e-mail normalisation, legacy-data adoption on first sign-up, duplicate/incorrect credentials, cross-account isolation of profiles, session create/find/expire/destroy with hashed storage, password change signing other devices out, per-client rate limiting, account deletion cascade, cross-site mutation rejection |
 
 ### End-to-end (`npm run test:e2e`, Playwright) — 9 passed
@@ -26,7 +27,7 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | API | `/api/ratios` returns 42 + 7 without login, `/api/stats` ok when signed in, malformed analysis body ⇒ 400, a second account gets 404 for the first account's analysis and an empty list |
 | mobile layout | 390 px viewport renders setup page and dashboard |
 | battle without stored photos | second battle with storage off: arena renders the session copies (data URLs), no `/api/images` requests, server image count unchanged |
-| landmark layers & locale | nose / symmetry / jaw / thirds layers draw measurement lines on the stored photo; an analysis without a stored photo shows the landmark wireframe fallback; switching the language to German relabels the navigation |
+| landmark layers & locale | nose / symmetry / jaw / thirds layers draw measurement lines on the stored photo; an analysis without a stored photo shows the landmark wireframe fallback; switching the language to German relabels the navigation, the ratio table, the ratio detail dialog, the feature overview and the quality tab |
 
 ### Static checks
 `npm run typecheck` (strict TS) — clean · `npm run lint` — clean · `npm run build` (Turbopack production build) — succeeds.
@@ -38,7 +39,7 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * **Hairline estimation**: validated on four portraits (estimates at 65–74 % confidence placed on the hairline/upper forehead); not validated on bald heads, hats, strong bangs or very dark/very light hair-skin combinations (the manual override covers these).
 * **Multiple faces**: engine/API paths covered; the face-picker UI was only exercised manually with single-face images.
 * **Neck points & hairline dragging**: engine behaviour unit-tested; the pointer interaction was checked manually, not in the automated suite.
-* **German locale**: dictionary type-checked against the English keys; navigation relabelling is covered by e2e, the remaining pages were spot-checked manually.
+* **German locale**: dictionary type-checked against the English keys; navigation, ratio table, detail dialog, features and quality tab are covered by e2e; arena and battle summary wording in German was spot-checked manually.
 * **Battle verdict "winner"**: the fixture pair resolves to a draw within uncertainty (3.6 points vs ±7.2 margin); the winner path is covered by unit tests on synthetic differences, not by the e2e pair.
 
 ## 3. Not tested

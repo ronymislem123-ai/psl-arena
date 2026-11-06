@@ -61,24 +61,25 @@ export function evaluateRatios(map: LandmarkMap, quality: QualityReport, config:
       intermediate: {},
     };
     if (def.status === "incomplete") {
-      return { ...base, unavailableReason: "Measurement convention is incomplete in the provided material; not measured and not scored.", tierNote: "Not scored (incomplete definition)." };
+      return { ...base, unavailableReason: "Measurement convention is incomplete in the provided material; not measured and not scored.", unavailableCode: "incomplete", tierNote: "Not scored (incomplete definition).", tierCode: "notScoredIncomplete" };
     }
     const missing = def.landmarks.filter((id) => !map[id]);
     if (missing.length) {
+      const code: RatioResult["unavailableCode"] = missing.includes("trichion") ? "hairline" : missing.includes("neck_R") || missing.includes("neck_L") ? "neck" : "landmarks";
       const reason =
-        missing.includes("trichion")
+        code === "hairline"
           ? "Hairline (trichion) not available — estimate failed or not confirmed; place it manually to enable this ratio."
-          : missing.includes("neck_R") || missing.includes("neck_L")
+          : code === "neck"
             ? "Neck edge points are not placed (manual points required)."
             : `Required landmarks missing: ${missing.join(", ")}.`;
-      return { ...base, unavailableReason: reason, tierNote: "Not scored (landmarks unavailable)." };
+      return { ...base, unavailableReason: reason, unavailableCode: code, missingLandmarks: missing, tierNote: "Not scored (landmarks unavailable).", tierCode: "notScoredLandmarks" };
     }
     const m = FORMULAS[def.id](ctx);
     if (!m) {
-      return { ...base, unavailableReason: "Measurement could not be computed from the detected geometry.", tierNote: "Not scored (computation failed)." };
+      return { ...base, unavailableReason: "Measurement could not be computed from the detected geometry.", unavailableCode: "computation", tierNote: "Not scored (computation failed).", tierCode: "notScoredComputation" };
     }
     if (def.status === "reconstructed" && !config.includeReconstructed) {
-      return { ...base, value: m.value, intermediate: m.intermediate, availability: "excluded", unavailableReason: "Reconstructed measurement excluded by configuration.", tierNote: "Excluded from scoring by configuration.", confidence: 0 };
+      return { ...base, value: m.value, intermediate: m.intermediate, availability: "excluded", unavailableReason: "Reconstructed measurement excluded by configuration.", unavailableCode: "excluded", tierNote: "Excluded from scoring by configuration.", tierCode: "excluded", confidence: 0 };
     }
     const confidence = ratioConfidence(def, map, quality, config);
     const tier = assignTier(def, m.value);
@@ -96,6 +97,7 @@ export function evaluateRatios(map: LandmarkMap, quality: QualityReport, config:
       tier: tier.tier,
       tierPoints: tier.points,
       tierNote: tier.note,
+      tierCode: tier.inT1 ? "inT1" : tier.tier ? "verifiedTier" : "outsideUndetermined",
       index: indexFromDeviation(absDev, def.tolerance),
     };
   });

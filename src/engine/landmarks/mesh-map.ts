@@ -164,9 +164,10 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
     side: SemanticLandmark["side"],
     precision: LandmarkPrecision,
     note?: string,
+    noteCode?: SemanticLandmark["noteCode"],
   ) => {
     const i = MESH_INDEX[id]!;
-    add(id, label, region, side, precision, "model", A[i], R[i], { meshIndex: i, note });
+    add(id, label, region, side, precision, "model", A[i], R[i], { meshIndex: i, note, noteCode });
   };
 
   // --- eyes -------------------------------------------------------------
@@ -210,15 +211,16 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   add("brow_line", "Brow line (lower brow edge, midline)", "brow", "mid", "medium", "derived", browLineAligned, rotateAround(browLineAligned, am.pivot, am.rollDeg), {
     meshIndices: [52, 282],
     note: "Horizontal line through the lower edge of both brows at mid-brow; used as the upper bound of FWHR.",
+    noteCode: "browLine",
   });
 
   // --- nose -------------------------------------------------------------
-  addIdx("nasion", "Nasion / sellion (soft tissue)", "nose", "mid", "medium", "Deepest midline point between the eyes (mesh 168).");
+  addIdx("nasion", "Nasion / sellion (soft tissue)", "nose", "mid", "medium", "Deepest midline point between the eyes (mesh 168).", "nasion");
   addIdx("nose_bridge", "Nasal bridge", "nose", "mid", "medium");
   addIdx("pronasale", "Nose tip", "nose", "mid", "high");
   addIdx("subnasale", "Subnasale", "nose", "mid", "high");
-  addIdx("alare_R", "Alar base (right)", "nose", "right", "medium", "Lateral edge of the alar wing at the crease (mesh 48).");
-  addIdx("alare_L", "Alar base (left)", "nose", "left", "medium", "Lateral edge of the alar wing at the crease (mesh 278).");
+  addIdx("alare_R", "Alar base (right)", "nose", "right", "medium", "Lateral edge of the alar wing at the crease (mesh 48).", "alare");
+  addIdx("alare_L", "Alar base (left)", "nose", "left", "medium", "Lateral edge of the alar wing at the crease (mesh 278).", "alare");
 
   // --- mouth ------------------------------------------------------------
   addIdx("cheilion_R", "Mouth corner (right)", "mouth", "right", "high");
@@ -231,13 +233,13 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   add("stomion", "Stomion (lip contact point)", "mouth", "mid", "medium", "derived", sto, midpoint(R[13], R[14]), { meshIndices: [13, 14] });
 
   // --- face / midline ---------------------------------------------------
-  addIdx("glabella", "Glabella (mid-brow reference)", "forehead", "mid", "medium", "Midline point at brow level (mesh 9).");
+  addIdx("glabella", "Glabella (mid-brow reference)", "forehead", "mid", "medium", "Midline point at brow level (mesh 9).", "glabella");
   addIdx("menton", "Menton (chin bottom)", "chin", "mid", "high");
-  addIdx("forehead_top", "Mesh top (not the hairline)", "forehead", "mid", "low", "Upper boundary of the mesh; the hairline lies above it.");
-  addIdx("chin_corner_R", "Chin corner (right)", "chin", "right", "medium", "Lateral edge of the chin pad (mesh 176).");
-  addIdx("chin_corner_L", "Chin corner (left)", "chin", "left", "medium", "Lateral edge of the chin pad (mesh 400).");
-  addIdx("frontotemporale_R", "Frontotemporale (right)", "forehead", "right", "low", "Temple contour at brow level (mesh 21).");
-  addIdx("frontotemporale_L", "Frontotemporale (left)", "forehead", "left", "low", "Temple contour at brow level (mesh 251).");
+  addIdx("forehead_top", "Mesh top (not the hairline)", "forehead", "mid", "low", "Upper boundary of the mesh; the hairline lies above it.", "meshTop");
+  addIdx("chin_corner_R", "Chin corner (right)", "chin", "right", "medium", "Lateral edge of the chin pad (mesh 176).", "chinCorner");
+  addIdx("chin_corner_L", "Chin corner (left)", "chin", "left", "medium", "Lateral edge of the chin pad (mesh 400).", "chinCorner");
+  addIdx("frontotemporale_R", "Frontotemporale (right)", "forehead", "right", "low", "Temple contour at brow level (mesh 21).", "frontotemporale");
+  addIdx("frontotemporale_L", "Frontotemporale (left)", "forehead", "left", "low", "Temple contour at brow level (mesh 251).", "frontotemporale");
 
   // zygion: widest contour pair between lateral orbit and ear level
   let best = ZYGION_CANDIDATES[0];
@@ -252,10 +254,12 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   add("zygion_R", "Zygion (right, soft-tissue stand-in)", "cheek", "right", "low", "model", A[best[0]], R[best[0]], {
     meshIndex: best[0],
     note: "Widest point of the face contour; soft-tissue approximation of the zygomatic arch.",
+    noteCode: "zygion",
   });
   add("zygion_L", "Zygion (left, soft-tissue stand-in)", "cheek", "left", "low", "model", A[best[1]], R[best[1]], {
     meshIndex: best[1],
     note: "Widest point of the face contour; soft-tissue approximation of the zygomatic arch.",
+    noteCode: "zygion",
   });
 
   // gonion: intersection of the ramus line and the mandibular body line
@@ -268,16 +272,19 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
     let pt = ix ?? corner;
     let conf = 1;
     let note = "Constructed as the intersection of the ramus and mandibular-body contour lines.";
+    let noteCode: SemanticLandmark["noteCode"] = "gonionConstructed";
     if (!ix || dist(pt, corner) > maxOff) {
       pt = corner;
       conf = 0.8;
       note = "Contour lines did not intersect near the jaw angle; fell back to the contour corner point.";
+      noteCode = "gonionFallback";
     }
     const rawPt = rotateAround(pt, am.pivot, am.rollDeg);
     const sideCap = side === "right" ? "right" : "left";
     add(side === "right" ? "gonion_R" : "gonion_L", `Gonion (${sideCap}, frontal construction)`, "jaw", side, "low", "derived", pt, rawPt, {
       meshIndices: [...ramus, ...body],
       note,
+      noteCode,
     }, conf);
     add(side === "right" ? "ramus_upper_R" : "ramus_upper_L", `Ramus contour (${sideCap})`, "jaw", side, "low", "model", A[ramus[0]], R[ramus[0]], { meshIndex: ramus[0] });
     add(side === "right" ? "mandible_body_R" : "mandible_body_L", `Mandibular body contour (${sideCap})`, "jaw", side, "low", "model", A[body[0]], R[body[0]], { meshIndex: body[0] });
@@ -294,6 +301,7 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
         input.trichion.source === "manual"
           ? "Placed manually by the user."
           : "Estimated by scanning the forehead for the skin/hair transition; adjust if wrong.",
+      noteCode: input.trichion.source === "manual" ? "trichionManual" : "trichionEstimated",
     }, Math.max(0.3, Math.min(1, input.trichion.confidence)));
   }
 
@@ -301,8 +309,8 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   if (input.neck) {
     const r = rotateAround(input.neck.right, am.pivot, -am.rollDeg);
     const l = rotateAround(input.neck.left, am.pivot, -am.rollDeg);
-    add("neck_R", "Neck edge (right)", "neck", "right", "low", "manual", r, input.neck.right, { note: "Placed manually." });
-    add("neck_L", "Neck edge (left)", "neck", "left", "low", "manual", l, input.neck.left, { note: "Placed manually." });
+    add("neck_R", "Neck edge (right)", "neck", "right", "low", "manual", r, input.neck.right, { note: "Placed manually.", noteCode: "neckManual" });
+    add("neck_L", "Neck edge (left)", "neck", "left", "low", "manual", l, input.neck.left, { note: "Placed manually.", noteCode: "neckManual" });
   }
 
   const list = Object.values(map) as SemanticLandmark[];

@@ -7,11 +7,12 @@ import { Input, Select } from "@/components/ui/controls";
 import { LandmarkCanvas, LAYERS, type LayerId } from "@/components/viz/landmark-canvas";
 import { useBattleSetup, type Side } from "@/lib/battle-store";
 import { useT } from "@/lib/i18n";
+import { issueText, metricText } from "@/lib/i18n/engine-text";
 import { useSettings } from "@/lib/settings";
 import { cn, fmt } from "@/lib/utils";
 
 export function UploadSlot({ side }: { side: Side }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const slot = useBattleSetup((s) => s[side]);
   const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, setNeck, setNeckPlacing } = useBattleSetup();
   const showMeshDefault = useSettings((s) => s.showMeshByDefault);
@@ -217,11 +218,11 @@ export function UploadSlot({ side }: { side: Side }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             {q.metrics.map((m) => (
               <div key={m.id} className="rounded-lg bg-white/3 px-2 py-1.5">
-                <div className="text-[10px] text-fg-3 truncate">{m.label}</div>
+                <div className="text-[10px] text-fg-3 truncate">{metricText(m, lang).label}</div>
                 <div className="flex items-center justify-between gap-1">
                   <span className="font-mono text-xs num">
                     {m.value}
-                    <span className="text-fg-3"> {m.unit}</span>
+                    <span className="text-fg-3"> {metricText(m, lang).unit}</span>
                   </span>
                   <Badge tone={levelTone(m.level)} className="px-1 py-0 text-[9px]">
                     {t(`quality.${m.level}`)}
@@ -235,7 +236,7 @@ export function UploadSlot({ side }: { side: Side }) {
               {q.issues.map((i, k) => (
                 <li key={k} className={cn("flex gap-2 text-xs", i.severity === "error" ? "text-[#ff8fa3]" : i.severity === "warning" ? "text-amber" : "text-fg-2")}>
                   {i.severity === "error" ? <XCircle size={14} className="shrink-0 mt-0.5" /> : i.severity === "warning" ? <AlertTriangle size={14} className="shrink-0 mt-0.5" /> : <Info size={14} className="shrink-0 mt-0.5" />}
-                  <span>{i.message}</span>
+                  <span>{issueText(i, lang)}</span>
                 </li>
               ))}
             </ul>

@@ -127,7 +127,24 @@ export interface SemanticLandmark {
   /** 0..1 — localisation confidence used for measurement confidence. */
   confidence: number;
   note?: string;
+  /** Language-neutral note code (UI translates). */
+  noteCode?: LandmarkNoteCode;
 }
+
+export type LandmarkNoteCode =
+  | "nasion"
+  | "alare"
+  | "glabella"
+  | "meshTop"
+  | "chinCorner"
+  | "frontotemporale"
+  | "zygion"
+  | "gonionConstructed"
+  | "gonionFallback"
+  | "trichionManual"
+  | "trichionEstimated"
+  | "neckManual"
+  | "browLine";
 
 export type LandmarkMap = Partial<Record<SemanticLandmarkId, SemanticLandmark>>;
 
@@ -289,11 +306,18 @@ export interface AdditionalMeasurementDefinition {
 
 export type Availability = "available" | "unavailable" | "excluded";
 
+export type UnavailableCode = "incomplete" | "hairline" | "neck" | "landmarks" | "computation" | "excluded";
+export type TierCode = "inT1" | "outsideUndetermined" | "verifiedTier" | "notScoredIncomplete" | "notScoredLandmarks" | "notScoredComputation" | "excluded";
+
 export interface RatioResult {
   id: RatioId;
   value: number | null;
   availability: Availability;
   unavailableReason?: string;
+  /** Language-neutral reason (UI translates); `missingLandmarks` lists the ids for "landmarks". */
+  unavailableCode?: UnavailableCode;
+  missingLandmarks?: SemanticLandmarkId[];
+  tierCode?: TierCode;
   /** 0..1 */
   confidence: number;
   /** true when confidence is below the "uncertain" threshold */
@@ -314,12 +338,15 @@ export interface RatioResult {
   valueSigma?: number;
 }
 
+export type AdditionalNoteCode = "requiresProfile" | "requiresProfileSeeGS" | "fingerRule" | "fifths" | "byzBig" | "noEarLandmarks" | "noseChin" | "hairlineMissing" | "landmarksMissing";
+
 export interface AdditionalMeasurementResult {
   id: AdditionalMeasurementId;
   value: number | null;
   values?: Record<string, number>;
   availability: Availability;
   note: string;
+  noteCode?: AdditionalNoteCode;
   confidence: number;
 }
 
@@ -389,22 +416,52 @@ export interface SymmetryResult {
   metrics: SymmetryMetric[];
   confidence: number;
   note: string;
+  noteCode?: "pupilsMissing" | "yawInflates" | "standard";
   sigma?: number;
 }
 
 export type FeatureKind = "measured" | "approximate" | "visual-estimate" | "not-determinable";
+
+export type FeatureSummaryCode =
+  | "ratioValue" // params: value, unit, inT1
+  | "ratioUnavailable" // params: unavailableCode
+  | "eyeShape" // descriptor: elongated | round | balanced; value = EAR
+  | "symmetrySub" // params: score, metricIds (comma-separated)
+  | "browPosition"
+  | "browToEye"
+  | "browShape" // descriptor: pronounced | soft | flat
+  | "midfaceLength"
+  | "zygomaticWidth"
+  | "categoryIndex"
+  | "bigonialWidth"
+  | "jawAngularity" // descriptor: angular | moderate | rounded
+  | "scoreValue" // params: kind
+  | "featureHarmony" // descriptor: consistent | varied | uneven
+  | "proportionalConsistency" // params: inT1, evaluable
+  | "visualProperty"
+  | "requires3D"
+  | "requiresProfile"
+  | "landmarksUnavailable"
+  | "notEnoughCoverage"
+  | "notAssessed";
 
 export interface FeatureObservation {
   id: string;
   group: "eyesBrows" | "midface" | "jawChin" | "noseLips" | "overall";
   label: string;
   kind: FeatureKind;
-  /** Textual summary (unit-aware). */
+  /** Textual summary (unit-aware, English fallback). */
   summary: string;
   value?: number;
   unit?: string;
   sourceRatio?: RatioId;
   note?: string;
+  /** Language-neutral summary (UI translates). */
+  code?: FeatureSummaryCode;
+  descriptor?: string;
+  params?: Record<string, number | string | boolean>;
+  /** Language-neutral note code. */
+  noteCode?: "aspectOnly" | "noReference" | "softTissueZygion" | "constructedGonions" | "needsProfile" | "reconstructedChin";
 }
 
 export interface UncertaintyReport {
@@ -435,7 +492,36 @@ export interface QualityMetric {
   hint: string;
 }
 
+export type QualityIssueKey =
+  | "lowResolution.error"
+  | "lowResolution.warning"
+  | "blurry.error"
+  | "blurry.warning"
+  | "tooDark"
+  | "tooBright"
+  | "lowContrast.error"
+  | "lowContrast.warning"
+  | "yaw.error"
+  | "yaw.warning"
+  | "yaw.info"
+  | "pitch.error"
+  | "pitch.warning"
+  | "roll.error"
+  | "roll.warning"
+  | "eyesClosed"
+  | "mouthOpen.error"
+  | "mouthOpen.parted"
+  | "expression.smile"
+  | "expression.mild"
+  | "faceCutOff"
+  | "multipleFaces"
+  | "hairlineNotFound"
+  | "selfie";
+
 export interface QualityIssue {
+  /** Language-neutral message key with parameters (UI translates). */
+  key?: QualityIssueKey;
+  params?: Record<string, number | string>;
   code:
     | "no-face"
     | "multiple-faces"
@@ -572,6 +658,8 @@ export interface AnalysisResult {
   };
   uncertainty: UncertaintyReport | null;
   warnings: string[];
+  /** Language-neutral warnings (UI translates). */
+  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "smile"; params?: Record<string, number> }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -618,6 +706,9 @@ export interface BattleResult {
   margin: number;
   verdict: Verdict;
   verdictReason: string;
+  /** Language-neutral verdict reason (UI translates). */
+  verdictCode?: "qualityFailed" | "noOverall" | "lowCoverage" | "lowConfidence" | "draw" | "winner";
+  verdictParams?: Record<string, number>;
   coverageA: number;
   coverageB: number;
   confidenceA: number;

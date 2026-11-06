@@ -73,11 +73,27 @@ export function analyzeFace(rawInput: AnalysisInput): AnalysisResult {
   };
 
   const warnings: string[] = [];
-  if (!c.quality.analyzable) warnings.push("Image quality is unusable; results are shown for transparency only and must not be used for comparison.");
-  if (coverage.fraction < 0.6) warnings.push(`Only ${coverage.evaluable} of ${coverage.total} ratios are evaluable; scores are coverage-adjusted and less comparable.`);
-  if (coverage.uncertain > 0) warnings.push(`${coverage.uncertain} evaluable ratio(s) have low confidence.`);
-  if (!c.map.trichion) warnings.push("Hairline not available: thirds, TFWHR, LFF and FWHF are not evaluated.");
-  if (c.quality.expression.smile > 0.45) warnings.push("Smile detected: mouth, lip, eye-opening and lower-third measurements carry reduced confidence.");
+  const warningCodes: NonNullable<AnalysisResult["warningCodes"]> = [];
+  if (!c.quality.analyzable) {
+    warnings.push("Image quality is unusable; results are shown for transparency only and must not be used for comparison.");
+    warningCodes.push({ code: "unusable" });
+  }
+  if (coverage.fraction < 0.6) {
+    warnings.push(`Only ${coverage.evaluable} of ${coverage.total} ratios are evaluable; scores are coverage-adjusted and less comparable.`);
+    warningCodes.push({ code: "lowCoverage", params: { evaluable: coverage.evaluable, total: coverage.total } });
+  }
+  if (coverage.uncertain > 0) {
+    warnings.push(`${coverage.uncertain} evaluable ratio(s) have low confidence.`);
+    warningCodes.push({ code: "uncertainRatios", params: { n: coverage.uncertain } });
+  }
+  if (!c.map.trichion) {
+    warnings.push("Hairline not available: thirds, TFWHR, LFF and FWHF are not evaluated.");
+    warningCodes.push({ code: "noHairline" });
+  }
+  if (c.quality.expression.smile > 0.45) {
+    warnings.push("Smile detected: mouth, lip, eye-opening and lower-third measurements carry reduced confidence.");
+    warningCodes.push({ code: "smile" });
+  }
 
   const features = buildFeatures({ ratios: c.ratios, symmetry: c.symmetry, categories: c.categories, scores, map: c.map });
   const additional = computeAdditional(c.map, c.ratios, c.quality);
@@ -99,6 +115,7 @@ export function analyzeFace(rawInput: AnalysisInput): AnalysisResult {
     scores,
     uncertainty: unc?.report ?? null,
     warnings,
+    warningCodes,
   };
 }
 

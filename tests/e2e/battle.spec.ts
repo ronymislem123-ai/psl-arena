@@ -272,6 +272,25 @@ test.describe("PSL ARENA end-to-end", () => {
     await expect(page.getByRole("link", { name: "Verlauf" }).first()).toBeVisible();
     await expect(page.getByText("Einstellungen").first()).toBeVisible();
     await shot(page, "23-settings-de");
+    // measurement texts are translated too
+    await page.goto("/history");
+    await page.getByRole("tab", { name: /Analysen/ }).click();
+    await page.locator("li", { hasText: "Alpha" }).first().getByRole("link", { name: "Öffnen" }).click();
+    await page.waitForURL(/\/analysis\/ana_/);
+    await page.getByRole("tab", { name: "42 Kernverhältnisse" }).click();
+    await expect(page.getByText("Augenabstands-Verhältnis").first()).toBeVisible();
+    await page.locator("table tbody tr").first().click();
+    await expect(page.getByRole("dialog")).toContainText("Abstand der Pupillenmitten");
+    await shot(page, "25-ratio-detail-de");
+    await page.keyboard.press("Escape");
+    await page.getByRole("tab", { name: "Merkmalsübersicht" }).click();
+    await expect(page.getByText("A · Augen & Brauen")).toBeVisible();
+    await expect(page.getByText(/innerhalb des T1-Bereichs|außerhalb des T1-Bereichs/).first()).toBeVisible();
+    await page.getByRole("tab", { name: "Qualität & Konfidenz" }).click();
+    await expect(page.getByText("Gesichtsauflösung").first()).toBeVisible();
+    await shot(page, "26-quality-de");
+    await page.goto("/settings");
+    await page.waitForLoadState("networkidle");
     await page.locator("select").first().selectOption("en");
   });
 });
