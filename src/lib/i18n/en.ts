@@ -1,4 +1,6 @@
-export const en = {
+import { enPsl } from "./en-psl";
+
+const base = {
   nav: { dashboard: "Dashboard", newBattle: "New Battle", analysis: "Analysis Center", profiles: "Face Profiles", history: "History", settings: "Settings", sideView: "Side View" },
   common: {
     person1: "Person 1", person2: "Person 2", back: "Back", delete: "Delete", cancel: "Cancel", confirm: "Confirm", save: "Save", loading: "Loading…",
@@ -115,6 +117,8 @@ export const en = {
     recovery: "Recovery", noEmailNote: "This installation sends no e-mails. Without a recovery code, the server operator can reset the password with `npm run reset-password -- <e-mail>`.",
   },
 } as const;
+
+export const en = { ...base, ...enPsl } as const;
 
 type DeepString<T> = { [K in keyof T]: T[K] extends string ? string : DeepString<T[K]> };
 export type Dict = DeepString<typeof en>;

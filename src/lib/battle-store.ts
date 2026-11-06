@@ -58,7 +58,8 @@ function buildInput(slot: SlotState, cfg: BattleSetup["config"], samples: number
   return buildAnalysisInput(slot.prep, slot.faceIndex, engineConfig(cfg, samples), { trichion: slot.trichion, trichionConfirmed: slot.trichionConfirmed, neck: slot.neck });
 }
 
-export const useBattleSetup = create<BattleSetup>()((set, get) => ({
+export function createSetupStore() {
+  return create<BattleSetup>()((set, get) => ({
   a: emptySlot(),
   b: emptySlot(),
   config: { captureDistance: "unknown", includeReconstructed: true, storeImages: false },
@@ -155,4 +156,13 @@ export const useBattleSetup = create<BattleSetup>()((set, get) => ({
   },
 
   reset: () => set({ a: emptySlot(), b: emptySlot(), consent: { rights: false, adults: false }, submitting: false, submitError: null }),
-}));
+  }));
+}
+
+export type SetupStore = ReturnType<typeof createSetupStore>;
+
+/** Shared store of the two-person battle setup. */
+export const useBattleSetup = createSetupStore();
+
+/** Separate store for the single-photo rater (slot "a" only). */
+export const useRaterSetup = createSetupStore();

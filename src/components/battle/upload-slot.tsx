@@ -5,16 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Badge, levelTone } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/controls";
 import { LandmarkCanvas, LAYERS, type LayerId } from "@/components/viz/landmark-canvas";
-import { useBattleSetup, type Side } from "@/lib/battle-store";
+import { useBattleSetup, type SetupStore, type Side } from "@/lib/battle-store";
 import { useT } from "@/lib/i18n";
 import { issueText, metricText } from "@/lib/i18n/engine-text";
 import { useSettings } from "@/lib/settings";
 import { cn, fmt } from "@/lib/utils";
 
-export function UploadSlot({ side }: { side: Side }) {
+export function UploadSlot({ side, store = useBattleSetup, title: titleOverride }: { side: Side; store?: SetupStore; title?: string }) {
   const { t, lang } = useT();
-  const slot = useBattleSetup((s) => s[side]);
-  const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, setNeck, setNeckPlacing } = useBattleSetup();
+  const slot = store((s) => s[side]);
+  const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, setNeck, setNeckPlacing } = store();
   const showMeshDefault = useSettings((s) => s.showMeshByDefault);
   const [layer, setLayer] = useState<LayerId>("landmarks");
   const [showMesh, setShowMesh] = useState(showMeshDefault);
@@ -34,7 +34,7 @@ export function UploadSlot({ side }: { side: Side }) {
     [loadFile, side],
   );
 
-  const title = side === "a" ? t("common.person1") : t("common.person2");
+  const title = titleOverride ?? (side === "a" ? t("common.person1") : t("common.person2"));
   const accent = side === "a" ? "text-accent" : "text-violet";
 
   if (slot.status === "empty" || slot.status === "loading" || slot.status === "error") {

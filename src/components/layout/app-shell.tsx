@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Clock3, DraftingCompass, LayoutDashboard, LogOut, Settings, Swords, UserRound, Users, Zap } from "lucide-react";
+import { Clock3, DraftingCompass, LayoutDashboard, LayoutList, LogOut, MoreHorizontal, ScanFace, Settings, SlidersHorizontal, Swords, Trophy, UserRound, Users, X, Zap } from "lucide-react";
 import { BRAND } from "@/config/brand";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -16,12 +16,17 @@ export interface ShellUser {
 
 const NAV = [
   { href: "/", key: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/rater", key: "navPsl.rater", icon: ScanFace },
+  { href: "/scales", key: "navPsl.scales", icon: SlidersHorizontal },
+  { href: "/tournaments", key: "navPsl.tournaments", icon: Trophy },
   { href: "/battle/new", key: "nav.newBattle", icon: Swords },
   { href: "/side-view", key: "nav.sideView", icon: DraftingCompass },
+  { href: "/leaderboards", key: "navPsl.leaderboards", icon: LayoutList },
   { href: "/profiles", key: "nav.profiles", icon: Users },
   { href: "/history", key: "nav.history", icon: Clock3 },
   { href: "/settings", key: "nav.settings", icon: Settings },
 ] as const;
+const MOBILE_PRIMARY = 4;
 
 const BARE_PREFIXES = ["/login", "/signup", "/reset"];
 
@@ -31,6 +36,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
   const router = useRouter();
   const reduced = useSettings((s) => s.reducedMotion);
   const [signingOut, setSigningOut] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     rehydrateSettings();
   }, []);
@@ -104,8 +110,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
             <span className="font-display font-bold tracking-[0.12em] text-sm">{BRAND.name}</span>
           </Link>
           <div className="flex items-center gap-2">
-            <Link href="/battle/new" className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white">
-              {t("nav.newBattle")}
+            <Link href="/rater" className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white">
+              {t("navPsl.rater")}
             </Link>
             {user && (
               <button onClick={logout} disabled={signingOut} className="rounded-lg p-1.5 text-fg-2 hover:bg-white/10" aria-label={t("auth.logout")}>
@@ -115,14 +121,37 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
           </div>
         </header>
         <main className="flex-1 px-4 md:px-8 py-6 md:py-8 pb-28 md:pb-10 max-w-[1500px] w-full mx-auto">{children}</main>
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-6 border-t border-line bg-bg-1/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-          {NAV.map((n) => (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 border-t border-line bg-bg-1/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+          {NAV.slice(0, MOBILE_PRIMARY).map((n) => (
             <Link key={n.href} href={n.href === "/side-view" ? "/side-view/new" : n.href} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10px]", isActive(n.href) ? "text-accent" : "text-fg-2")}>
               <n.icon size={18} />
-              {t(n.key)}
+              <span className="truncate max-w-[64px]">{t(n.key)}</span>
             </Link>
           ))}
+          <button onClick={() => setMoreOpen(true)} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10px]", NAV.slice(MOBILE_PRIMARY).some((n) => isActive(n.href)) ? "text-accent" : "text-fg-2")} aria-label={t("navPsl.more")} data-testid="nav-more">
+            <MoreHorizontal size={18} />
+            {t("navPsl.more")}
+          </button>
         </nav>
+        {moreOpen && (
+          <div className="md:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setMoreOpen(false)} />
+            <div className="absolute inset-x-0 bottom-0 glass-strong rounded-t-2xl p-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-display font-semibold">{t("navPsl.more")}</div>
+                <button onClick={() => setMoreOpen(false)} className="rounded-lg p-1.5 text-fg-2 hover:bg-white/10" aria-label={t("common.close")}><X size={18} /></button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {NAV.slice(MOBILE_PRIMARY).map((n) => (
+                  <Link key={n.href} href={n.href === "/side-view" ? "/side-view/new" : n.href} onClick={() => setMoreOpen(false)} className={cn("flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-xs", isActive(n.href) ? "border-accent/40 bg-accent/10 text-fg-0" : "border-line text-fg-1")}>
+                    <n.icon size={18} />
+                    <span className="text-center">{t(n.key)}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 # Test report
 
-Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turbopack), MediaPipe Face Landmarker float16 model (CPU/WASM delegate). Date: 2025-11-06.
+Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turbopack), MediaPipe Face Landmarker float16 model (CPU/WASM delegate). Dates: 2025-11-06 (initial), 2026-11-06 (side view, PSL rater, scale builder, tournaments).
 
 ## 1. Automated — tested
 
-### Unit tests (`npm test`, Vitest) — 43 passed, 1 diagnostic skipped
+### Unit tests (`npm test`, Vitest) — 160 passed, 1 diagnostic skipped (last full run 2026-11-06)
 | Suite | What is verified |
 | --- | --- |
 | `geometry.test.ts` | distances, tilt sign convention (lateral-higher ⇒ positive on both sides), rotation, angle at vertex, line fit/intersection, polyline crossing, deterministic PRNG |
@@ -17,10 +17,14 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | `totp.test.ts` (isolated temp database) | base32 round-trip, RFC 6238 appendix-B vectors, ±1-step window, replay rejection, otpauth URI; enrollment (password re-auth, encrypted pending secret, wrong first code rejected), challenge flow (bad token, wrong code, single use), recovery code as second factor, per-challenge attempt budget, challenge expiry, disabling needs password + unused code |
 | `recovery.test.ts` (isolated temp database) | 8 unambiguous codes stored only as hashes; reset with a code in any formatting changes the password once, signs every session out and decrements the count; wrong/used codes and unknown e-mails fail with a generic error; regeneration needs the password and invalidates the old set; code guessing is rate-limited; the operator CLI script writes hashes the app verifies |
 | `side-view.test.ts` | 16 side-view measurements (13 scored, 3 descriptive) with sourced ranges and the app tolerance rule; every angle and ratio of a synthetic profile matches values computed by hand (NFA, CMA, NLA, FCA, H, Z, GA, MCA, NFC, NMA, MLA; LFH, LCR, Goode, dorsum, chin meridian); descriptive measures never scored; index 100 inside the range; invariance under mirroring (facing detection), translation and scale; angles invariant under rotation while vertical-dependent measures change (documented); deterministic Monte-Carlo σ (short-arm angles more sensitive); placement errors (vertical order, nasal tip not most anterior, neck above chin) block the analysis with no values; level/resolution warnings keep it analyzable |
+| `psl-scale.test.ts` | standard scale: 7 groups / 21 tiers, exact thirds boundaries shared by neighbours, 0–10 coverage; unrounded assignment at every boundary (lower inclusive, upper exclusive, top inclusive, outside ⇒ null); snapshot/export without images; validation codes for overlap, gap (inside and at both ends), invalid bounds/range, duplicate ids, order mismatch, empty names, bad colour, bad image reference |
+| `psl-rubric.test.ts` | rubric weights sum to 100 and every area is represented; every ratio/symmetry metric/side measurement feeds exactly one criterion and every scorable quantity is covered; calibration monotone and bounded; rating of a real fixture: coverage 72 % frontal / 92 % with side view / provisional without hairline, configurable minimum coverage, no score for an unusable image, visual assessments only when supplied (clamped), determinism, overall = weighted mean, strengths ≥ 6.5 / lower-rated < 5 |
+| `tournament.test.ts` | 12 built-in categories, weight normalisation (< 100 %, > 100 %, all zero); category scores from the shared rating with profile-only categories not assessable; winners from category rankings only (duplicate ratings share wins, undecidable with < 2 assessable); weighted overall with shared rank 1 for identical ratings and winners independent of weights; symmetric comparisons for every pair, tie-breakers 1 and 3 exercised; brackets for 4–64 participants with the right byes; 5-participant knockout played round by round with manual tie decisions; deterministic random seeding; participant swap invariance; 7-participant group stage (balanced groups, round-robin fixture counts, qualification, finals); ranking/category formats complete in one step with consistent statistics |
+| `psl-store.test.ts` (isolated temp database) | schema v6; scale create/update (version bump)/duplicate/export/import/delete with reference-image storage and cleanup, invalid scales rejected, built-in scale read-only, foreign image ids rejected; ratings from existing analyses (auto-attached latest side view, explicit none, custom scale, from a new upload), snapshot and tier stored, latest-per-profile, foreign/unknown inputs rejected; tournaments: creation from rated profiles, unrated/duplicate profiles rejected, knockout lifecycle with manual decisions, locking, reopen with archived version, duplicate, group stage with pause/resume, profile deletion keeps the snapshot, delete-all |
 | `side-store.test.ts` (isolated temp database) | schema v5, create with encrypted photo + 16 measurement rows, profile counters, stats/export, attach to an existing profile, rejection of unusable placements / out-of-image points / unknown profile, account isolation, delete with image cleanup, cascade from profile, delete-all |
 | `auth.test.ts` (isolated temp database) | v1→v2 schema migration in place, scrypt hashing with random salts, password policy, e-mail normalisation, legacy-data adoption on first sign-up, duplicate/incorrect credentials, cross-account isolation of profiles, session create/find/expire/destroy with hashed storage, password change signing other devices out, per-client rate limiting, account deletion cascade, cross-site mutation rejection |
 
-### End-to-end (`npm run test:e2e`, Playwright) — 11 passed
+### End-to-end (`npm run test:e2e`, Playwright) — 15 passed in one run on 2026-11-06 (battle 9, side view 2, PSL platform 3, consistency experiment 1)
 | Test | Steps verified |
 | --- | --- |
 | unauthenticated access is blocked | API returns 401, image route returns 401, pages redirect to `/login?next=…` |
@@ -33,13 +37,20 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | battle without stored photos | second battle with storage off: arena renders the session copies (data URLs), no `/api/images` requests, server image count unchanged |
 | side view: placement → result → history | upload the synthetic profile fixture → loupe follows the pointer → 16 points placed in guided order (step list, counter, auto-advance) → preview with facing direction → undo/re-place → a wrong placement switches the preview to "unusable" with the explicit reason → label, encrypted photo opt-in, consent → saved → result page (facing, 13 scored / 3 descriptive, stored image, 16 rows with hand-known values, guide/literature badges, construction layer with angle arc, detail dialog) → history tab, API list, profile counters, profile page → German texts; no page errors |
 | side view API | 422 for an unusable placement, 400 without consent, 404 for another account's record |
+| scale builder (UI) | list shows the built-in 21-tier scale → new scale from the standard ladder → name → value tester (4.6666 ⇒ Mid LTN, 10 ⇒ Adam, 10.2 ⇒ outside) → breaking the top bound shows a gap error and disables saving → fixing it re-validates → removing a tier (neighbour absorbs the range) and adding one keep the scale valid → save → reopen shows the persisted state → export JSON → import (valid 201, invalid 400) → duplicate → compare page with four scale bars → delete via API |
+| rater (UI) | rate a portrait through the in-browser pipeline on the standard scale → result page with status badge, reasoning, strengths, lower-rated, overall assessment, analysis quality, disclaimer, 41 criterion rows, scale marker, area bars, criterion detail dialog → stored record carries rubric 1.0.0 and the 21-tier snapshot → the same photo rated again gives the identical score → custom two-tier scale changes the tier names → rate a saved analysis → history lists 4 ratings → copied report follows the mandatory format → leaderboards render |
+| tournaments (UI + API) | two more rated profiles (incl. the mirrored portrait) → wizard with 5 participants (ranking) → start completes immediately → results page (winner card, 12 category cards, final ranking with 5 rows, statistics) → stored results: 12 category rankings, "Best Profile" undecidable (no side views), shared wins from duplicate ratings → duplicate with other weights gives the same category winners → editing a completed tournament is refused (409) → reopen creates a draft + archived version → knockout with manual order: bracket, blocked ties decided manually until completion, champion and byes stored → duels tab → phone viewport: bracket and the "More" navigation sheet |
+| rating consistency experiment | same file twice ⇒ Δ 0.000 (asserted); mirrored, 60 %-downscaled and cropped variants measured and written to `docs/validation-run.json` / `docs/VALIDATION.md` |
 | landmark layers & locale | nose / symmetry / jaw / thirds layers draw measurement lines on the stored photo; an analysis without a stored photo shows the landmark wireframe fallback; switching the language to German relabels the navigation, the ratio table, the ratio detail dialog, the feature overview and the quality tab |
 
 ### Static checks
-`npm run typecheck` (strict TS) — clean · `npm run lint` — clean · `npm run build` (Turbopack production build) — succeeds.
+`npm run typecheck` (strict TS) — clean · `npm run lint` — clean · `npm run build` (Turbopack production build) — succeeds (re-run 2026-11-06 after the PSL modules).
 
 ### Engine validation on real detections
 Landmark index choices (canthi, alar base, chin corners, zygion, gonion construction) were checked on zoomed, labelled crops of real detections; EME was corrected to the mouth-vertex definition after the first plausibility run (pupil-vertex values were ≈64°, mouth-vertex 48–52°). Eye-area ratios moved into anthropometrically plausible ranges after switching the canthi to the lid-junction ring (ICD 0.93–1.02 on four faces).
+
+### Run note (2026-11-06)
+The PSL end-to-end spec was run three times while being written: the first run exposed a test URL carrying a query parameter and a winner comparison by participant id instead of name (both test defects), plus one product defect (the duel tab started without a pre-selected pair) — fixed and re-run; the complete suite then passed in a single run (15/15), and the PSL spec was re-run once more after the final UI polish.
 
 ## 2. Partially tested
 * **Hairline estimation**: validated on four portraits (estimates at 65–74 % confidence placed on the hairline/upper forehead); not validated on bald heads, hats, strong bangs or very dark/very light hair-skin combinations (the manual override covers these).
@@ -48,6 +59,9 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * **German locale**: dictionary type-checked against the English keys; navigation, ratio table, detail dialog, features and quality tab are covered by e2e; arena and battle summary wording in German was spot-checked manually.
 * **Battle verdict "winner"**: the fixture pair resolves to a draw within uncertainty (3.6 points vs ±7.2 margin); the winner path is covered by unit tests on synthetic differences, not by the e2e pair.
 
+* **Scale builder reference images**: upload/caption/reorder/move are covered at the service level (encrypted storage, cleanup) and were exercised manually in the editor; the file-picker interaction is not automated.
+* **Group-stage tournaments** are covered by engine and service tests (unit) but not driven through the UI.
+* **German texts of the new modules** are type-checked against the English keys and spot-checked in the browser; the e2e flows run in English.
 * **PWA in production**: service-worker registration, page control and runtime caching of built assets/icons were verified in a mobile Chromium context against `next start`; "Add to Home Screen" on real Android/iOS devices was not exercised.
 
 ## 3. Not tested
@@ -56,7 +70,10 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * GPU delegate path of MediaPipe (CPU is the default).
 * Browsers other than Chromium (Safari/Firefox WASM SIMD behaviour); "Add to Home Screen" on a real phone and the service-worker offline path were verified manually against the production build in Chromium, not on devices.
 * E-mail verification, e-mail-based reset links (no mail transport) and WebAuthn (not implemented). QR scanning itself is not automated (the e2e uses the manual key).
-* Accessibility audit (screen reader, full keyboard operation of the SVG picker).
+* Accessibility audit (screen reader, full keyboard operation of the SVG picker and of the SVG bracket).
+* Empirical validity of the PSL rubric (agreement with human raters, demographic bias): no consented reference dataset exists in this project — not tested, not claimed (`docs/VALIDATION.md`).
+* The visual-assessment provider path (no provider is bundled; the interface and its output validation are unit-tested only through the rating engine's handling of supplied assessments).
+* Print/PDF output: the print stylesheet exists; the rendered PDF was not inspected automatically.
 * Side-view point dragging and arrow-key nudging through the UI (the handlers are exercised manually; placement by clicking, undo and re-placing are automated). Real profile photos were not part of the automated suite (synthetic silhouette fixture); the measurement geometry is verified by hand-computed values.
 
 ## 4. Known results on the fixtures (for reproducibility)

@@ -35,6 +35,16 @@ Data created before accounts existed is assigned to the first account. Set `PSL_
 The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is vendored so the app works fully offline. If it is missing, download it from
 `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`.
 
+## The three PSL modules
+
+| Module | What it does |
+| --- | --- |
+| **AI PSL Rater** (`/rater`) | Rates a frontal photo (or a saved analysis, plus the profile's latest side view) with a versioned rubric of 41 criteria in 7 areas, maps the result to a 0–10 PSL score and a tier on the selected scale, and reports it in the mandatory format (score, tier, reasoning, strengths, lower-rated criteria, overall assessment, analysis quality, disclaimer). Coverage-aware: criteria that cannot be measured are listed as not assessable; below the minimum coverage the score is provisional. See `docs/RUBRIC.md`. |
+| **Custom PSL Scale Builder** (`/scales`) | Create, edit, duplicate, import/export and compare PSL scales: tiers with ranges, colours, groups, percentile claims, descriptions, notes and encrypted reference images; live validation (no gaps/overlaps, unrounded assignment, inclusive top bound) and five preview views. Ships with the 21-tier standard scale (sub1 … Adam). See `docs/SCALES.md`. |
+| **PSL Tournament Mode** (`/tournaments`) | Compares rated profiles with the same rubric: twelve independent category winners (multiple wins and shared wins allowed), a weighted overall winner with documented tie-breakers, knockout (byes, seeded, manual tie decisions), group stage + finals, ranking and category formats, interactive bracket, duel tables, results page with statistics, versions and locking. See `docs/TOURNAMENT.md`. |
+
+Ratings and tournaments store snapshots of the scale (and of each participant's rating) so later edits never change finished results. Research notes behind the rubric are in `docs/RESEARCH_LOG.md`; consistency experiments in `docs/VALIDATION.md`.
+
 ## What it does
 
 | Area | Implementation |
@@ -86,7 +96,7 @@ The Docker volume `arena-data` holds the SQLite database, the encrypted photos a
 | --- | --- |
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, side view, database) on real landmark fixtures |
-| `npm run test:e2e` | Playwright end-to-end (upload → analysis → battle → analysis center). Needs `npx playwright install chromium` once. |
+| `npm run test:e2e` | Playwright end-to-end (battles, side view, scale builder, rater, tournaments, consistency experiments). Needs `npx playwright install chromium` once. |
 | `npm run typecheck` / `npm run lint` | TypeScript / ESLint |
 | `npm run prepare-assets` | Re-copy the WASM runtime and verify the model |
 | `npm run reset-password -- <e-mail>` | Operator fallback: set a new (or generated temporary) password for an account and sign it out everywhere |
@@ -103,6 +113,12 @@ Serve the app over HTTPS when it is reachable from other machines: the session c
 - `docs/RATIOS.md` — the 42 ratios + 7 additional measurements, landmark mapping, statuses and conventions
 - `docs/SCORING.md` — tiers, harmony index, weights, dependency handling, uncertainty, battle rules
 - `docs/SIDE_VIEW.md` — the side-view (profile) module: landmarks, measurements, sources, checks
+- `docs/RUBRIC.md` — the PSL rating rubric: criteria, weights, calibration, coverage rules, provider interface
+- `docs/SCALES.md` — PSL scales: data model, standard scale, assignment and validation rules, editor
+- `docs/TOURNAMENT.md` — tournament engine: categories, winners, tie-breakers, formats, versions
+- `docs/RESEARCH_LOG.md` — looksmax.org / scientific research protocol and the decisions taken
+- `docs/VALIDATION.md` — rating-consistency experiments with the measured numbers
+- `docs/FINAL_REPORT.md` — audit, changes, tests and remaining limitations of the platform evolution
 - `docs/DATA_MODEL.md` — database schema
 - `docs/PRIVACY.md` — data handling and ethics
 - `docs/TEST_REPORT.md` — what was tested, partially tested, not tested

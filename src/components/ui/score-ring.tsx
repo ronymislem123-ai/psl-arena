@@ -45,6 +45,7 @@ export function ScoreRing({
   animate = true,
   className,
   digits = 0,
+  max = 100,
 }: {
   value: number | null | undefined;
   size?: number;
@@ -55,12 +56,14 @@ export function ScoreRing({
   animate?: boolean;
   className?: string;
   digits?: number;
+  /** full-circle value (default 100); the number itself is displayed unscaled */
+  max?: number;
 }) {
   const shown = useCountUp(value ?? null, 1200, animate);
-  const t = tone ?? scoreTone(value);
+  const t = tone ?? scoreTone(value == null ? value : (value / max) * 100);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const frac = shown == null ? 0 : Math.max(0, Math.min(1, shown / 100));
+  const frac = shown == null ? 0 : Math.max(0, Math.min(1, shown / max));
   return (
     <div className={cn("relative inline-flex items-center justify-center", className)} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">

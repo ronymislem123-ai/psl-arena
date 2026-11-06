@@ -1,6 +1,7 @@
 import type { Dict } from "./en";
+import { dePsl } from "./de-psl";
 
-export const de: Dict = {
+const base = {
   nav: { dashboard: "Dashboard", newBattle: "Neue Battle", analysis: "Analysis Center", profiles: "Face Profiles", history: "Verlauf", settings: "Einstellungen", sideView: "Seitenansicht" },
   common: {
     person1: "Person 1", person2: "Person 2", back: "Zurück", delete: "Löschen", cancel: "Abbrechen", confirm: "Bestätigen", save: "Speichern", loading: "Lädt…",
@@ -115,3 +116,5 @@ export const de: Dict = {
     recovery: "Wiederherstellung", noEmailNote: "Diese Installation versendet keine E-Mails. Ohne Wiederherstellungscode kann der Server-Betreiber das Passwort mit `npm run reset-password -- <E-Mail>` zurücksetzen.",
   },
 };
+
+export const de: Dict = { ...base, ...dePsl };

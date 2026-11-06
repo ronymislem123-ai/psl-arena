@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { SIDE_LANDMARK_ORDER } from "@/engine/side-view";
+import { CRITERIA } from "@/engine/psl/rubric";
+import { SCALE_EXPORT_FORMAT } from "@/engine/psl/scale";
 
 export const pointSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
 
@@ -93,3 +95,106 @@ export const totpCodeSchema = z.object({ code: z.string().min(6).max(12) });
 export const totpSetupSchema = z.object({ password: z.string().min(1).max(200) });
 export const totpDisableSchema = z.object({ password: z.string().min(1).max(200), code: z.string().min(6).max(20) });
 export const mfaCompleteSchema = z.object({ code: z.string().min(6).max(12).optional(), recoveryCode: z.string().min(10).max(20).optional() }).refine((v) => !!v.code || !!v.recoveryCode, { message: "A code is required." });
+
+// ---------------------------------------------------------------- PSL scales / ratings / tournaments
+const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+export const tierSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1).max(60),
+  short: z.string().trim().max(20).default(""),
+  group: z.string().trim().max(60).nullable().default(null),
+  min: z.number().finite(),
+  max: z.number().finite(),
+  order: z.number().int().min(0),
+  description: z.string().max(600).default(""),
+  color: colorSchema.default("#4f7cff"),
+  percentile: z.string().max(60).nullable().default(null),
+  images: z.array(z.object({ imageId: z.string().regex(/^img_[a-z0-9]+$/), caption: z.string().max(200).default("") })).max(12).default([]),
+  notes: z.string().max(1000).default(""),
+});
+export const scaleInputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().max(1000).default(""),
+  rangeMin: z.number().finite(),
+  rangeMax: z.number().finite(),
+  tiers: z.array(tierSchema).min(1).max(64),
+  isTemplate: z.boolean().optional(),
+});
+export const scaleImportSchema = z.object({
+  format: z.literal(SCALE_EXPORT_FORMAT),
+  formatVersion: z.number().int(),
+  exportedAt: z.string().optional(),
+  scale: z.object({
+    name: z.string().trim().min(1).max(80),
+    description: z.string().max(1000).optional(),
+    rangeMin: z.number().finite(),
+    rangeMax: z.number().finite(),
+    version: z.number().int().optional(),
+    tiers: z.array(tierSchema.omit({ images: true }).partial({ order: true, notes: true, group: true, percentile: true, description: true, short: true })).min(1).max(64),
+  }),
+});
+export const tierImageSchema = z.object({ tierId: z.string().min(1), imageDataUrl: z.string().max(12_000_000), width: z.number().int().positive(), height: z.number().int().positive(), caption: z.string().max(200).default("") });
+export const duplicateScaleSchema = z.object({ name: z.string().trim().max(80).optional() });
+
+export const createRatingSchema = z
+  .object({
+    analysisId: z.string().optional(),
+    newAnalysis: z
+      .object({
+        profileId: z.string().optional(),
+        profileLabel: z.string().trim().min(1).max(60).optional(),
+        imageDataUrl: z.string().max(12_000_000).optional(),
+        storeImage: z.boolean().default(false),
+        input: analysisInputSchema,
+      })
+      .optional(),
+    sideAnalysisId: z.string().nullable().optional(),
+    useLatestSide: z.boolean().optional(),
+    scaleId: z.string().optional(),
+    minCoverage: z.number().min(0.3).max(1).optional(),
+    consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),
+  })
+  .refine((v) => !!v.analysisId || !!v.newAnalysis, { message: "analysisId or newAnalysis is required." });
+
+const criterionIds = CRITERIA.map((c) => c.id) as [string, ...string[]];
+export const tournamentCategorySchema = z.object({
+  id: z.string().trim().min(1).max(40),
+  name: z.string().trim().min(1).max(60),
+  criteria: z.array(z.object({ id: z.enum(criterionIds), weight: z.number().positive().max(100) })).max(40),
+  overall: z.boolean().optional(),
+  weight: z.number().min(0).max(1000),
+  builtIn: z.boolean().optional(),
+});
+export const tournamentConfigSchema = z.object({
+  format: z.enum(["knockout", "group", "ranking", "category"]),
+  seeding: z.enum(["rating", "random", "manual"]).default("rating"),
+  randomSeed: z.number().int().default(20251106),
+  winnerMethod: z.enum(["weighted", "knockout"]).default("weighted"),
+  decisiveCategoryId: z.string().min(1),
+  tieEpsilon: z.number().min(0).max(1).default(0.05),
+  groupSize: z.number().int().min(2).max(16).default(4),
+  qualifyPerGroup: z.number().int().min(1).max(16).default(2),
+  minCategoryCoverage: z.number().min(0).max(1).default(0.5),
+  categories: z.array(tournamentCategorySchema).min(1).max(40),
+});
+export const participantSpecSchema = z.object({ profileId: z.string().min(1), ratingId: z.string().optional(), displayName: z.string().trim().max(60).optional() });
+export const createTournamentSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().max(1000).optional(),
+  config: tournamentConfigSchema,
+  scaleId: z.string().optional(),
+  participants: z.array(participantSpecSchema).min(2).max(128),
+});
+export const updateTournamentSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  description: z.string().max(1000).optional(),
+  config: tournamentConfigSchema.optional(),
+  scaleId: z.string().optional(),
+  participants: z.array(participantSpecSchema).min(2).max(128).optional(),
+});
+export const tournamentActionSchema = z.object({
+  action: z.enum(["start", "advance", "playAll", "pause", "resume", "complete", "decide", "reopen", "duplicate"]),
+  matchId: z.string().optional(),
+  winnerId: z.string().optional(),
+  note: z.string().max(200).optional(),
+});

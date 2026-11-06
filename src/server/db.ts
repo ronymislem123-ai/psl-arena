@@ -173,6 +173,79 @@ CREATE TABLE IF NOT EXISTS side_measurements (
   value_sigma REAL,
   PRIMARY KEY (analysis_id, measurement_id)
 );
+CREATE TABLE IF NOT EXISTS psl_scales (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  range_min REAL NOT NULL,
+  range_max REAL NOT NULL,
+  tiers_json TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  is_template INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scales_user ON psl_scales(user_id, updated_at DESC);
+CREATE TABLE IF NOT EXISTS psl_ratings (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  profile_id TEXT NOT NULL REFERENCES face_profiles(id) ON DELETE CASCADE,
+  analysis_id TEXT REFERENCES analysis_sessions(id) ON DELETE SET NULL,
+  side_analysis_id TEXT REFERENCES side_analyses(id) ON DELETE SET NULL,
+  scale_id TEXT,
+  scale_snapshot_json TEXT NOT NULL,
+  rubric_version TEXT NOT NULL,
+  result_json TEXT NOT NULL,
+  psl_score REAL,
+  tier_id TEXT,
+  tier_name TEXT,
+  coverage REAL NOT NULL,
+  valid INTEGER NOT NULL,
+  provisional INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ratings_user ON psl_ratings(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ratings_profile ON psl_ratings(profile_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS tournaments (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  format TEXT NOT NULL,
+  status TEXT NOT NULL,
+  config_json TEXT NOT NULL,
+  scale_snapshot_json TEXT NOT NULL,
+  rubric_version TEXT NOT NULL,
+  state_json TEXT,
+  results_json TEXT,
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  completed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_tournaments_user ON tournaments(user_id, updated_at DESC);
+CREATE TABLE IF NOT EXISTS tournament_participants (
+  id TEXT PRIMARY KEY,
+  tournament_id TEXT NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  profile_id TEXT REFERENCES face_profiles(id) ON DELETE SET NULL,
+  rating_id TEXT REFERENCES psl_ratings(id) ON DELETE SET NULL,
+  display_name TEXT NOT NULL,
+  image_id TEXT REFERENCES images(id) ON DELETE SET NULL,
+  rating_snapshot_json TEXT NOT NULL,
+  seed INTEGER NOT NULL,
+  sort_order INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tparticipants ON tournament_participants(tournament_id, sort_order);
+CREATE TABLE IF NOT EXISTS tournament_versions (
+  id TEXT PRIMARY KEY,
+  tournament_id TEXT NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  note TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tversions ON tournament_versions(tournament_id, version DESC);
 CREATE TABLE IF NOT EXISTS settings (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   key TEXT NOT NULL,
@@ -185,7 +258,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 );
 `;
 
-export const SCHEMA_VERSION = "5";
+export const SCHEMA_VERSION = "6";
 
 type DB = Database.Database;
 declare global {
@@ -196,7 +269,7 @@ declare global {
 function migrate(db: DB) {
   // v1 → v4: an existing users table gets missing account/TOTP columns before the
   // unique e-mail index in SCHEMA is created. A fresh database skips this (no table yet).
-  // v4 → v5 only adds tables (side_analyses, side_measurements), handled by the SCHEMA exec below.
+  // v4 → v5 adds the side-view tables, v5 → v6 the PSL scale/rating/tournament tables: all handled by the SCHEMA exec below.
   const cols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name);
   if (cols.length > 0) {
     const wanted = [

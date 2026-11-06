@@ -2,6 +2,10 @@
 import type { AnalysisInput } from "@/engine/types";
 import type { SidePoints } from "@/engine/side-view";
 import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow, SideAnalysisRecord, SideAnalysisSummary } from "@/server/repos";
+import type { RatingRecord, RatingSummary, ScaleInput, ScaleSummary, TournamentRecord, TournamentSummary, TournamentVersionRow } from "@/server/repos-psl";
+import type { PslScale, ScaleExport } from "@/engine/psl/scale";
+import type { TournamentConfig } from "@/engine/tournament/types";
+import type { CategoryRanking } from "@/engine/tournament/types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -48,6 +52,38 @@ export const api = {
   deleteProfile: (id: string) => request<{ deleted: boolean }>(`/api/profiles/${id}`, { method: "DELETE" }),
   renameProfile: (id: string, label: string) => request<{ profile: ProfileRow }>(`/api/profiles/${id}`, { method: "PATCH", body: JSON.stringify({ label }) }),
   deleteAll: () => request<{ deleted: boolean }>("/api/data", { method: "DELETE" }),
+  // PSL scales
+  listScales: () => request<{ scales: ScaleSummary[] }>("/api/scales"),
+  getScale: (id: string) => request<{ scale: PslScale }>(`/api/scales/${id}`),
+  createScale: (input: ScaleInput) => request<{ scale: PslScale }>("/api/scales", { method: "POST", body: JSON.stringify(input) }),
+  updateScale: (id: string, input: ScaleInput) => request<{ scale: PslScale }>(`/api/scales/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+  deleteScale: (id: string) => request<{ deleted: boolean }>(`/api/scales/${id}`, { method: "DELETE" }),
+  duplicateScale: (id: string, name?: string) => request<{ scale: PslScale }>(`/api/scales/${id}/duplicate`, { method: "POST", body: JSON.stringify({ name }) }),
+  importScale: (data: ScaleExport, name?: string) => request<{ scale: PslScale }>("/api/scales/import", { method: "POST", body: JSON.stringify({ data, name }) }),
+  addTierImage: (id: string, payload: { tierId: string; imageDataUrl: string; width: number; height: number; caption: string }) => request<{ scale: PslScale }>(`/api/scales/${id}/images`, { method: "POST", body: JSON.stringify(payload) }),
+  // ratings
+  listRatings: (profileId?: string) => request<{ ratings: RatingSummary[] }>(`/api/ratings${profileId ? `?profileId=${profileId}` : ""}`),
+  getRating: (id: string) => request<{ rating: RatingRecord }>(`/api/ratings/${id}`),
+  createRating: (payload: {
+    analysisId?: string;
+    newAnalysis?: { profileId?: string; profileLabel?: string; imageDataUrl?: string; storeImage: boolean; input: AnalysisInput };
+    sideAnalysisId?: string | null;
+    useLatestSide?: boolean;
+    scaleId?: string;
+    minCoverage?: number;
+    consent: { rightsConfirmed: true; adultsConfirmed: true };
+  }) => request<{ rating: RatingRecord }>("/api/ratings", { method: "POST", body: JSON.stringify(payload) }),
+  deleteRating: (id: string) => request<{ deleted: boolean }>(`/api/ratings/${id}`, { method: "DELETE" }),
+  leaderboards: () => request<{ participants: { id: string; name: string; imageId: string | null; score: number | null; tier: string | null }[]; categories: { id: string; name: string }[]; rankings: CategoryRanking[] }>("/api/leaderboards"),
+  // tournaments
+  listTournaments: () => request<{ tournaments: TournamentSummary[] }>("/api/tournaments"),
+  getTournament: (id: string) => request<{ tournament: TournamentRecord }>(`/api/tournaments/${id}`),
+  createTournament: (payload: { name: string; description?: string; config: TournamentConfig; scaleId?: string; participants: { profileId: string; ratingId?: string; displayName?: string }[] }) => request<{ tournament: TournamentRecord }>("/api/tournaments", { method: "POST", body: JSON.stringify(payload) }),
+  updateTournament: (id: string, payload: { name?: string; description?: string; config?: TournamentConfig; scaleId?: string; participants?: { profileId: string; ratingId?: string; displayName?: string }[] }) => request<{ tournament: TournamentRecord }>(`/api/tournaments/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  tournamentAction: (id: string, payload: { action: "start" | "advance" | "playAll" | "pause" | "resume" | "complete" | "decide" | "reopen" | "duplicate"; matchId?: string; winnerId?: string; note?: string }) => request<{ tournament: TournamentRecord; blocked: boolean }>(`/api/tournaments/${id}/actions`, { method: "POST", body: JSON.stringify(payload) }),
+  deleteTournament: (id: string) => request<{ deleted: boolean }>(`/api/tournaments/${id}`, { method: "DELETE" }),
+  tournamentVersions: (id: string) => request<{ versions: TournamentVersionRow[] }>(`/api/tournaments/${id}/versions`),
+  tournamentVersion: (id: string, versionId: string) => request<{ tournament: TournamentRecord }>(`/api/tournaments/${id}/versions/${versionId}`),
   // auth
   signup: (data: { email: string; password: string; name?: string }) => request<{ user: AuthUserDto; recoveryCodes: string[] }>("/api/auth/signup", { method: "POST", body: JSON.stringify(data) }),
   resetPassword: (data: { email: string; code: string; newPassword: string }) => request<{ user: AuthUserDto; remainingCodes: number }>("/api/auth/recovery/reset", { method: "POST", body: JSON.stringify(data) }),

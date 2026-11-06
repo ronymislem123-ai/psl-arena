@@ -13,6 +13,8 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/repos";
+import type { RatingSummary } from "@/server/repos-psl";
+import { formatPsl } from "@/engine/psl/rating";
 
 export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
   const { t, lang } = useT();
@@ -59,7 +61,7 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
   );
 }
 
-export function ProfileDetail({ profile, analyses, sideAnalyses = [] }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[] }) {
+export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = [] }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[]; ratings?: RatingSummary[] }) {
   const { t, lang } = useT();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -109,9 +111,12 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [] }: { profil
         }
         subtitle={`${profile.analysisCount} ${t("profiles.analyses")} · ${t("common.createdAt")} ${fmt.date(profile.createdAt, lang)}`}
         action={
-          <Button variant="danger" size="sm" onClick={del}>
-            <Trash2 size={14} /> {t("common.delete")}
-          </Button>
+          <div className="flex gap-2">
+            <Link href={`/rater?profile=${profile.id}`}><Button size="sm">{t("dashboardPsl.rate")}</Button></Link>
+            <Button variant="danger" size="sm" onClick={del}>
+              <Trash2 size={14} /> {t("common.delete")}
+            </Button>
+          </div>
         }
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -160,6 +165,27 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [] }: { profil
           </CardBody>
         </Card>
         <div className="space-y-5">
+        <Card>
+          <CardHeader title={t("historyPsl.ratings")} />
+          <CardBody>
+            {ratings.length === 0 ? (
+              <Empty>{t("history.empty")}</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {ratings.map((r) => (
+                  <li key={r.id} className="flex items-center gap-2 py-2 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/rater/${r.id}`} className="hover:text-accent">{fmt.date(r.createdAt, lang)}</Link>
+                      <div className="text-xs text-fg-3">{r.scaleName} · {r.tierName ?? "—"}{r.provisional ? ` · ${t("rater.result.provisional")}` : ""}</div>
+                    </div>
+                    <span className="font-mono num">{formatPsl(r.score)}</span>
+                    <Link href={`/rater/${r.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
         <Card>
           <CardHeader title={t("profiles.latest")} />
           <CardBody>

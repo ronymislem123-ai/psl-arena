@@ -19,6 +19,18 @@
 * No frontal↔side fusion: the profile harmony index is reported separately and is not part of battles.
 * The mentolabial angle, dorsal profile and chin meridian are descriptive only (no sourced numeric target in the material).
 
+## PSL modules (rater, scales, tournaments)
+* **Visual criteria need a provider.** Six rubric criteria (lid exposure, scleral show, eye shape, cheekbone projection, jawline definition, lip shape) are modelled but assessable only through `VisualAssessmentProvider`; none is bundled, so they stay "not assessable" (8 % of the rubric weight). A provider must respect the privacy rules and would reduce reproducibility (model variance).
+* **Calibration and weights are conventions.** The index→PSL anchors and the criterion weights are documented and versioned but not fitted to human ratings; no consented reference dataset with independent human raters exists in this project, so no empirical accuracy, inter-rater agreement or bias statistics are claimed (`docs/VALIDATION.md`).
+* **Minimum coverage** defaults to 70 % (brief suggestion: 80 %, reachable only with a profile view); configurable per rating.
+* **Three-quarter view** is not supported (no engine for it); only frontal + profile are fused.
+* **Potential rating** was not implemented (speculative by nature; the brief lists it as optional).
+* **Sharing** of ratings/tournaments is intentionally absent (privacy default); exports are downloads for the owner.
+* **Multi-image per view**: one frontal + one side view per rating; averaging several frontal photos of the same person is a follow-up.
+* **Tournament ties**: knockout matches that stay tied after the three tie-breakers need a manual decision (recorded); there is no coin flip by design.
+* **Bracket on phones** scrolls horizontally with zoom buttons; a dedicated round-by-round list view would be friendlier.
+* **Tournament version viewer** opens the archived JSON; a rendered read-only view of an old version is a follow-up.
+
 ## Product / engineering
 * **Accounts:** local e-mail/password login with per-account isolation, recovery-code password reset and optional TOTP two-factor authentication exist. Still missing: e-mail verification, e-mail-based reset links (no mail transport), WebAuthn/passkeys, an admin role for managing accounts (sign-up can only be locked globally via `PSL_ARENA_ALLOW_SIGNUP`; operators use the CLI).
 * **Server-side settings** exist (`/api/settings`) but the UI uses the device-local store; syncing is a small follow-up.
@@ -28,4 +40,4 @@
 * **Performance:** hairline estimation samples pixels one at a time (fine for ≤1600 px images; could be vectorised). Uncertainty simulation runs 40 samples server-side per analysis (~100 ms).
 * **GPU delegate:** CPU WASM is used by default (deterministic, works headless); GPU can be enabled in `landmarker.ts`.
 * **Accessibility:** keyboard access for the SVG landmark picker is limited to the list view; colour contrast is tuned for dark mode only (no light theme).
-* **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, export/delete-all and change-password through the UI (covered at API/unit level), side-view point dragging and arrow-key nudging through the UI (placement by clicking is covered end-to-end).
+* **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, export/delete-all and change-password through the UI (covered at API/unit level), side-view point dragging and arrow-key nudging through the UI, reference-image upload through the editor UI (covered at service level), group-stage tournaments through the UI (covered at service/engine level), the print/PDF output itself.

@@ -41,7 +41,7 @@ describe("side-view persistence", () => {
     expect(rec.points).toEqual(PROFILE);
     const rows = db.getDb().prepare("SELECT COUNT(*) AS n FROM side_measurements WHERE analysis_id = ?").get(rec.id) as { n: number };
     expect(rows.n).toBe(16);
-    expect(db.getDb().prepare("SELECT value FROM schema_meta WHERE key = 'version'").get()).toEqual({ value: "5" });
+    expect(db.getDb().prepare("SELECT value FROM schema_meta WHERE key = 'version'").get()).toEqual({ value: "6" });
 
     const profile = repos.getProfile(userId, rec.profileId)!;
     expect(profile.sideAnalysisCount).toBe(1);

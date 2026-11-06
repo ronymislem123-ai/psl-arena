@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Boxes, DraftingCompass, Images, Scan, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, Boxes, DraftingCompass, Images, Scan, ScanFace, SlidersHorizontal, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { TierBadge } from "@/components/psl/tier-badge";
+import { formatPsl } from "@/engine/psl/rating";
 import { BRAND } from "@/config/brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -9,11 +11,12 @@ import { FaceThumb, VerdictBadge } from "@/components/shared/face-thumb";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, BattleSummary, ProfileRow } from "@/server/repos";
+import type { RatingSummary, TournamentSummary } from "@/server/repos-psl";
 import type { stats as statsFn } from "@/server/repos";
 
 type Stats = ReturnType<typeof statsFn>;
 
-export function Dashboard({ stats, recentBattles, recentAnalyses, profiles }: { stats: Stats; recentBattles: BattleSummary[]; recentAnalyses: AnalysisSummary[]; profiles: ProfileRow[] }) {
+export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, recentRatings = [], recentTournaments = [] }: { stats: Stats; recentBattles: BattleSummary[]; recentAnalyses: AnalysisSummary[]; profiles: ProfileRow[]; recentRatings?: RatingSummary[]; recentTournaments?: TournamentSummary[] }) {
   const { t, lang } = useT();
   return (
     <div className="space-y-8">
@@ -27,19 +30,29 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles }: { 
             <h1 className="mt-2 font-display text-4xl md:text-6xl font-bold tracking-tight text-glow">{BRAND.name}</h1>
             <p className="mt-4 text-fg-1 max-w-xl">{t("dashboard.sub")}</p>
             <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/rater">
+                <Button size="lg" title={t("dashboardPsl.rateSub")} data-testid="dash-rate">
+                  <ScanFace size={18} /> {t("dashboardPsl.rate")} <ArrowRight size={16} />
+                </Button>
+              </Link>
+              <Link href="/tournaments/new">
+                <Button size="lg" variant="outline">
+                  <Trophy size={18} /> {t("dashboardPsl.tournament")}
+                </Button>
+              </Link>
+              <Link href="/scales">
+                <Button size="lg" variant="outline">
+                  <SlidersHorizontal size={18} /> {t("navPsl.scales")}
+                </Button>
+              </Link>
               <Link href="/battle/new">
-                <Button size="lg">
-                  <Swords size={18} /> {t("dashboard.quickStart")} <ArrowRight size={16} />
+                <Button size="lg" variant="outline">
+                  <Swords size={18} /> {t("dashboard.quickStart")}
                 </Button>
               </Link>
               <Link href="/side-view/new">
                 <Button size="lg" variant="outline" title={t("side.quickStartSub")}>
                   <DraftingCompass size={18} /> {t("side.quickStart")}
-                </Button>
-              </Link>
-              <Link href="/profiles">
-                <Button size="lg" variant="outline">
-                  <Users size={18} /> {t("nav.profiles")}
                 </Button>
               </Link>
             </div>
@@ -61,10 +74,13 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles }: { 
       </section>
 
       <section>
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <StatTile label={t("dashboard.profiles")} value={stats.profiles} icon={<Users size={18} />} />
           <StatTile label={t("dashboard.analyses")} value={stats.analyses} icon={<Scan size={18} />} tone="cyan" />
           <StatTile label={t("dashboard.battles")} value={stats.battles} icon={<Swords size={18} />} tone="violet" />
+          <StatTile label={t("dashboardPsl.ratings")} value={stats.ratings} icon={<ScanFace size={18} />} tone="accent" />
+          <StatTile label={t("dashboardPsl.tournaments")} value={stats.tournaments} icon={<Trophy size={18} />} tone="amber" />
+          <StatTile label={t("dashboardPsl.scales")} value={stats.scales} icon={<SlidersHorizontal size={18} />} tone="violet" />
           <StatTile label={t("side.dashboardTile")} value={stats.sideAnalyses} icon={<DraftingCompass size={18} />} tone="cyan" />
           <StatTile label={t("dashboard.avgOverall")} value={fmt.score(stats.averageOverall, 1)} icon={<Sparkles size={18} />} tone="mint" />
           <StatTile label={t("dashboard.storedImages")} value={stats.images} icon={<Images size={18} />} tone="amber" />
@@ -72,6 +88,52 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles }: { 
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader title={t("dashboardPsl.recentRatings")} icon={<ScanFace size={18} />} action={<Link href="/history" className="text-xs text-fg-2 hover:text-fg-0">{t("nav.history")} →</Link>} />
+          <CardBody>
+            {recentRatings.length === 0 ? (
+              <Empty>{t("dashboard.empty")}</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {recentRatings.map((r) => (
+                  <li key={r.id}>
+                    <Link href={`/rater/${r.id}`} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
+                      <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{r.profileLabel}</div>
+                        <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName}</div>
+                      </div>
+                      <TierBadge tier={r.tierName ? { id: r.tierId ?? "", name: r.tierName, min: 0, max: 0, color: "#9db6ff" } : null} size="sm" />
+                      <div className="font-display text-lg font-semibold num">{formatPsl(r.score)}</div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={t("dashboardPsl.recentTournaments")} icon={<Trophy size={18} />} action={<Link href="/tournaments" className="text-xs text-fg-2 hover:text-fg-0">{t("navPsl.tournaments")} →</Link>} />
+          <CardBody>
+            {recentTournaments.length === 0 ? (
+              <Empty>{t("tournaments.empty")}</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {recentTournaments.map((tr) => (
+                  <li key={tr.id}>
+                    <Link href={`/tournaments/${tr.id}`} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{tr.name}</div>
+                        <div className="text-xs text-fg-3">{t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} · {t(`tournaments.status.${tr.status}`)}</div>
+                      </div>
+                      <div className="text-xs text-fg-2 truncate max-w-[40%]">{tr.winnerNames.join(", ")}</div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
         <Card>
           <CardHeader title={t("dashboard.recentBattles")} icon={<Trophy size={18} />} action={<Link href="/history" className="text-xs text-fg-2 hover:text-fg-0">{t("nav.history")} →</Link>} />
           <CardBody>

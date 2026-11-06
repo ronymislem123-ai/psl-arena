@@ -13,11 +13,13 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, BattleSummary, SideAnalysisSummary } from "@/server/repos";
+import type { RatingSummary, TournamentSummary } from "@/server/repos-psl";
+import { formatPsl } from "@/engine/psl/rating";
 
-export function History({ battles, analyses, sideAnalyses }: { battles: BattleSummary[]; analyses: AnalysisSummary[]; sideAnalyses: SideAnalysisSummary[] }) {
+export function History({ battles, analyses, sideAnalyses, ratings = [], tournaments = [] }: { battles: BattleSummary[]; analyses: AnalysisSummary[]; sideAnalyses: SideAnalysisSummary[]; ratings?: RatingSummary[]; tournaments?: TournamentSummary[] }) {
   const { t, lang } = useT();
   const router = useRouter();
-  const [tab, setTab] = useState<"battles" | "analyses" | "side">("battles");
+  const [tab, setTab] = useState<"battles" | "analyses" | "side" | "ratings" | "tournaments">(ratings.length ? "ratings" : "battles");
   const delB = async (id: string) => {
     if (!confirm(t("common.deleteConfirm"))) return;
     await api.deleteBattle(id);
@@ -28,6 +30,16 @@ export function History({ battles, analyses, sideAnalyses }: { battles: BattleSu
     await api.deleteAnalysis(id);
     router.refresh();
   };
+  const delR = async (id: string) => {
+    if (!confirm(t("common.deleteConfirm"))) return;
+    await api.deleteRating(id);
+    router.refresh();
+  };
+  const delT = async (id: string) => {
+    if (!confirm(t("tournaments.deleteConfirm"))) return;
+    await api.deleteTournament(id);
+    router.refresh();
+  };
   const delS = async (id: string) => {
     if (!confirm(t("side.deleteConfirm"))) return;
     await api.deleteSideAnalysis(id);
@@ -35,7 +47,7 @@ export function History({ battles, analyses, sideAnalyses }: { battles: BattleSu
   };
   return (
     <div className="space-y-6">
-      <PageHeader kicker={t("nav.history")} title={t("history.title")} subtitle={t("history.sub")} action={<Tabs tabs={[{ id: "battles", label: t("history.battles"), count: battles.length }, { id: "analyses", label: t("history.analyses"), count: analyses.length }, { id: "side", label: t("side.historyTab"), count: sideAnalyses.length }]} value={tab} onChange={setTab} />} />
+      <PageHeader kicker={t("nav.history")} title={t("history.title")} subtitle={t("history.sub")} action={<Tabs tabs={[{ id: "ratings", label: t("historyPsl.ratings"), count: ratings.length }, { id: "tournaments", label: t("historyPsl.tournaments"), count: tournaments.length }, { id: "battles", label: t("history.battles"), count: battles.length }, { id: "analyses", label: t("history.analyses"), count: analyses.length }, { id: "side", label: t("side.historyTab"), count: sideAnalyses.length }]} value={tab} onChange={setTab} />} />
       {tab === "battles" && (
         <Card>
           <CardBody className="pt-5">
@@ -67,6 +79,56 @@ export function History({ battles, analyses, sideAnalyses }: { battles: BattleSu
                     <Button size="sm" variant="ghost" onClick={() => delB(b.id)}>
                       <Trash2 size={14} />
                     </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+      )}
+      {tab === "ratings" && (
+        <Card>
+          <CardBody className="pt-5">
+            {ratings.length === 0 ? (
+              <Empty>{t("history.empty")}</Empty>
+            ) : (
+              <ul className="divide-y divide-line" data-testid="ratings-history">
+                {ratings.map((r) => (
+                  <li key={r.id} className="flex items-center gap-3 py-3">
+                    <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={44} />
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/rater/${r.id}`} className="font-medium hover:text-accent">{r.profileLabel}</Link>
+                      <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {t("rater.result.rubric")} {r.rubricVersion} · {t("rater.result.coverage")} {Math.round(r.coverage * 100)} %</div>
+                    </div>
+                    <Badge tone={r.valid ? "mint" : r.provisional ? "amber" : "rose"}>{r.valid ? t("rater.result.valid") : r.provisional ? t("rater.result.provisional") : t("rater.result.invalid")}</Badge>
+                    <span className="text-xs text-fg-2 hidden sm:inline">{r.tierName ?? "—"}</span>
+                    <div className="font-display text-lg num">{formatPsl(r.score)}</div>
+                    <Link href={`/rater/${r.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <Button size="sm" variant="ghost" onClick={() => delR(r.id)}><Trash2 size={14} /></Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+      )}
+      {tab === "tournaments" && (
+        <Card>
+          <CardBody className="pt-5">
+            {tournaments.length === 0 ? (
+              <Empty>{t("tournaments.empty")}</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {tournaments.map((tr) => (
+                  <li key={tr.id} className="flex items-center gap-3 py-3">
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/tournaments/${tr.id}`} className="font-medium hover:text-accent">{tr.name}</Link>
+                      <div className="text-xs text-fg-3">{fmt.date(tr.updatedAt, lang)} · {t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} {t("tournaments.participants").toLowerCase()} · v{tr.version}</div>
+                    </div>
+                    <Badge tone={tr.status === "completed" ? "mint" : tr.status === "running" ? "cyan" : tr.status === "paused" ? "amber" : "muted"}>{t(`tournaments.status.${tr.status}`)}</Badge>
+                    <span className="text-xs text-fg-2 hidden sm:inline truncate max-w-[30%]">{tr.winnerNames.join(", ")}</span>
+                    <Link href={`/tournaments/${tr.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <Button size="sm" variant="ghost" onClick={() => delT(tr.id)}><Trash2 size={14} /></Button>
                   </li>
                 ))}
               </ul>

@@ -6,6 +6,7 @@ import type { AnalysisInput, AnalysisResult, BattleResult } from "@/engine/types
 import type { SidePoints, SideViewResult } from "@/engine/side-view";
 import { getDb, newId } from "./db";
 import { deleteAllImageFiles, deleteImageFile } from "./images";
+import { deleteAllPsl, exportPsl, pslStats } from "./repos-psl";
 
 export interface ProfileRow {
   id: string;
@@ -179,8 +180,8 @@ export function insertAnalysis(args: { userId: string; profileId: string; imageI
 /** Removes an image file once no analysis, side analysis or profile references it any more. */
 function dropImageIfOrphaned(imageId: string) {
   const stillUsed = getDb()
-    .prepare("SELECT 1 FROM analysis_sessions WHERE image_id = ? UNION SELECT 1 FROM side_analyses WHERE image_id = ? UNION SELECT 1 FROM face_profiles WHERE image_id = ? LIMIT 1")
-    .get(imageId, imageId, imageId);
+    .prepare("SELECT 1 FROM analysis_sessions WHERE image_id = ? UNION SELECT 1 FROM side_analyses WHERE image_id = ? UNION SELECT 1 FROM face_profiles WHERE image_id = ? UNION SELECT 1 FROM tournament_participants WHERE image_id = ? UNION SELECT 1 FROM psl_scales WHERE tiers_json LIKE '%' || ? || '%' LIMIT 1")
+    .get(imageId, imageId, imageId, imageId, imageId);
   if (!stillUsed) deleteImageFile(imageId);
 }
 
@@ -319,6 +320,7 @@ export function stats(userId: string) {
     battles: c("SELECT COUNT(*) AS n FROM battle_sessions WHERE user_id = ?"),
     sideAnalyses: c("SELECT COUNT(*) AS n FROM side_analyses WHERE user_id = ?"),
     images: c("SELECT COUNT(*) AS n FROM images WHERE user_id = ?"),
+    ...pslStats(userId),
     averageOverall: avg.v,
     bestAnalysis: best ? mapAnalysisSummary(best) : null,
     verdicts: Object.fromEntries(verdicts.map((v) => [v.verdict, v.n])),
@@ -340,6 +342,7 @@ export function deleteAllData(userId: string) {
   const db = getDb();
   deleteAllImageFiles(userId);
   const tx = db.transaction(() => {
+    deleteAllPsl(userId);
     db.prepare("DELETE FROM battle_sessions WHERE user_id = ?").run(userId);
     db.prepare("DELETE FROM side_analyses WHERE user_id = ?").run(userId);
     db.prepare("DELETE FROM analysis_sessions WHERE user_id = ?").run(userId);
@@ -356,6 +359,7 @@ export function exportAll(userId: string) {
     analyses: listAnalyses(userId, { limit: 10_000 }).map((a) => getAnalysis(userId, a.id)),
     battles: listBattles(userId, 10_000).map((b) => getBattle(userId, b.id)),
     sideAnalyses: listSideAnalyses(userId, { limit: 10_000 }).map((a) => getSideAnalysis(userId, a.id)),
+    ...exportPsl(userId),
     settings: getSettings(userId),
   };
 }
