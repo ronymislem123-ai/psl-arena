@@ -61,4 +61,16 @@ export const de: Dict = {
     language: "Sprache", english: "English", german: "Deutsch", about: "Über", ethics: "Diese App misst ausschließlich geometrische Proportionen. Sie leitet keine ethnische Zugehörigkeit, Religion, Gesundheit, sexuelle Orientierung oder andere sensible Eigenschaften ab und richtet sich an einwilligende Erwachsene als freiwilliger Vergleich der Gesichtsgeometrie.",
   },
   quality: { good: "Gut", acceptable: "Akzeptabel", poor: "Schwach", unusable: "Unbrauchbar" },
+  auth: {
+    loginTitle: "Anmelden", loginSub: "Willkommen zurück. Deine Analysen und Battles warten.", loginAction: "Anmelden",
+    signupTitle: "Konto erstellen", signupSub: "Deine Daten bleiben auf diesem Server, getrennt pro Konto.", signupAction: "Konto erstellen",
+    firstAccount: "Du erstellst das erste Konto auf diesem Server. Vorhandene lokale Daten werden ihm zugeordnet.",
+    signupDisabled: "Die Registrierung ist auf diesem Server deaktiviert. Bitte beim Administrator ein Konto anfragen.",
+    email: "E-Mail", name: "Anzeigename", nameHint: "Optional, wird in der App angezeigt.", password: "Passwort", passwordHint: "Mindestens 10 Zeichen.", confirm: "Passwort wiederholen",
+    mismatch: "Die Passwörter stimmen nicht überein.", noAccount: "Noch kein Konto?", haveAccount: "Schon ein Konto?", logout: "Abmelden", logoutAll: "Überall sonst abmelden",
+    localNote: "Lokales Konto dieser Installation. Es werden keine E-Mails versendet und es gibt kein Zurücksetzen – Passwort sicher aufbewahren.",
+    account: "Konto", signedInAs: "Angemeldet als", memberSince: "Konto seit", changePassword: "Passwort ändern", currentPassword: "Aktuelles Passwort", newPassword: "Neues Passwort",
+    passwordChanged: "Passwort geändert. Andere Geräte wurden abgemeldet.", deleteAccount: "Konto löschen", deleteAccountHint: "Löscht dein Konto mit allen Profilen, Analysen, Battles und Fotos. Zur Bestätigung Passwort eingeben.",
+    deleteAccountConfirm: "Konto und alle Daten wirklich löschen? Das kann nicht rückgängig gemacht werden.", sessionsCleared: "Andere Sitzungen wurden abgemeldet.",
+  },
 };

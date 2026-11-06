@@ -13,11 +13,11 @@
 * Eyebrow tilt follows the mesh brow contour; brows hidden by hair or heavily groomed reduce accuracy.
 
 ## Product / engineering
-* **Authentication / multi-user:** single local user; the schema has `user_id` columns and the API is structured for it, but there is no login. Do not expose the server publicly without adding auth.
+* **Accounts:** local e-mail/password login with per-account isolation exists. Still missing: e-mail verification, password reset, two-factor authentication, an admin role for managing accounts (sign-up can only be locked globally via `PSL_ARENA_ALLOW_SIGNUP`).
 * **Server-side settings** exist (`/api/settings`) but the UI uses the device-local store; syncing is a small follow-up.
 * **i18n:** navigation, setup flow, battle, analysis chrome and settings are translated (EN/DE); ratio names, methodology texts, feature summaries and some table headers remain English.
 * **Compare different analyses of the same profile** is available as a history table + score trend; a side-by-side diff view of two analyses of one person is not built.
 * **Performance:** hairline estimation samples pixels one at a time (fine for ≤1600 px images; could be vectorised). Uncertainty simulation runs 40 samples server-side per analysis (~100 ms).
 * **GPU delegate:** CPU WASM is used by default (deterministic, works headless); GPU can be enabled in `landmarker.ts`.
 * **Accessibility:** keyboard access for the SVG landmark picker is limited to the list view; colour contrast is tuned for dark mode only (no light theme).
-* **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, German locale rendering, export/delete-all through the UI (API covered manually).
+* **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, export/delete-all and change-password through the UI (covered at API/unit level).

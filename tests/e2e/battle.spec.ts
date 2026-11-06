@@ -10,8 +10,51 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true, caret: "initial" });
 }
 
+const ACCOUNT = { email: `e2e-${Date.now()}@example.com`, password: "e2e strong password 42", name: "E2E Tester" };
+
+async function signIn(page: Page) {
+  const res = await page.request.post("/api/auth/login", { data: { email: ACCOUNT.email, password: ACCOUNT.password } });
+  expect(res.ok(), `login failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+}
+
 test.describe("PSL ARENA end-to-end", () => {
+  test.beforeAll(async ({ request }) => {
+    const res = await request.post("/api/auth/signup", { data: ACCOUNT });
+    expect([201, 409]).toContain(res.status());
+  });
+
+  test("unauthenticated access is blocked", async ({ page, request }) => {
+    const api = await request.get("/api/analyses");
+    expect(api.status()).toBe(401);
+    const img = await request.get("/api/images/img_doesnotexist");
+    expect(img.status()).toBe(401);
+    await page.goto("/history");
+    await expect(page).toHaveURL(/\/login\?next=%2Fhistory/);
+    await expect(page.getByTestId("auth-login")).toBeVisible();
+    await shot(page, "00-login");
+  });
+
+  test("sign-up form creates an account and signs in", async ({ page }) => {
+    await page.goto("/signup");
+    await page.waitForLoadState("networkidle");
+    const email = `e2e-ui-${Date.now()}@example.com`;
+    await page.getByLabel(/E-mail/).fill(email);
+    await page.getByLabel(/Display name/).fill("UI Tester");
+    await page.getByLabel(/^Password/).fill("ui strong password 42");
+    await page.getByLabel(/Repeat password/).fill("ui strong password 42");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.waitForURL((u) => u.pathname === "/");
+    await expect(page.getByText("UI Tester").first()).toBeVisible();
+    // this fresh account sees nothing of the other account
+    const mine = await (await page.request.get("/api/analyses")).json();
+    expect(mine.analyses).toHaveLength(0);
+    await page.getByTestId("logout").click();
+    await page.waitForURL(/\/login/);
+    expect((await page.request.get("/api/auth/me")).status()).toBe(401);
+  });
+
   test("dashboard renders", async ({ page }) => {
+    await signIn(page);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("PSL ARENA");
     await shot(page, "01-dashboard");
@@ -21,6 +64,7 @@ test.describe("PSL ARENA end-to-end", () => {
     test.setTimeout(240_000);
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
+    await signIn(page);
     await page.goto("/battle/new");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("New Battle");
     await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 }); // hydrated
@@ -123,6 +167,7 @@ test.describe("PSL ARENA end-to-end", () => {
 
   test("rejects a strongly turned head and keeps the start button disabled", async ({ page }) => {
     test.setTimeout(180_000);
+    await signIn(page);
     await page.goto("/battle/new");
     await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
     const inputs = page.locator('input[type="file"]');
@@ -135,21 +180,34 @@ test.describe("PSL ARENA end-to-end", () => {
     await expect(page.getByTestId("start-battle")).toBeDisabled();
   });
 
-  test("API: reference database and stats", async ({ request }) => {
+  test("API: reference database, stats and isolation", async ({ request }) => {
     const r = await request.get("/api/ratios");
     expect(r.ok()).toBeTruthy();
     const body = await r.json();
     expect(body.ratios).toHaveLength(42);
     expect(body.additional).toHaveLength(7);
+    const login = await request.post("/api/auth/login", { data: { email: ACCOUNT.email, password: ACCOUNT.password } });
+    expect(login.ok()).toBeTruthy();
     const s = await request.get("/api/stats");
     expect(s.ok()).toBeTruthy();
     const bad = await request.post("/api/analyses", { data: { nope: true } });
     expect(bad.status()).toBe(400);
+    // another account cannot read this account's analyses
+    const mine = (await (await request.get("/api/analyses")).json()).analyses as { id: string }[];
+    expect(mine.length).toBeGreaterThan(0);
+    const other = { email: `e2e-other-${Date.now()}@example.com`, password: "other strong password 42" };
+    const ctx = await request.post("/api/auth/signup", { data: other });
+    expect(ctx.status()).toBe(201);
+    // the request fixture now carries the other account's cookie (last Set-Cookie wins)
+    const foreign = await request.get(`/api/analyses/${mine[0].id}`);
+    expect(foreign.status()).toBe(404);
+    expect((await (await request.get("/api/analyses")).json()).analyses).toHaveLength(0);
   });
 
   test("mobile layout renders the setup page", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
+    await signIn(page);
     await page.goto("/battle/new");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("New Battle");
     await shot(page, "16-mobile-setup");
@@ -159,6 +217,7 @@ test.describe("PSL ARENA end-to-end", () => {
   });
   test("battle without stored photos keeps images in the session only", async ({ page }) => {
     test.setTimeout(240_000);
+    await signIn(page);
     await page.goto("/battle/new");
     await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
     const inputs = page.locator('input[type="file"]');
@@ -183,6 +242,7 @@ test.describe("PSL ARENA end-to-end", () => {
   });
 
   test("landmark layers render and the German locale applies", async ({ page }) => {
+    await signIn(page);
     await page.goto("/history");
     await page.getByRole("tab", { name: /Analyses/ }).click();
     // the stored-photo analysis ("Alpha") → overlays on the photo

@@ -8,12 +8,29 @@ export function dataDir(): string {
   return dir;
 }
 
+/** Id of the pre-authentication single user; its data is adopted by the first account. */
+export const LEGACY_USER_ID = "local";
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  email TEXT,
+  password_hash TEXT,
+  password_salt TEXT,
+  last_login_at TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  user_agent TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE TABLE IF NOT EXISTS images (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -57,6 +74,7 @@ CREATE TABLE IF NOT EXISTS analysis_sessions (
   analyzable INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_analysis_profile ON analysis_sessions(profile_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analysis_user ON analysis_sessions(user_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS landmarks (
   analysis_id TEXT NOT NULL REFERENCES analysis_sessions(id) ON DELETE CASCADE,
   landmark_id TEXT NOT NULL,
@@ -107,20 +125,38 @@ CREATE TABLE IF NOT EXISTS battle_sessions (
   diff REAL,
   margin REAL NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_battle_created ON battle_sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_battle_created ON battle_sessions(user_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS settings (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   key TEXT NOT NULL,
   value_json TEXT NOT NULL,
   PRIMARY KEY (user_id, key)
 );
+CREATE TABLE IF NOT EXISTS schema_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `;
 
-export const LOCAL_USER_ID = "local";
+export const SCHEMA_VERSION = "2";
 
 type DB = Database.Database;
 declare global {
   var __pslArenaDb: DB | undefined;
+}
+
+/** Brings a v1 database (single local user, no auth) up to the current schema. */
+function migrate(db: DB) {
+  // v1 → v2: an existing users table without the account columns gets them before the
+  // unique e-mail index in SCHEMA is created. A fresh database skips this (no table yet).
+  const cols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name);
+  if (cols.length > 0) {
+    for (const [col, type] of [["email", "TEXT"], ["password_hash", "TEXT"], ["password_salt", "TEXT"], ["last_login_at", "TEXT"]] as const) {
+      if (!cols.includes(col)) db.exec(`ALTER TABLE users ADD COLUMN ${col} ${type}`);
+    }
+  }
+  db.exec(SCHEMA); // creates missing tables/indexes idempotently
+  db.prepare("INSERT INTO schema_meta (key, value) VALUES ('version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(SCHEMA_VERSION);
 }
 
 export function getDb(): DB {
@@ -129,10 +165,15 @@ export function getDb(): DB {
   const db = new Database(file);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
-  db.exec(SCHEMA);
-  db.prepare("INSERT OR IGNORE INTO users (id, name, created_at) VALUES (?, ?, ?)").run(LOCAL_USER_ID, "Local user", new Date().toISOString());
+  migrate(db);
   globalThis.__pslArenaDb = db;
   return db;
+}
+
+/** Test helper: close and forget the cached connection (e.g. when the data dir changes). */
+export function closeDb() {
+  globalThis.__pslArenaDb?.close();
+  globalThis.__pslArenaDb = undefined;
 }
 
 export function newId(prefix: string): string {

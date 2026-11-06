@@ -4,7 +4,8 @@ Raw inputs, calculated values and interpreted scores are stored separately.
 
 | Table | Purpose | Key columns |
 | --- | --- | --- |
-| `users` | local user (`local`); hook for multi-user auth | id, name |
+| `users` | accounts (e-mail unique, scrypt hash + salt, last login); a legacy `local` row from v1 is adopted by the first account | id, name, email, password_hash, password_salt |
+| `sessions` | login sessions; id = SHA-256 of the cookie token | id, user_id, created_at, expires_at, last_seen_at, user_agent |
 | `images` | encrypted photo files (opt-in) | id, mime, width, height, bytes, sha256, encrypted, path |
 | `face_profiles` | one per analysed person | id, label, image_id, note, timestamps |
 | `analysis_sessions` | one per analysis run | id, profile_id, image_id, engine_version, image size, `config_json`, `input_json` (raw mesh, blendshapes, matrix, quality metrics), `result_json` (full `AnalysisResult`), denormalised overall/harmony/proportion/symmetry/confidence/coverage/quality_level/analyzable |
@@ -13,6 +14,8 @@ Raw inputs, calculated values and interpreted scores are stored separately.
 | `category_scores` | category indices with coverage/confidence | (analysis_id, category_id) |
 | `battle_sessions` | head-to-head results (`result_json` = `BattleResult`), verdict, overall A/B, diff, margin | id, analysis_a_id, analysis_b_id, profile ids |
 | `settings` | server-side key/value settings | (user_id, key) |
+
+`schema_meta` stores the schema version; `getDb()` migrates a v1 database in place (adds the account columns and the sessions table).
 
 History views are built from `analysis_sessions` and `battle_sessions` (ordered by `created_at`). Deleting a profile cascades to its analyses and battles and removes orphaned image files; deleting all data wipes every table and the encrypted image directory.
 

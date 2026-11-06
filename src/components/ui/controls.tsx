@@ -45,13 +45,14 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return <input className={cn("h-10 w-full rounded-xl border border-line-strong bg-bg-2 px-3 text-sm text-fg-0 placeholder:text-fg-3 focus:outline-none focus:ring-2 focus:ring-accent/50", className)} {...props} />;
 }
 
+/** Label + control. The wrapping <label> associates the text with the control for assistive tech. */
 export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <div className="text-xs font-medium uppercase tracking-wider text-fg-2">{label}</div>
+    <label className="block space-y-1.5">
+      <span className="block text-xs font-medium uppercase tracking-wider text-fg-2">{label}</span>
       {children}
-      {hint && <div className="text-xs text-fg-3">{hint}</div>}
-    </div>
+      {hint && <span className="block text-xs text-fg-3">{hint}</span>}
+    </label>
   );
 }
 

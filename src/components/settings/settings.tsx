@@ -1,19 +1,26 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, KeyRound, LogOut, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Field, Select, Toggle } from "@/components/ui/controls";
+import { Field, Input, Select, Toggle } from "@/components/ui/controls";
 import { PageHeader } from "@/components/layout/app-shell";
 import { BRAND } from "@/config/brand";
 import { ENGINE_VERSION } from "@/engine/analysis";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
+import { fmt } from "@/lib/utils";
 import type { CaptureDistance } from "@/engine/types";
 
-export function SettingsView() {
+export interface AccountInfo {
+  email: string;
+  name: string;
+  createdAt: string;
+}
+
+export function SettingsView({ account }: { account: AccountInfo }) {
   const { t } = useT();
   const s = useSettings();
   const router = useRouter();
@@ -28,6 +35,7 @@ export function SettingsView() {
     <div className="space-y-6">
       <PageHeader kicker={t("nav.settings")} title={t("settings.title")} />
       <div className="grid gap-5 lg:grid-cols-2">
+        <AccountCard account={account} />
         <Card>
           <CardHeader title={t("settings.appearance")} />
           <CardBody className="space-y-2">
@@ -92,5 +100,122 @@ export function SettingsView() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function AccountCard({ account }: { account: AccountInfo }) {
+  const { t, lang } = useT();
+  const router = useRouter();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [deletePw, setDeletePw] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async (fn: () => Promise<string | void>) => {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const m = await fn();
+      if (m) setMsg(m);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changePw = () =>
+    run(async () => {
+      if (next !== confirm) throw new Error(t("auth.mismatch"));
+      await api.changePassword(current, next);
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      return t("auth.passwordChanged");
+    });
+  const logoutOthers = () =>
+    run(async () => {
+      await api.logoutOthers();
+      return t("auth.sessionsCleared");
+    });
+  const logout = () =>
+    run(async () => {
+      await api.logout();
+      router.push("/login");
+      router.refresh();
+    });
+  const deleteAcc = () =>
+    run(async () => {
+      if (!window.confirm(t("auth.deleteAccountConfirm"))) return;
+      await api.deleteAccount(deletePw);
+      router.push("/signup");
+      router.refresh();
+    });
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader title={t("auth.account")} icon={<UserRound size={18} />} subtitle={`${t("auth.signedInAs")} ${account.email} · ${t("auth.memberSince")} ${fmt.date(account.createdAt, lang)}`} />
+      <CardBody className="grid gap-6 md:grid-cols-2">
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void changePw();
+          }}
+        >
+          <div className="text-sm font-medium flex items-center gap-2">
+            <KeyRound size={16} className="text-cyan" /> {t("auth.changePassword")}
+          </div>
+          <Field label={t("auth.currentPassword")}>
+            <Input type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
+          </Field>
+          <Field label={t("auth.newPassword")} hint={t("auth.passwordHint")}>
+            <Input type="password" autoComplete="new-password" required minLength={10} value={next} onChange={(e) => setNext(e.target.value)} />
+          </Field>
+          <Field label={t("auth.confirm")}>
+            <Input type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" loading={busy}>
+              {t("auth.changePassword")}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={logoutOthers} disabled={busy}>
+              <LogOut size={14} /> {t("auth.logoutAll")}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={logout} disabled={busy} data-testid="settings-logout">
+              {t("auth.logout")}
+            </Button>
+          </div>
+        </form>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void deleteAcc();
+          }}
+        >
+          <div className="text-sm font-medium flex items-center gap-2 text-[#ff8fa3]">
+            <Trash2 size={16} /> {t("auth.deleteAccount")}
+          </div>
+          <p className="text-xs text-fg-3">{t("auth.deleteAccountHint")}</p>
+          <Field label={t("auth.password")}>
+            <Input type="password" autoComplete="current-password" required value={deletePw} onChange={(e) => setDeletePw(e.target.value)} />
+          </Field>
+          <Button type="submit" size="sm" variant="danger" disabled={busy || !deletePw}>
+            <Trash2 size={14} /> {t("auth.deleteAccount")}
+          </Button>
+          {msg && <div className="text-sm text-mint">{msg}</div>}
+          {err && (
+            <div className="text-sm text-[#ff8fa3]" role="alert">
+              {err}
+            </div>
+          )}
+        </form>
+      </CardBody>
+    </Card>
   );
 }

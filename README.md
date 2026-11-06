@@ -22,6 +22,8 @@ npm start
 
 Requirements: Node ≥ 20.19 (tested on Node 22). SQLite is embedded (`better-sqlite3`, native binary installed by npm). No external services, no API keys.
 
+On first start, open the app and create the first account (e-mail + password, min. 10 characters). Accounts are local to this installation; there is no e-mail verification and no password reset, so keep the password safe. Data created before accounts existed is assigned to the first account. Set `PSL_ARENA_ALLOW_SIGNUP=false` to stop further sign-ups once your accounts exist.
+
 The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is vendored so the app works fully offline. If it is missing, download it from
 `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`.
 
@@ -37,7 +39,8 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 | Uncertainty | Monte-Carlo landmark jitter (deterministic seed) → σ for every score and ratio. |
 | Battle | 9 rounds (harmony, 7 categories, symmetry) + overall. Round and final decisions use a margin derived from both sides' uncertainty; low coverage/confidence ⇒ *inconclusive*; small differences ⇒ *draw*. |
 | Visualisation | Interactive SVG overlay with 10 analysis layers (landmarks, eyes, brows, midface, nose, mouth, jaw, thirds, ratios, symmetry), full-mesh toggle, click-to-inspect landmarks, draggable hairline, neck-point placement. |
-| Persistence | SQLite (`data/psl-arena.sqlite`): users, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
+| Accounts | Local e-mail/password accounts (scrypt-hashed), database-backed sessions in HttpOnly SameSite cookies (30 days), login rate limiting, same-origin check on mutating requests, per-account data isolation on every query. |
+| Persistence | SQLite (`data/psl-arena.sqlite`): users, sessions, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
 | UI | Next.js 16 App Router, React 19, Tailwind 4, framer-motion; dark premium HUD design; EN/DE; reduced-motion support; responsive (desktop side-by-side, mobile stacked). |
 
 ## Scripts
@@ -52,7 +55,9 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 
 ## Configuration
 
-`.env.example` documents the variables: `PSL_ARENA_DATA_DIR` (default `./data`), `PSL_ARENA_IMAGE_KEY` (32-byte hex; generated on first run otherwise), `NEXT_PUBLIC_APP_NAME` (branding; see also `src/config/brand.ts`).
+`.env.example` documents the variables: `PSL_ARENA_DATA_DIR` (default `./data`), `PSL_ARENA_IMAGE_KEY` (32-byte hex; generated on first run otherwise), `PSL_ARENA_ALLOW_SIGNUP` (default true; `false` locks sign-up after the first account), `NEXT_PUBLIC_APP_NAME` (branding; see also `src/config/brand.ts`).
+
+Serve the app over HTTPS when it is reachable from other machines: the session cookie is marked `Secure` automatically on HTTPS requests.
 
 ## Documentation
 

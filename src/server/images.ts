@@ -2,11 +2,12 @@
  * Encrypted image storage (AES-256-GCM). Images are only stored when the user
  * explicitly opts in. The key comes from PSL_ARENA_IMAGE_KEY (hex, 32 bytes) or is
  * generated once and kept in <data dir>/image.key (mode 0600).
+ * Every read is scoped to the owning user.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { dataDir, getDb, LOCAL_USER_ID, newId } from "./db";
+import { dataDir, getDb, newId } from "./db";
 
 let cachedKey: Buffer | null = null;
 
@@ -47,7 +48,7 @@ export interface StoredImage {
   sha256: string;
 }
 
-export function storeImage(buf: Buffer, mime: string, width: number, height: number): StoredImage {
+export function storeImage(userId: string, buf: Buffer, mime: string, width: number, height: number): StoredImage {
   const id = newId("img");
   const key = imageKey();
   const iv = randomBytes(12);
@@ -59,12 +60,12 @@ export function storeImage(buf: Buffer, mime: string, width: number, height: num
   const sha256 = createHash("sha256").update(buf).digest("hex");
   getDb()
     .prepare("INSERT INTO images (id, user_id, mime, width, height, bytes, sha256, encrypted, path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)")
-    .run(id, LOCAL_USER_ID, mime, width, height, buf.length, sha256, path, new Date().toISOString());
+    .run(id, userId, mime, width, height, buf.length, sha256, path, new Date().toISOString());
   return { id, mime, width, height, bytes: buf.length, sha256 };
 }
 
-export function readImage(id: string): { buf: Buffer; mime: string } | null {
-  const row = getDb().prepare("SELECT mime, path FROM images WHERE id = ?").get(id) as { mime: string; path: string } | undefined;
+export function readImage(userId: string, id: string): { buf: Buffer; mime: string } | null {
+  const row = getDb().prepare("SELECT mime, path FROM images WHERE id = ? AND user_id = ?").get(id, userId) as { mime: string; path: string } | undefined;
   if (!row || !existsSync(row.path)) return null;
   const raw = readFileSync(row.path);
   const iv = raw.subarray(0, 12);
@@ -76,6 +77,7 @@ export function readImage(id: string): { buf: Buffer; mime: string } | null {
   return { buf, mime: row.mime };
 }
 
+/** Removes the file and the row. Internal: callers must have verified ownership. */
 export function deleteImageFile(id: string) {
   const row = getDb().prepare("SELECT path FROM images WHERE id = ?").get(id) as { path: string } | undefined;
   if (row && existsSync(row.path)) {
@@ -88,7 +90,7 @@ export function deleteImageFile(id: string) {
   getDb().prepare("DELETE FROM images WHERE id = ?").run(id);
 }
 
-export function deleteAllImageFiles() {
-  const rows = getDb().prepare("SELECT id FROM images").all() as { id: string }[];
+export function deleteAllImageFiles(userId: string) {
+  const rows = getDb().prepare("SELECT id FROM images WHERE user_id = ?").all(userId) as { id: string }[];
   for (const r of rows) deleteImageFile(r.id);
 }

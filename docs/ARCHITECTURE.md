@@ -45,11 +45,11 @@
 `landmarker.ts` (lazy singleton, CPU delegate with GPU fallback option), `image.ts` (decode/downscale, EXIF orientation), `detect.ts` (faces → pixel meshes, blendshapes, matrices), `quality.ts` (pixel statistics on a normalised face crop), `hairline.ts` (midline skin→hair transition scan), `pipeline.ts` (prepare image → `AnalysisInput`).
 
 ### `src/server`
-`db.ts` (schema, WAL, local user), `images.ts` (AES-256-GCM at-rest encryption, key management), `repos.ts` (typed data access), `services.ts` (create analysis/battle, validation of analyzability), `schemas.ts` (zod), `http.ts` (response helpers).
+`db.ts` (schema v2, WAL, migration from the single-user v1 layout), `auth.ts` (scrypt password hashing, database sessions, rate limiting, `requireUser` for pages and `requireUserApi` for route handlers with same-origin enforcement, legacy-data adoption), `images.ts` (AES-256-GCM at-rest encryption, key management, owner-scoped reads), `repos.ts` (typed data access, every query filtered by `user_id`), `services.ts` (create analysis/battle, validation of analyzability), `schemas.ts` (zod), `http.ts` (response helpers). `src/proxy.ts` redirects page requests without a session cookie to `/login`; the authoritative check happens in the pages and routes.
 
 ### `src/app`
 Pages: `/` dashboard, `/battle/new`, `/battle/[id]`, `/analysis/[id]`, `/profiles`, `/profiles/[id]`, `/history`, `/settings`.
-API: `/api/profiles[/id]`, `/api/analyses[/id]`, `/api/battles[/id]`, `/api/images/[id]`, `/api/stats`, `/api/settings`, `/api/data` (export / delete all), `/api/ratios` (reference database).
+API: `/api/auth/{signup,login,logout,me,password,sessions,account}`, `/api/profiles[/id]`, `/api/analyses[/id]`, `/api/battles[/id]`, `/api/images/[id]`, `/api/stats`, `/api/settings`, `/api/data` (export / delete all), `/api/ratios` (reference database, public).
 
 ### `src/components`
 `ui/*` design-system primitives · `layout/app-shell` navigation · `viz/landmark-canvas` the measurement overlay · `battle/*` setup flow, arena, summary, comparison · `analysis/analysis-center` · `profiles`, `history`, `settings`, `dashboard`.
@@ -68,3 +68,4 @@ API: `/api/profiles[/id]`, `/api/analyses[/id]`, `/api/battles[/id]`, `/api/imag
 * Every number is traceable: intermediates, landmarks, methodology and limitations are stored with the result and shown in the UI.
 * Measurement quality is first-class: confidence, coverage, uncertainty and quality level propagate into categories, overall scores and battle verdicts.
 * Privacy by default: local detection, opt-in encrypted image storage, one-click export and delete-all.
+* Accounts isolate data: all repository functions take the user id and filter by it; images are only served to their owner.

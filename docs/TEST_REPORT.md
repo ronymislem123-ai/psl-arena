@@ -4,7 +4,7 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 
 ## 1. Automated — tested
 
-### Unit tests (`npm test`, Vitest) — 32 passed, 1 diagnostic skipped
+### Unit tests (`npm test`, Vitest) — 43 passed, 1 diagnostic skipped
 | Suite | What is verified |
 | --- | --- |
 | `geometry.test.ts` | distances, tilt sign convention (lateral-higher ⇒ positive on both sides), rotation, angle at vertex, line fit/intersection, polyline crossing, deterministic PRNG |
@@ -13,14 +13,17 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | `engine.test.ts` (real landmark fixtures of four frontal portraits + one turned head + one rotated image) | 35/42 evaluable with hairline, 6 incomplete, original percentage not computable, plausible anthropometric ranges (ESR, BIG, N/H, EME, GS), symmetry present, uncertainty σ > 0, 40+ feature observations, 7 additional measurements; determinism; smile detection lowers mouth-ratio confidence; yaw 32° ⇒ not analyzable; 87° roll normalised (pupils level); hairline-dependent ratios unavailable without trichion (29 evaluable); NW only with manual neck points; reconstructed ratios excluded by config (6 excluded, uncertainty off); incomplete ratios always unmeasured |
 | `battle.test.ts` | identical inputs ⇒ draw with zero diff and no key differences; 9 rounds with consistent verdict/scores; unusable image ⇒ inconclusive; low coverage ⇒ inconclusive |
 | `symmetry.test.ts` | mirrored face ⇒ 100; mouth/jaw asymmetry penalised; yaw lowers confidence |
+| `auth.test.ts` (isolated temp database) | v1→v2 schema migration in place, scrypt hashing with random salts, password policy, e-mail normalisation, legacy-data adoption on first sign-up, duplicate/incorrect credentials, cross-account isolation of profiles, session create/find/expire/destroy with hashed storage, password change signing other devices out, per-client rate limiting, account deletion cascade, cross-site mutation rejection |
 
-### End-to-end (`npm run test:e2e`, Playwright) — 7 passed
+### End-to-end (`npm run test:e2e`, Playwright) — 9 passed
 | Test | Steps verified |
 | --- | --- |
-| dashboard renders | page loads, brand heading |
+| unauthenticated access is blocked | API returns 401, image route returns 401, pages redirect to `/login?next=…` |
+| sign-up form | creates an account through the UI, lands on the dashboard, sees no foreign data, signs out, `/api/auth/me` returns 401 afterwards |
+| dashboard renders | page loads, brand heading (signed in) |
 | full battle flow | upload two portraits through the real UI → in-browser detection → quality tiles and smile warnings → labels → hairline confirmation → opt-in encrypted photo storage → consent → start button enabled → analyses + battle persisted → arena shows stored images via `/api/images` → summary tab (9 rounds) → comparison tab (42 ratio rows) → analysis center (42 rows, ratio detail dialog, landmark layer with SVG points, symmetry, quality tabs) → history and profiles pages; no page errors |
 | rejects a turned head | 32° yaw image ⇒ "Unusable", explicit error message, start button disabled, no preview score shown |
-| API | `/api/ratios` returns 42 + 7, `/api/stats` ok, malformed analysis body ⇒ 400 |
+| API | `/api/ratios` returns 42 + 7 without login, `/api/stats` ok when signed in, malformed analysis body ⇒ 400, a second account gets 404 for the first account's analysis and an empty list |
 | mobile layout | 390 px viewport renders setup page and dashboard |
 | battle without stored photos | second battle with storage off: arena renders the session copies (data URLs), no `/api/images` requests, server image count unchanged |
 | landmark layers & locale | nose / symmetry / jaw / thirds layers draw measurement lines on the stored photo; an analysis without a stored photo shows the landmark wireframe fallback; switching the language to German relabels the navigation |
@@ -42,7 +45,7 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * Load/performance with many stored analyses (hundreds+) and very large images (> 8 MB request limit is enforced, not benchmarked).
 * GPU delegate path of MediaPipe (CPU is the default).
 * Browsers other than Chromium (Safari/Firefox WASM SIMD behaviour).
-* Multi-user / authentication (not implemented).
+* Password reset / e-mail verification / two-factor (not implemented).
 * Accessibility audit (screen reader, full keyboard operation of the SVG picker).
 
 ## 4. Known results on the fixtures (for reproducibility)

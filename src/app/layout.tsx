@@ -4,6 +4,7 @@ import "@fontsource-variable/space-grotesk";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 import { BRAND } from "@/config/brand";
+import { getCurrentUser } from "@/server/auth";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -14,11 +15,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#07080a", width: "device-width", initialScale: 1 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers>{children}</Providers>
+        <Providers user={user ? { email: user.email, name: user.name } : null}>{children}</Providers>
       </body>
     </html>
   );

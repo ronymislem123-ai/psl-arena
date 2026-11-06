@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { ServiceError } from "./services";
+import { ServiceError } from "./errors";
 
 export function ok(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, init);

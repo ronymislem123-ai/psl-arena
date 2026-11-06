@@ -1,12 +1,18 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
-import { Clock3, LayoutDashboard, Settings, Swords, Users, Zap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { Clock3, LayoutDashboard, LogOut, Settings, Swords, UserRound, Users, Zap } from "lucide-react";
 import { BRAND } from "@/config/brand";
+import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { rehydrateSettings, useSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+
+export interface ShellUser {
+  email: string;
+  name: string;
+}
 
 const NAV = [
   { href: "/", key: "nav.dashboard", icon: LayoutDashboard },
@@ -16,10 +22,14 @@ const NAV = [
   { href: "/settings", key: "nav.settings", icon: Settings },
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
+const BARE_PREFIXES = ["/login", "/signup"];
+
+export function AppShell({ children, user }: { children: ReactNode; user: ShellUser | null }) {
   const { t } = useT();
   const pathname = usePathname();
+  const router = useRouter();
   const reduced = useSettings((s) => s.reducedMotion);
+  const [signingOut, setSigningOut] = useState(false);
   useEffect(() => {
     rehydrateSettings();
   }, []);
@@ -27,6 +37,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.documentElement.dataset.reducedMotion = String(reduced);
   }, [reduced]);
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const bare = BARE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  const logout = async () => {
+    setSigningOut(true);
+    try {
+      await api.logout();
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  };
+
+  if (bare) return <div className="min-h-dvh">{children}</div>;
 
   return (
     <div className="min-h-dvh flex">
@@ -52,9 +75,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="px-5 py-4 border-t border-line text-[11px] text-fg-3 font-mono">
-          v{BRAND.version} · engine local
-        </div>
+        {user && (
+          <div className="px-3 py-3 border-t border-line">
+            <div className="flex items-center gap-2.5 rounded-xl px-2 py-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet/20 text-[#c4b5fd]">
+                <UserRound size={15} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{user.name}</div>
+                <div className="text-[11px] text-fg-3 truncate">{user.email}</div>
+              </div>
+              <button onClick={logout} disabled={signingOut} className="rounded-lg p-1.5 text-fg-2 hover:bg-white/10 hover:text-fg-0" title={t("auth.logout")} aria-label={t("auth.logout")} data-testid="logout">
+                <LogOut size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="px-5 py-3 border-t border-line text-[11px] text-fg-3 font-mono">v{BRAND.version} · engine local</div>
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -65,9 +102,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
             <span className="font-display font-bold tracking-[0.12em] text-sm">{BRAND.name}</span>
           </Link>
-          <Link href="/battle/new" className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white">
-            {t("nav.newBattle")}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/battle/new" className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white">
+              {t("nav.newBattle")}
+            </Link>
+            {user && (
+              <button onClick={logout} disabled={signingOut} className="rounded-lg p-1.5 text-fg-2 hover:bg-white/10" aria-label={t("auth.logout")}>
+                <LogOut size={16} />
+              </button>
+            )}
+          </div>
         </header>
         <main className="flex-1 px-4 md:px-8 py-6 md:py-8 pb-24 md:pb-10 max-w-[1500px] w-full mx-auto">{children}</main>
         <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 border-t border-line bg-bg-1/90 backdrop-blur-xl">
