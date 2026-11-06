@@ -61,7 +61,7 @@ export function UploadSlot({ side }: { side: Side }) {
             dragOver ? "border-accent bg-accent/10" : "border-line-strong hover:border-accent/50 hover:bg-white/3",
           )}
         >
-          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFiles(e.target.files)} />
           {slot.status === "loading" ? (
             <div className="space-y-3">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan border-t-transparent" />
@@ -117,7 +117,7 @@ export function UploadSlot({ side }: { side: Side }) {
           <Button variant="ghost" size="sm" onClick={() => clear(side)} title={t("common.remove")}>
             <Trash2 size={14} />
           </Button>
-          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFiles(e.target.files)} />
         </div>
       </div>
 

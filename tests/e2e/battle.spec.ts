@@ -285,12 +285,24 @@ test.describe("PSL ARENA end-to-end", () => {
     expect((await (await request.get("/api/analyses")).json()).analyses).toHaveLength(0);
   });
 
-  test("mobile layout renders the setup page", async ({ browser }) => {
+  test("mobile layout renders the setup page and the app is installable", async ({ browser, request }) => {
+    const manifest = await request.get("/manifest.webmanifest");
+    expect(manifest.ok()).toBeTruthy();
+    const m = await manifest.json();
+    expect(m.display).toBe("standalone");
+    expect(m.icons.some((i: { sizes: string }) => i.sizes === "512x512")).toBe(true);
+    for (const icon of m.icons as { src: string }[]) expect((await request.get(icon.src)).ok()).toBeTruthy();
+    const sw = await request.get("/sw.js");
+    expect(sw.ok()).toBeTruthy();
+    expect(sw.headers()["cache-control"]).toContain("no-cache");
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     await signIn(page);
     await page.goto("/battle/new");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("New Battle");
+    expect(await page.locator('link[rel="manifest"]').getAttribute("href")).toBe("/manifest.webmanifest");
+    expect(await page.locator('meta[name="viewport"]').getAttribute("content")).toContain("viewport-fit=cover");
+    expect(await page.locator('input[type="file"]').first().getAttribute("accept")).toBe("image/*");
     await shot(page, "16-mobile-setup");
     await page.goto("/");
     await shot(page, "17-mobile-dashboard");

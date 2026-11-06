@@ -49,7 +49,35 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 | Visualisation | Interactive SVG overlay with 10 analysis layers (landmarks, eyes, brows, midface, nose, mouth, jaw, thirds, ratios, symmetry), full-mesh toggle, click-to-inspect landmarks, draggable hairline, neck-point placement. |
 | Accounts | Local e-mail/password accounts (scrypt-hashed), database-backed sessions in HttpOnly SameSite cookies (30 days), login rate limiting, same-origin check on mutating requests, per-account data isolation on every query, hashed one-time recovery codes for password reset plus an operator CLI fallback, optional TOTP two-factor authentication (RFC 6238, QR enrollment, encrypted secret, replay protection, recovery codes as backup factor). |
 | Persistence | SQLite (`data/psl-arena.sqlite`): users, sessions, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
-| UI | Next.js 16 App Router, React 19, Tailwind 4, framer-motion; dark premium HUD design; EN/DE; reduced-motion support; responsive (desktop side-by-side, mobile stacked). |
+| UI | Next.js 16 App Router, React 19, Tailwind 4, framer-motion; dark premium HUD design; EN/DE; reduced-motion support; responsive (desktop side-by-side, mobile stacked); installable PWA with offline-cached ML runtime and safe-area aware layout. |
+
+## On your phone
+
+PSL ARENA is an installable web app (PWA): open it in the phone browser and use **Add to Home Screen** (Android: menu → "Install app"; iOS Safari: share → "Add to Home Screen"). It then runs full-screen with its own icon; the ML runtime and model are cached for offline use. Photos can be taken directly with the camera from the upload field.
+
+Installation and the camera require an **HTTPS** address (plain `http://192.168.x.x:3000` works for trying it out, but the browser will not install it). Two simple setups:
+
+1. **Private, no domain needed** — install [Tailscale](https://tailscale.com) on the computer that runs the app and on the phone, then
+
+   ```bash
+   docker compose up -d app
+   ```
+
+   ```bash
+   tailscale serve --bg 3000
+   ```
+
+   The app is now reachable at `https://<computer>.<your-tailnet>.ts.net` from your phone only, with a valid certificate.
+
+2. **Public domain** — point a DNS name at the machine, open ports 80/443, and start the app together with the Caddy reverse proxy, which fetches a Let's Encrypt certificate automatically:
+
+   ```bash
+   DOMAIN=arena.example.com docker compose --profile public up -d
+   ```
+
+   Create your account first, then set `PSL_ARENA_ALLOW_SIGNUP=false` in `docker-compose.yml` (or the environment) so nobody else can register.
+
+The Docker volume `arena-data` holds the SQLite database, the encrypted photos and the key file; back it up to keep your history. Without Docker, `npm run build && npm start` behind any HTTPS reverse proxy works the same way.
 
 ## Scripts
 

@@ -95,7 +95,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="md:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b border-line bg-bg-1/80 backdrop-blur-xl">
+        <header className="md:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b border-line bg-bg-1/80 backdrop-blur-xl pt-[env(safe-area-inset-top)] box-content">
           <Link href="/" className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/20 text-accent">
               <Zap size={14} />
@@ -113,8 +113,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
             )}
           </div>
         </header>
-        <main className="flex-1 px-4 md:px-8 py-6 md:py-8 pb-24 md:pb-10 max-w-[1500px] w-full mx-auto">{children}</main>
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 border-t border-line bg-bg-1/90 backdrop-blur-xl">
+        <main className="flex-1 px-4 md:px-8 py-6 md:py-8 pb-28 md:pb-10 max-w-[1500px] w-full mx-auto">{children}</main>
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 border-t border-line bg-bg-1/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10px]", isActive(n.href) ? "text-accent" : "text-fg-2")}>
               <n.icon size={18} />

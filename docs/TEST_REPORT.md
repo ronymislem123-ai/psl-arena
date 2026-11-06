@@ -27,7 +27,7 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | full battle flow | upload two portraits through the real UI → in-browser detection → quality tiles and smile warnings → labels → hairline confirmation → opt-in encrypted photo storage → consent → start button enabled → analyses + battle persisted → arena shows stored images via `/api/images` → summary tab (9 rounds) → comparison tab (42 ratio rows) → analysis center (42 rows, ratio detail dialog, landmark layer with SVG points, symmetry, quality tabs) → history and profiles pages; no page errors |
 | rejects a turned head | 32° yaw image ⇒ "Unusable", explicit error message, start button disabled, no preview score shown |
 | API | `/api/ratios` returns 42 + 7 without login, `/api/stats` ok when signed in, malformed analysis body ⇒ 400, a second account gets 404 for the first account's analysis and an empty list |
-| mobile layout | 390 px viewport renders setup page and dashboard |
+| mobile layout & installability | 390 px viewport renders setup page and dashboard; manifest (standalone, 192/512/maskable icons all served), service worker served uncached, manifest link, `viewport-fit=cover`, camera-friendly `accept="image/*"` |
 | battle without stored photos | second battle with storage off: arena renders the session copies (data URLs), no `/api/images` requests, server image count unchanged |
 | landmark layers & locale | nose / symmetry / jaw / thirds layers draw measurement lines on the stored photo; an analysis without a stored photo shows the landmark wireframe fallback; switching the language to German relabels the navigation, the ratio table, the ratio detail dialog, the feature overview and the quality tab |
 
@@ -44,10 +44,13 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * **German locale**: dictionary type-checked against the English keys; navigation, ratio table, detail dialog, features and quality tab are covered by e2e; arena and battle summary wording in German was spot-checked manually.
 * **Battle verdict "winner"**: the fixture pair resolves to a draw within uncertainty (3.6 points vs ±7.2 margin); the winner path is covered by unit tests on synthetic differences, not by the e2e pair.
 
+* **PWA in production**: service-worker registration, page control and runtime caching of built assets/icons were verified in a mobile Chromium context against `next start`; "Add to Home Screen" on real Android/iOS devices was not exercised.
+
 ## 3. Not tested
+* The Docker image (`Dockerfile`, `docker-compose.yml`) was written but not built in this session (no Docker daemon available here).
 * Load/performance with many stored analyses (hundreds+) and very large images (> 8 MB request limit is enforced, not benchmarked).
 * GPU delegate path of MediaPipe (CPU is the default).
-* Browsers other than Chromium (Safari/Firefox WASM SIMD behaviour).
+* Browsers other than Chromium (Safari/Firefox WASM SIMD behaviour); "Add to Home Screen" on a real phone and the service-worker offline path were verified manually against the production build in Chromium, not on devices.
 * E-mail verification, e-mail-based reset links (no mail transport) and WebAuthn (not implemented). QR scanning itself is not automated (the e2e uses the manual key).
 * Accessibility audit (screen reader, full keyboard operation of the SVG picker).
 

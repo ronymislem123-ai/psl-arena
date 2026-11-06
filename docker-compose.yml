@@ -1,0 +1,36 @@
+# Two ways to reach the app from your phone:
+#  1) Private network with automatic HTTPS (recommended): run only `app` and expose it with
+#     Tailscale → `tailscale serve --bg 3000` gives https://<machine>.<tailnet>.ts.net
+#  2) Public domain: set DOMAIN=arena.example.com and start `app` + `caddy`; Caddy obtains the
+#     certificate from Let's Encrypt automatically (ports 80/443 must reach this machine).
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - PSL_ARENA_ALLOW_SIGNUP=${PSL_ARENA_ALLOW_SIGNUP:-true}
+      # - PSL_ARENA_IMAGE_KEY=<32-byte hex>   # optional; otherwise generated in the volume
+    volumes:
+      - arena-data:/data
+    ports:
+      - "3000:3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    profiles: ["public"]
+    depends_on: [app]
+    environment:
+      - DOMAIN=${DOMAIN:?set DOMAIN to your public hostname}
+    command: caddy reverse-proxy --from ${DOMAIN} --to app:3000
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  arena-data:
+  caddy-data:
+  caddy-config:
