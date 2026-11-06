@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, KeyRound, LogOut, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { Download, KeyRound, LogOut, ShieldCheck, Smartphone, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Input, Select, Toggle } from "@/components/ui/controls";
@@ -26,6 +26,7 @@ export function SettingsView({ account }: { account: AccountInfo }) {
   const s = useSettings();
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
+  const [recoveryTick, setRecoveryTick] = useState(0);
   const deleteAll = async () => {
     if (!confirm(t("settings.deleteAllConfirm"))) return;
     await api.deleteAll();
@@ -37,7 +38,8 @@ export function SettingsView({ account }: { account: AccountInfo }) {
       <PageHeader kicker={t("nav.settings")} title={t("settings.title")} />
       <div className="grid gap-5 lg:grid-cols-2">
         <AccountCard account={account} />
-        <RecoveryCard />
+        <TwoFactorCard onChanged={() => setRecoveryTick((t) => t + 1)} />
+        <RecoveryCard refreshKey={recoveryTick} />
         <Card>
           <CardHeader title={t("settings.appearance")} />
           <CardBody className="space-y-2">
@@ -222,7 +224,7 @@ function AccountCard({ account }: { account: AccountInfo }) {
   );
 }
 
-function RecoveryCard() {
+function RecoveryCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const { t } = useT();
   const [status, setStatus] = useState<{ remaining: number; total: number } | null>(null);
   const [password, setPassword] = useState("");
@@ -230,8 +232,9 @@ function RecoveryCard() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    // reloads whenever another card consumed or replaced codes (refreshKey changes)
     api.recoveryStatus().then(setStatus).catch(() => setStatus(null));
-  }, []);
+  }, [refreshKey]);
   const regenerate = async () => {
     setBusy(true);
     setErr(null);
@@ -286,6 +289,158 @@ function RecoveryCard() {
             </>
           ) : (
             <p className="text-sm text-fg-3">{t("auth.codesSub")}</p>
+          )}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+function TwoFactorCard({ onChanged }: { onChanged?: () => void }) {
+  const { t, lang } = useT();
+  const router = useRouter();
+  const [status, setStatus] = useState<{ enabled: boolean; enabledAt: string | null; pending: boolean } | null>(null);
+  const [password, setPassword] = useState("");
+  const [setup, setSetup] = useState<{ uri: string; qrDataUrl: string; secretFormatted: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.totpStatus().then(setStatus).catch(() => setStatus(null));
+  }, []);
+  const run = async (fn: () => Promise<string | void>) => {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const m = await fn();
+      if (m) setMsg(m);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const start = () =>
+    run(async () => {
+      setSetup(await api.totpSetup(password));
+      setPassword("");
+    });
+  const enable = () =>
+    run(async () => {
+      const st = await api.totpEnable(code);
+      setStatus(st);
+      setSetup(null);
+      setCode("");
+      router.refresh();
+      return t("auth.twoFactorEnabled");
+    });
+  const cancel = () =>
+    run(async () => {
+      await api.totpCancel();
+      setSetup(null);
+      setCode("");
+    });
+  const disable = () =>
+    run(async () => {
+      await api.totpDisable(password, code);
+      setStatus({ enabled: false, enabledAt: null, pending: false });
+      setPassword("");
+      setCode("");
+      router.refresh();
+      onChanged?.(); // a recovery code may have been consumed
+      return t("auth.twoFactorDisabled");
+    });
+
+  return (
+    <Card className="lg:col-span-2" data-testid="two-factor-card">
+      <CardHeader
+        title={t("auth.twoFactor")}
+        icon={<Smartphone size={18} />}
+        subtitle={status ? (status.enabled ? t("auth.twoFactorOn", { date: status.enabledAt ? fmt.date(status.enabledAt, lang) : "—" }) : t("auth.twoFactorOff")) : "…"}
+        action={status ? <span className={status.enabled ? "text-xs text-mint" : "text-xs text-fg-3"} data-testid="two-factor-state">{status.enabled ? "ON" : "OFF"}</span> : undefined}
+      />
+      <CardBody className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-3">
+          <p className="text-xs text-fg-3">{t("auth.twoFactorHint")}</p>
+          {status && !status.enabled && !setup && (
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void start();
+              }}
+            >
+              <Field label={t("auth.password")}>
+                <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+              <Button type="submit" size="sm" loading={busy} disabled={!password} data-testid="totp-start">
+                <Smartphone size={14} /> {t("auth.twoFactorStart")}
+              </Button>
+            </form>
+          )}
+          {status && status.enabled && (
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void disable();
+              }}
+            >
+              <div className="text-sm font-medium">{t("auth.twoFactorDisable")}</div>
+              <p className="text-xs text-fg-3">{t("auth.twoFactorDisableHint")}</p>
+              <Field label={t("auth.password")}>
+                <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+              <Field label={t("auth.mfaCode")}>
+                <Input type="text" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(e) => setCode(e.target.value)} className="font-mono tracking-widest" />
+              </Field>
+              <Button type="submit" size="sm" variant="danger" loading={busy} disabled={!password || !code} data-testid="totp-disable">
+                {t("auth.twoFactorDisable")}
+              </Button>
+            </form>
+          )}
+          {msg && <div className="text-sm text-mint">{msg}</div>}
+          {err && (
+            <div className="text-sm text-[#ff8fa3]" role="alert">
+              {err}
+            </div>
+          )}
+        </div>
+        <div>
+          {setup && (
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void enable();
+              }}
+              data-testid="totp-setup"
+            >
+              <p className="text-sm text-fg-2">{t("auth.twoFactorScan")}</p>
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={setup.qrDataUrl} alt="QR" width={180} height={180} className="rounded-xl border border-line bg-bg-1 p-2 shrink-0" />
+                <div className="min-w-0 space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-fg-3">{t("auth.twoFactorManualKey")}</div>
+                  <code className="block break-all rounded-lg bg-white/5 px-3 py-2 font-mono text-sm tracking-wider" data-testid="totp-secret">
+                    {setup.secretFormatted}
+                  </code>
+                </div>
+              </div>
+              <Field label={t("auth.mfaCode")}>
+                <Input type="text" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" className="font-mono tracking-widest" maxLength={6} data-testid="totp-code" />
+              </Field>
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" loading={busy} disabled={code.length < 6} data-testid="totp-enable">
+                  <ShieldCheck size={14} /> {t("auth.twoFactorConfirm")}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={cancel} disabled={busy}>
+                  {t("auth.twoFactorCancel")}
+                </Button>
+              </div>
+            </form>
           )}
         </div>
       </CardBody>

@@ -75,3 +75,7 @@ export const changePasswordSchema = z.object({ currentPassword: z.string().min(1
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(200) });
 export const resetPasswordSchema = z.object({ email: z.string().min(3).max(254), code: z.string().min(10).max(20), newPassword: z.string().min(1).max(200) });
 export const regenerateCodesSchema = z.object({ password: z.string().min(1).max(200) });
+export const totpCodeSchema = z.object({ code: z.string().min(6).max(12) });
+export const totpSetupSchema = z.object({ password: z.string().min(1).max(200) });
+export const totpDisableSchema = z.object({ password: z.string().min(1).max(200), code: z.string().min(6).max(20) });
+export const mfaCompleteSchema = z.object({ code: z.string().min(6).max(12).optional(), recoveryCode: z.string().min(10).max(20).optional() }).refine((v) => !!v.code || !!v.recoveryCode, { message: "A code is required." });

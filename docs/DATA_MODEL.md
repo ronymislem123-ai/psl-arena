@@ -4,7 +4,8 @@ Raw inputs, calculated values and interpreted scores are stored separately.
 
 | Table | Purpose | Key columns |
 | --- | --- | --- |
-| `users` | accounts (e-mail unique, scrypt hash + salt, last login); a legacy `local` row from v1 is adopted by the first account | id, name, email, password_hash, password_salt |
+| `users` | accounts (e-mail unique, scrypt hash + salt, last login, encrypted TOTP secret / pending secret, enabled-at, last accepted step); a legacy `local` row from v1 is adopted by the first account | id, name, email, password_hash, password_salt, totp_* |
+| `mfa_challenges` | pending second-factor sign-ins (10 min, attempt counter); id = SHA-256 of the challenge cookie | id, user_id, created_at, expires_at, attempts |
 | `sessions` | login sessions; id = SHA-256 of the cookie token | id, user_id, created_at, expires_at, last_seen_at, user_agent |
 | `recovery_codes` | one-time password-reset codes; id = SHA-256(user id : code) | id, user_id, created_at, used_at |
 | `images` | encrypted photo files (opt-in) | id, mime, width, height, bytes, sha256, encrypted, path |

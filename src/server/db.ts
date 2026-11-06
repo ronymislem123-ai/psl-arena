@@ -19,7 +19,11 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT,
   password_hash TEXT,
   password_salt TEXT,
-  last_login_at TEXT
+  last_login_at TEXT,
+  totp_secret_enc TEXT,
+  totp_pending_enc TEXT,
+  totp_enabled_at TEXT,
+  totp_last_step INTEGER
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 CREATE TABLE IF NOT EXISTS sessions (
@@ -31,6 +35,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_agent TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE TABLE IF NOT EXISTS mfa_challenges (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS recovery_codes (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -145,7 +156,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 );
 `;
 
-export const SCHEMA_VERSION = "3";
+export const SCHEMA_VERSION = "4";
 
 type DB = Database.Database;
 declare global {
@@ -154,11 +165,15 @@ declare global {
 
 /** Brings a v1 database (single local user, no auth) up to the current schema. */
 function migrate(db: DB) {
-  // v1 → v2: an existing users table without the account columns gets them before the
+  // v1 → v4: an existing users table gets missing account/TOTP columns before the
   // unique e-mail index in SCHEMA is created. A fresh database skips this (no table yet).
   const cols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name);
   if (cols.length > 0) {
-    for (const [col, type] of [["email", "TEXT"], ["password_hash", "TEXT"], ["password_salt", "TEXT"], ["last_login_at", "TEXT"]] as const) {
+    const wanted = [
+      ["email", "TEXT"], ["password_hash", "TEXT"], ["password_salt", "TEXT"], ["last_login_at", "TEXT"],
+      ["totp_secret_enc", "TEXT"], ["totp_pending_enc", "TEXT"], ["totp_enabled_at", "TEXT"], ["totp_last_step", "INTEGER"],
+    ] as const;
+    for (const [col, type] of wanted) {
       if (!cols.includes(col)) db.exec(`ALTER TABLE users ADD COLUMN ${col} ${type}`);
     }
   }

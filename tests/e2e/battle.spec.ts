@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { totpCode } from "../../src/server/totp";
 
 const FIX = join(__dirname, "fixtures");
 const SHOTS = process.env.PSL_SCREENSHOT_DIR ?? join(__dirname, "..", "..", "test-results", "screens");
@@ -84,7 +85,53 @@ test.describe("PSL ARENA end-to-end", () => {
     await page.getByTestId("regenerate-codes").click();
     await expect(page.getByTestId("recovery-code-list").locator("li")).toHaveCount(8);
     await expect(page.getByText(/8 of 8 recovery codes unused/)).toBeVisible();
+    const freshCodes = await page.getByTestId("recovery-code-list").locator("li").allTextContents();
     await shot(page, "29-settings-recovery");
+
+    // two-factor: enable with the manual key, sign out, sign in with password + code, disable again
+    const twoFactor = page.getByTestId("two-factor-card");
+    await expect(page.getByTestId("two-factor-state")).toHaveText("OFF");
+    await twoFactor.getByLabel(/^Password/).fill("ui reset password 42");
+    await page.getByTestId("totp-start").click();
+    await expect(page.getByTestId("totp-setup")).toBeVisible();
+    await expect(twoFactor.locator('img[alt="QR"]')).toBeVisible();
+    const secret = (await page.getByTestId("totp-secret").textContent())!.replace(/\s+/g, "");
+    expect(secret).toMatch(/^[A-Z2-7]{32}$/);
+    await shot(page, "30-totp-setup");
+    await page.getByTestId("totp-code").fill(totpCode(secret));
+    await page.getByTestId("totp-enable").click();
+    await expect(page.getByTestId("two-factor-state")).toHaveText("ON");
+    await expect(page.getByText("Two-factor authentication is now active.")).toBeVisible();
+    await page.getByTestId("logout").click();
+    await page.waitForURL(/\/login/);
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel(/E-mail/).fill(email);
+    await page.getByLabel(/^Password/).fill("ui reset password 42");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByTestId("auth-mfa")).toBeVisible();
+    expect((await page.request.get("/api/auth/me")).status()).toBe(401); // no session before the second factor
+    await shot(page, "31-mfa-step");
+    await page.getByLabel(/Authenticator code/).fill("000000");
+    await page.getByRole("button", { name: "Verify" }).click();
+    await expect(page.getByTestId("auth-mfa").getByRole("alert")).toContainText("not valid");
+    await page.getByLabel(/Authenticator code/).fill(totpCode(secret, Date.now() + 30_000)); // next step: never used before
+    await page.getByRole("button", { name: "Verify" }).click();
+    await page.waitForURL((u) => u.pathname === "/", { timeout: 15_000 });
+    expect((await page.request.get("/api/auth/me")).status()).toBe(200);
+    // disable with password + a recovery code (the current and next TOTP steps were just consumed;
+    // the unit tests cover disabling with an authenticator code)
+    await page.goto("/settings");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("two-factor-state")).toHaveText("ON");
+    const card = page.getByTestId("two-factor-card");
+    await card.getByLabel(/^Password/).fill("ui reset password 42");
+    await card.getByLabel(/Authenticator code/).fill("000000");
+    await page.getByTestId("totp-disable").click();
+    await expect(card.getByRole("alert")).toContainText("not valid");
+    await card.getByLabel(/Authenticator code/).fill(freshCodes[0]);
+    await page.getByTestId("totp-disable").click();
+    await expect(page.getByTestId("two-factor-state")).toHaveText("OFF");
+    await expect(page.getByText(/7 of 8 recovery codes unused/)).toBeVisible();
   });
 
   test("dashboard renders", async ({ page }) => {

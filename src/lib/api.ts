@@ -2,12 +2,12 @@
 import type { AnalysisInput } from "@/engine/types";
 import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow } from "@/server/repos";
 
-const AUTH_URLS = ["/api/auth/login", "/api/auth/signup", "/api/auth/me", "/api/auth/logout", "/api/auth/recovery/reset"];
-
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (res.status === 401 && typeof window !== "undefined" && !AUTH_URLS.includes(url)) {
+  // A 401 from a data endpoint means the session is gone → back to the login page.
+  // Auth endpoints answer 401 for wrong credentials/codes, which the forms display themselves.
+  if (res.status === 401 && typeof window !== "undefined" && !url.startsWith("/api/auth/")) {
     const target = new URL("/login", window.location.origin);
     target.searchParams.set("next", window.location.pathname + window.location.search);
     window.location.assign(target.toString()); // full reload: the session is gone, drop all client state
@@ -40,7 +40,13 @@ export const api = {
   resetPassword: (data: { email: string; code: string; newPassword: string }) => request<{ user: AuthUserDto; remainingCodes: number }>("/api/auth/recovery/reset", { method: "POST", body: JSON.stringify(data) }),
   recoveryStatus: () => request<{ remaining: number; total: number }>("/api/auth/recovery/codes"),
   regenerateCodes: (password: string) => request<{ codes: string[]; remaining: number; total: number }>("/api/auth/recovery/codes", { method: "POST", body: JSON.stringify({ password }) }),
-  login: (data: { email: string; password: string }) => request<{ user: AuthUserDto }>("/api/auth/login", { method: "POST", body: JSON.stringify(data) }),
+  login: (data: { email: string; password: string }) => request<{ user?: AuthUserDto; mfaRequired?: boolean }>("/api/auth/login", { method: "POST", body: JSON.stringify(data) }),
+  loginTotp: (data: { code?: string; recoveryCode?: string }) => request<{ user: AuthUserDto; usedRecoveryCode: boolean; remainingCodes: number | null }>("/api/auth/login/totp", { method: "POST", body: JSON.stringify(data) }),
+  totpStatus: () => request<{ enabled: boolean; enabledAt: string | null; pending: boolean }>("/api/auth/totp/status"),
+  totpSetup: (password: string) => request<{ uri: string; qrDataUrl: string; secretFormatted: string }>("/api/auth/totp/setup", { method: "POST", body: JSON.stringify({ password }) }),
+  totpEnable: (code: string) => request<{ enabled: boolean; enabledAt: string | null; pending: boolean }>("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) }),
+  totpCancel: () => request<{ enabled: boolean }>("/api/auth/totp/cancel", { method: "POST", body: "{}" }),
+  totpDisable: (password: string, code: string) => request<{ enabled: boolean }>("/api/auth/totp/disable", { method: "POST", body: JSON.stringify({ password, code }) }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST", body: "{}" }),
   me: () => request<{ user: AuthUserDto }>("/api/auth/me"),
   changePassword: (currentPassword: string, newPassword: string) => request<{ ok: boolean }>("/api/auth/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }),

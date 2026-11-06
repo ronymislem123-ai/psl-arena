@@ -13,7 +13,7 @@
 * Eyebrow tilt follows the mesh brow contour; brows hidden by hair or heavily groomed reduce accuracy.
 
 ## Product / engineering
-* **Accounts:** local e-mail/password login with per-account isolation and recovery-code password reset exists. Still missing: e-mail verification, e-mail-based reset links (no mail transport), two-factor authentication, an admin role for managing accounts (sign-up can only be locked globally via `PSL_ARENA_ALLOW_SIGNUP`; operators use the CLI).
+* **Accounts:** local e-mail/password login with per-account isolation, recovery-code password reset and optional TOTP two-factor authentication exist. Still missing: e-mail verification, e-mail-based reset links (no mail transport), WebAuthn/passkeys, an admin role for managing accounts (sign-up can only be locked globally via `PSL_ARENA_ALLOW_SIGNUP`; operators use the CLI).
 * **Server-side settings** exist (`/api/settings`) but the UI uses the device-local store; syncing is a small follow-up.
 * **i18n:** the full UI including ratio names, formulas, methodology, limitations, categories, additional measurements, landmark labels and all engine-generated messages is available in EN and DE. Engine results store language-neutral codes; results saved before this change render their stored English messages in the German UI.
 * **Compare different analyses of the same profile** is available as a history table + score trend; a side-by-side diff view of two analyses of one person is not built.

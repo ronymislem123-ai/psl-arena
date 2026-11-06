@@ -88,6 +88,12 @@ export const de: Dict = {
     codesTitle: "Wiederherstellungscodes sichern", codesSub: "Jeder Code setzt dein Passwort einmal zurück, falls du es vergisst. Sie werden nur jetzt angezeigt und gehasht gespeichert. Bewahre sie sicher auf, z. B. in einem Passwortmanager.",
     codesCopy: "Kopieren", codesCopied: "Kopiert", codesDownload: "Herunterladen", codesContinue: "Ich habe meine Codes gesichert", codesRemaining: "{n} von {total} Wiederherstellungscodes unbenutzt", codesNone: "Keine Wiederherstellungscodes mehr – erzeuge neue.",
     codesRegenerate: "Neue Wiederherstellungscodes erzeugen", codesRegenerateHint: "Ersetzt alle vorhandenen Codes. Zur Bestätigung Passwort eingeben.", codesNew: "Neue Wiederherstellungscodes", codesWarnLow: "Nur noch {n} Code(s) übrig.",
+    mfaTitle: "Zwei-Faktor-Code", mfaSub: "Gib den 6-stelligen Code aus deiner Authenticator-App ein.", mfaCode: "Authenticator-Code", mfaAction: "Bestätigen", mfaUseRecovery: "Stattdessen Wiederherstellungscode verwenden", mfaUseApp: "Stattdessen Authenticator-App verwenden",
+    mfaRecoveryUsed: "Mit Wiederherstellungscode angemeldet. Noch {n} Code(s) übrig.", twoFactor: "Zwei-Faktor-Anmeldung", twoFactorOn: "Aktiv seit {date}", twoFactorOff: "Nicht aktiv",
+    twoFactorHint: "Ergänzt jede Anmeldung um einen zeitbasierten Einmalcode (TOTP) aus einer Authenticator-App wie Aegis, Google Authenticator oder 1Password. Wiederherstellungscodes dienen als Ersatz.",
+    twoFactorStart: "Zwei-Faktor-Anmeldung einrichten", twoFactorScan: "Scanne den QR-Code mit deiner Authenticator-App oder gib den Schlüssel manuell ein und bestätige mit dem aktuellen Code.", twoFactorManualKey: "Manueller Schlüssel",
+    twoFactorConfirm: "Aktivieren", twoFactorCancel: "Einrichtung abbrechen", twoFactorEnabled: "Die Zwei-Faktor-Anmeldung ist jetzt aktiv.", twoFactorDisable: "Zwei-Faktor-Anmeldung deaktivieren", twoFactorDisableHint: "Benötigt dein Passwort und einen aktuellen Authenticator-Code (oder einen Wiederherstellungscode).",
+    twoFactorDisabled: "Die Zwei-Faktor-Anmeldung wurde deaktiviert.",
     recovery: "Wiederherstellung", noEmailNote: "Diese Installation versendet keine E-Mails. Ohne Wiederherstellungscode kann der Server-Betreiber das Passwort mit `npm run reset-password -- <E-Mail>` zurücksetzen.",
   },
 };

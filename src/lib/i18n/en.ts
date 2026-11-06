@@ -88,6 +88,12 @@ export const en = {
     codesTitle: "Save your recovery codes", codesSub: "Each code resets your password once if you forget it. They are shown only now and stored hashed. Keep them somewhere safe, e.g. a password manager.",
     codesCopy: "Copy", codesCopied: "Copied", codesDownload: "Download", codesContinue: "I have saved my codes", codesRemaining: "{n} of {total} recovery codes unused", codesNone: "No recovery codes left — generate new ones.",
     codesRegenerate: "Generate new recovery codes", codesRegenerateHint: "Replaces all existing codes. Enter your password to confirm.", codesNew: "New recovery codes", codesWarnLow: "Only {n} code(s) left.",
+    mfaTitle: "Two-factor code", mfaSub: "Enter the 6-digit code from your authenticator app.", mfaCode: "Authenticator code", mfaAction: "Verify", mfaUseRecovery: "Use a recovery code instead", mfaUseApp: "Use the authenticator app instead",
+    mfaRecoveryUsed: "Signed in with a recovery code. {n} code(s) left.", twoFactor: "Two-factor authentication", twoFactorOn: "Enabled since {date}", twoFactorOff: "Not enabled",
+    twoFactorHint: "Adds a time-based one-time code (TOTP) from an authenticator app such as Aegis, Google Authenticator or 1Password to every sign-in. Recovery codes work as a backup.",
+    twoFactorStart: "Set up two-factor authentication", twoFactorScan: "Scan the QR code with your authenticator app or enter the key manually, then confirm with the current code.", twoFactorManualKey: "Manual key",
+    twoFactorConfirm: "Activate", twoFactorCancel: "Cancel setup", twoFactorEnabled: "Two-factor authentication is now active.", twoFactorDisable: "Disable two-factor authentication", twoFactorDisableHint: "Requires your password and a current authenticator code (or a recovery code).",
+    twoFactorDisabled: "Two-factor authentication was disabled.",
     recovery: "Recovery", noEmailNote: "This installation sends no e-mails. Without a recovery code, the server operator can reset the password with `npm run reset-password -- <e-mail>`.",
   },
 } as const;

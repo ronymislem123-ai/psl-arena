@@ -14,6 +14,7 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | `battle.test.ts` | identical inputs ⇒ draw with zero diff and no key differences; 9 rounds with consistent verdict/scores; unusable image ⇒ inconclusive; low coverage ⇒ inconclusive |
 | `symmetry.test.ts` | mirrored face ⇒ 100; mouth/jaw asymmetry penalised; yaw lowers confidence |
 | `i18n.test.ts` | every ratio/category/additional measurement/landmark has German texts; every engine message (tier, unavailability, quality issue, metric, feature summary, symmetry label, additional note, warning, battle verdict/summary) carries a code and renders in German without falling back to English |
+| `totp.test.ts` (isolated temp database) | base32 round-trip, RFC 6238 appendix-B vectors, ±1-step window, replay rejection, otpauth URI; enrollment (password re-auth, encrypted pending secret, wrong first code rejected), challenge flow (bad token, wrong code, single use), recovery code as second factor, per-challenge attempt budget, challenge expiry, disabling needs password + unused code |
 | `recovery.test.ts` (isolated temp database) | 8 unambiguous codes stored only as hashes; reset with a code in any formatting changes the password once, signs every session out and decrements the count; wrong/used codes and unknown e-mails fail with a generic error; regeneration needs the password and invalidates the old set; code guessing is rate-limited; the operator CLI script writes hashes the app verifies |
 | `auth.test.ts` (isolated temp database) | v1→v2 schema migration in place, scrypt hashing with random salts, password policy, e-mail normalisation, legacy-data adoption on first sign-up, duplicate/incorrect credentials, cross-account isolation of profiles, session create/find/expire/destroy with hashed storage, password change signing other devices out, per-client rate limiting, account deletion cascade, cross-site mutation rejection |
 
@@ -21,7 +22,7 @@ Environment: Node 22.23, Chromium (Playwright 1.63 headless), Next.js 16.4 (Turb
 | Test | Steps verified |
 | --- | --- |
 | unauthenticated access is blocked | API returns 401, image route returns 401, pages redirect to `/login?next=…` |
-| sign-up form & password reset | creates an account through the UI, shows 8 recovery codes once, lands on the dashboard, sees no foreign data, signs out; "Forgot password?" resets with a captured code (old password rejected, new accepted, used code rejected); Settings regenerates codes after re-entering the password |
+| sign-up, password reset & two-factor | creates an account through the UI, shows 8 recovery codes once, lands on the dashboard, sees no foreign data, signs out; "Forgot password?" resets with a captured code (old password rejected, new accepted, used code rejected); Settings regenerates codes after re-entering the password; enables TOTP from the manual key, signs out, password alone yields no session, wrong code rejected, correct code signs in, disabling needs password + code |
 | dashboard renders | page loads, brand heading (signed in) |
 | full battle flow | upload two portraits through the real UI → in-browser detection → quality tiles and smile warnings → labels → hairline confirmation → opt-in encrypted photo storage → consent → start button enabled → analyses + battle persisted → arena shows stored images via `/api/images` → summary tab (9 rounds) → comparison tab (42 ratio rows) → analysis center (42 rows, ratio detail dialog, landmark layer with SVG points, symmetry, quality tabs) → history and profiles pages; no page errors |
 | rejects a turned head | 32° yaw image ⇒ "Unusable", explicit error message, start button disabled, no preview score shown |
@@ -47,7 +48,7 @@ Landmark index choices (canthi, alar base, chin corners, zygion, gonion construc
 * Load/performance with many stored analyses (hundreds+) and very large images (> 8 MB request limit is enforced, not benchmarked).
 * GPU delegate path of MediaPipe (CPU is the default).
 * Browsers other than Chromium (Safari/Firefox WASM SIMD behaviour).
-* E-mail verification / two-factor (not implemented); e-mail-based reset links (no mail transport).
+* E-mail verification, e-mail-based reset links (no mail transport) and WebAuthn (not implemented). QR scanning itself is not automated (the e2e uses the manual key).
 * Accessibility audit (screen reader, full keyboard operation of the SVG picker).
 
 ## 4. Known results on the fixtures (for reproducibility)
