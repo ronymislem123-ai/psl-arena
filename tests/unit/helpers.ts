@@ -1,0 +1,55 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { AnalysisInput, Point, RawQualityMetrics } from "@/engine/types";
+import { DEFAULT_CONFIG } from "@/engine/analysis";
+
+export interface Fixture {
+  name: string;
+  width: number;
+  height: number;
+  mesh: [number, number][];
+  blendshapes: Record<string, number>;
+  matrix: number[];
+}
+
+export function loadFixture(name: string): Fixture {
+  return JSON.parse(readFileSync(join(__dirname, "..", "fixtures", `${name}.json`), "utf8")) as Fixture;
+}
+
+export function faceBox(mesh: Point[]) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of mesh) {
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+export function inputFromFixture(f: Fixture, overrides: Partial<AnalysisInput> = {}, rawOverrides: Partial<RawQualityMetrics> = {}): AnalysisInput {
+  const mesh = f.mesh.map(([x, y]) => ({ x, y }));
+  const box = faceBox(mesh);
+  const rawQuality: RawQualityMetrics = {
+    imageWidth: f.width,
+    imageHeight: f.height,
+    faceWidthPx: box.w,
+    faceHeightPx: box.h,
+    sharpness: 180,
+    brightness: 120,
+    contrast: 45,
+    faceBox: box,
+    faceCount: 1,
+    ...rawOverrides,
+  };
+  // a plausible hairline: 0.95 × IPD above the mesh top (synthetic for tests)
+  const ipd = Math.hypot(mesh[468].x - mesh[473].x, mesh[468].y - mesh[473].y);
+  const top = mesh[10];
+  return {
+    mesh,
+    trichion: { point: { x: top.x, y: top.y - 0.45 * ipd }, source: "manual", confidence: 1 },
+    neck: null,
+    blendshapes: f.blendshapes,
+    transformMatrix: f.matrix,
+    rawQuality,
+    config: { ...DEFAULT_CONFIG, uncertaintySamples: 12 },
+    ...overrides,
+  };
+}

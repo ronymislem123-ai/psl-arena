@@ -1,0 +1,67 @@
+export const en = {
+  nav: { dashboard: "Dashboard", newBattle: "New Battle", analysis: "Analysis Center", profiles: "Face Profiles", history: "History", settings: "Settings" },
+  common: {
+    person1: "Person 1", person2: "Person 2", back: "Back", delete: "Delete", cancel: "Cancel", confirm: "Confirm", save: "Save", loading: "Loading…",
+    open: "Open", close: "Close", replace: "Replace", remove: "Remove", skip: "Skip", next: "Next", replay: "Replay", details: "Details",
+    yes: "Yes", no: "No", none: "None", unknown: "Unknown", error: "Something went wrong", retry: "Retry", notFound: "Not found",
+    confidence: "Confidence", coverage: "Coverage", quality: "Image quality", overall: "Overall", createdAt: "Created", engine: "Engine",
+    viewAnalysis: "View analysis", viewBattle: "View battle", deleteConfirm: "Delete permanently? This cannot be undone.",
+  },
+  score: { na: "n/a", exceptional: "Exceptional harmony", high: "High harmony", balanced: "Balanced", mixed: "Mixed proportions", outside: "Outside target ranges" },
+  dashboard: {
+    welcome: "Welcome to", sub: "Geometric facial-harmony analysis with 42 reference ratios, transparent scoring and cinematic head-to-head battles. Everything runs on your device; nothing is uploaded unless you choose to save it.",
+    quickStart: "Start a battle", quickStartSub: "Upload two frontal photos, review the detected landmarks and let the arena decide.",
+    stats: "Your statistics", profiles: "Profiles", analyses: "Analyses", battles: "Battles", avgOverall: "Avg. overall score", storedImages: "Stored images",
+    recentBattles: "Recent battles", recentAnalyses: "Recent analyses", savedProfiles: "Saved face profiles", empty: "Nothing here yet — start your first battle.",
+    howTitle: "How it works", how1: "Face detection & 478-point landmark mesh run locally in your browser.", how2: "42 harmony ratios are measured and compared with the reference T1 ranges.", how3: "Confidence, coverage and uncertainty are propagated into every score.", how4: "Two profiles face off round by round — a winner is only called outside the uncertainty margin.",
+  },
+  upload: {
+    dropTitle: "Drop a frontal photo here", dropSub: "or click to choose · JPEG, PNG, WebP", choose: "Choose image", analyzing: "Detecting landmarks…", loadingModel: "Loading face model…",
+    guidelines: "Photo guidelines", g1: "Frontal view, camera at eye level", g2: "Neutral expression, mouth closed", g3: "Even lighting, no heavy shadows", g4: "No filters, glasses off if possible", g5: "Camera at least ~1.5 m away (avoid selfie distortion)",
+    noFace: "No face was detected. Try a clearer, frontal photo.", multipleFaces: "Several faces detected — pick the one to analyse.", faceN: "Face {n}",
+    label: "Name or label", labelPlaceholder: "e.g. Alex", hairline: "Hairline", hairlineHint: "Drag the marker to the hairline (needed for facial thirds). Confirm when it sits right.", hairlineConfirm: "Confirm hairline", hairlineConfirmed: "Hairline confirmed", hairlineMissing: "Hairline not found — click on the image to place it.",
+    hairlineReset: "Reset to estimate", neck: "Neck points (optional)", neckHint: "Place the left and right neck edges to enable the neck-width ratio.", neckPlace: "Place neck points", neckClear: "Clear neck points",
+    qualityTitle: "Image check", ready: "Ready for battle", notReady: "Image not usable", warnings: "Warnings",
+    layers: "Overlay", preview: "Preview score", previewSub: "Live preview — final values are computed on save.",
+  },
+  battle: {
+    newTitle: "New Battle", newSub: "Two people, one arena. Upload a photo for each side, review the detection and start.",
+    config: "Analysis configuration", captureDistance: "Capture distance", captureUnknown: "Unknown", captureSelfie: "Selfie / arm's length", captureStandard: "Standard (≥ 1.5 m)",
+    includeReconstructed: "Include reconstructed ratios", includeReconstructedHint: "Six ratios whose measurement convention had to be reconstructed from the material. They are always flagged.",
+    storeImages: "Store photos in history", storeImagesHint: "Encrypted at rest on this server. Without this, only landmark coordinates and scores are saved.",
+    consentTitle: "Consent", consentRights: "I have the right to use these photos and the depicted persons agreed to this analysis.", consentAdults: "Both persons are adults (18+).",
+    start: "Analyze & start battle", starting: "Saving analyses…", missing: "Add a usable photo for both sides and confirm consent.",
+    intro: "VS", round: "Round", winner: "Winner", draw: "Draw", inconclusive: "Inconclusive", verdictDraw: "Draw within measurement uncertainty", verdictInconclusive: "No conclusive result",
+    reveal: "Final result", rounds: "Rounds", margin: "Uncertainty margin", keyDifferences: "Decisive differences", summary: "Summary", compare: "Comparison", arena: "Arena",
+    showSummary: "Show summary", skipIntro: "Skip animation", scanning: "Scanning", initializing: "Initializing analysis", categoryWins: "Category wins",
+    evaluable: "Evaluable ratios", favours: "favours", overallDiff: "Overall difference", startNew: "New battle",
+  },
+  analysis: {
+    title: "Analysis Center", overview: "Overview", ratios: "42 Core Ratios", additional: "Additional measurements", symmetry: "Symmetry", features: "Feature overview", quality: "Quality & confidence", landmarks: "Landmarks",
+    harmony: "Facial harmony", proportion: "Proportion", structure: "Facial structure", symmetryScore: "Symmetry", overall: "PSL-style score", original: "Original T1 system", originalNote: "Source system: +10 per ratio inside T1 (theoretical max 420). T2–T5 boundaries are not in the provided material, so ratios outside T1 have an undetermined tier.",
+    t1Count: "Ratios in T1", evaluable: "Evaluable", unavailable: "Unavailable", incomplete: "Incomplete definition", uncertain: "Low confidence", excluded: "Excluded",
+    coverageAdjusted: "Coverage-adjusted T1 rate", originalPercent: "Original 420-point percentage", notComputable: "not computable",
+    status: { defined: "Defined", reconstructed: "Reconstructed", incomplete: "Incomplete" },
+    columns: { nr: "#", ratio: "Ratio", value: "Value", t1: "T1 range", tier: "Tier", index: "Index", confidence: "Conf." },
+    detail: { what: "What is measured", how: "How it is measured", target: "Target", measured: "Measured value", reliability: "Reliability", limitations: "Limitations", points: "Points (source system)", index: "Harmony index", landmarks: "Landmarks used", values: "Formula with values" },
+    layers: { mesh: "Full mesh", landmarks: "Landmarks", eyes: "Eye analysis", brows: "Eyebrow analysis", midface: "Midface", nose: "Nose", mouth: "Mouth & lips", jaw: "Jawline", thirds: "Facial thirds", ratios: "Facial ratios", symmetry: "Symmetry" },
+    uncertainty: "Uncertainty (Monte-Carlo)", uncertaintyNote: "Standard deviation of the scores under landmark jitter.", warnings: "Warnings", pose: "Head pose", expression: "Expression",
+    kinds: { measured: "Measured", approximate: "Approximate", "visual-estimate": "Visual estimate", "not-determinable": "Not determinable" },
+    wireframe: "showing the landmark wireframe instead",
+    strengths: "Strengths (ratios inside T1)", notable: "Notable deviations", uncertainAreas: "Uncertain measurements",
+  },
+  profiles: { title: "Face Profiles", sub: "Every analysed person has a profile with their analysis history.", empty: "No profiles yet.", analyses: "analyses", latest: "Latest score", noImage: "No image stored", rename: "Rename", label: "Label" },
+  history: { title: "History", sub: "Past battles and saved analyses.", battles: "Battles", analyses: "Analyses", empty: "No history yet.", verdict: "Verdict" },
+  settings: {
+    title: "Settings", appearance: "Appearance", reducedMotion: "Reduce animations", reducedMotionHint: "Skips cinematic transitions and particle effects.", showMesh: "Show full mesh by default",
+    analysisOptions: "Analysis options", uncertaintySamples: "Uncertainty samples", privacy: "Privacy & data", privacyNote: "Face detection runs in your browser. Saved analyses are stored in a local SQLite database; photos only if you opt in, encrypted at rest.",
+    exportData: "Export all data (JSON)", deleteAll: "Delete all data", deleteAllConfirm: "This deletes every profile, analysis, battle and stored photo. Continue?", deleted: "All data deleted.",
+    language: "Language", english: "English", german: "Deutsch", about: "About", ethics: "This app measures geometric proportions only. It does not infer ethnicity, religion, health, sexual orientation or any other sensitive attribute, and is intended for consenting adults as a voluntary comparison of facial geometry.",
+  },
+  quality: {
+    good: "Good", acceptable: "Acceptable", poor: "Poor", unusable: "Unusable",
+  },
+} as const;
+
+type DeepString<T> = { [K in keyof T]: T[K] extends string ? string : DeepString<T[K]> };
+export type Dict = DeepString<typeof en>;

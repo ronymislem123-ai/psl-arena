@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg-0: #07080a;
+  --color-bg-1: #0c0e12;
+  --color-bg-2: #12151b;
+  --color-bg-3: #181c24;
+  --color-bg-4: #1f2430;
+  --color-line: #ffffff14;
+  --color-line-strong: #ffffff26;
+  --color-fg-0: #eef0f3;
+  --color-fg-1: #b4bac6;
+  --color-fg-2: #7a818f;
+  --color-fg-3: #4b5160;
+  --color-accent: #4f7cff;
+  --color-accent-soft: #4f7cff33;
+  --color-cyan: #22d3ee;
+  --color-cyan-soft: #22d3ee2b;
+  --color-violet: #8b5cf6;
+  --color-violet-soft: #8b5cf633;
+  --color-rose: #f0506e;
+  --color-rose-soft: #f0506e2b;
+  --color-mint: #34d399;
+  --color-mint-soft: #34d3992b;
+  --color-amber: #f5b547;
+  --color-amber-soft: #f5b5472b;
+
+  --radius-xl2: 1.25rem;
+  --shadow-glow: 0 0 0 1px #4f7cff40, 0 10px 40px -10px #4f7cff66;
+  --shadow-card: 0 1px 0 0 #ffffff0a inset, 0 20px 50px -30px #000000cc;
+  --animate-scan: scan 2.2s linear infinite;
+  --animate-pulse-soft: pulseSoft 2.4s ease-in-out infinite;
+  --animate-float: floatY 6s ease-in-out infinite;
+  --animate-spin-slow: spin 14s linear infinite;
+
+  @keyframes scan {
+    0% { transform: translateY(-10%); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(110%); opacity: 0; }
+  }
+  @keyframes pulseSoft {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: var(--color-bg-0);
+  color: var(--color-fg-0);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 600px at 15% -10%, #4f7cff14, transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, #8b5cf612, transparent 60%),
+    radial-gradient(700px 500px at 50% 110%, #22d3ee0d, transparent 60%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+::selection {
+  background: #4f7cff66;
+}
+
+.glass {
+  background: linear-gradient(180deg, #ffffff0a, #ffffff04);
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-strong {
+  background: linear-gradient(180deg, #ffffff10, #ffffff06);
+  border: 1px solid var(--color-line-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-card);
+}
+
+.hud-grid {
+  background-image:
+    linear-gradient(to right, #ffffff07 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff07 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.text-glow {
+  text-shadow: 0 0 24px #4f7cff80;
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  background: linear-gradient(180deg, transparent, #22d3ee55 50%, transparent);
+  border-top: 1px solid #22d3eeaa;
+  animation: var(--animate-scan);
+  pointer-events: none;
+}
+
+.scrollbar-thin::-webkit-scrollbar { height: 8px; width: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #ffffff1f; border-radius: 8px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-line { animation: none; opacity: 0.4; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+[data-reduced-motion="true"] .scan-line { animation: none; opacity: 0.4; }
+[data-reduced-motion="true"] *, [data-reduced-motion="true"] *::before, [data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
