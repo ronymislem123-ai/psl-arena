@@ -43,6 +43,8 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 | **Custom PSL Scale Builder** (`/scales`) | Create, edit, duplicate, import/export and compare PSL scales: tiers with ranges, colours, groups, percentile claims, descriptions, notes and encrypted reference images; live validation (no gaps/overlaps, unrounded assignment, inclusive top bound) and five preview views. Ships with the 21-tier standard scale (sub1 … Adam). See `docs/SCALES.md`. |
 | **PSL Tournament Mode** (`/tournaments`) | Compares rated profiles with the same rubric: twelve independent category winners (multiple wins and shared wins allowed), a weighted overall winner with documented tie-breakers, knockout (byes, seeded, manual tie decisions), group stage + finals, ranking and category formats, interactive bracket, duel tables, results page with statistics, versions and locking. See `docs/TOURNAMENT.md`. |
 
+| **Comparison, progress & awards** (`/compare`, profile pages) | Compares 2–4 stored ratings side by side with deltas per area and criterion and warnings for differing rubric/engine versions, scales, coverage, image quality and profile-view usage; shows a profile's rating progress over time; lists tournament awards. See `docs/COMPARE.md`. |
+
 Ratings and tournaments store snapshots of the scale (and of each participant's rating) so later edits never change finished results. Research notes behind the rubric are in `docs/RESEARCH_LOG.md`; consistency experiments in `docs/VALIDATION.md`.
 
 ## What it does
@@ -116,6 +118,7 @@ Serve the app over HTTPS when it is reachable from other machines: the session c
 - `docs/RUBRIC.md` — the PSL rating rubric: criteria, weights, calibration, coverage rules, provider interface
 - `docs/SCALES.md` — PSL scales: data model, standard scale, assignment and validation rules, editor
 - `docs/TOURNAMENT.md` — tournament engine: categories, winners, tie-breakers, formats, versions
+- `docs/COMPARE.md` — comparison of ratings, progress series, awards
 - `docs/RESEARCH_LOG.md` — looksmax.org / scientific research protocol and the decisions taken
 - `docs/VALIDATION.md` — rating-consistency experiments with the measured numbers
 - `docs/FINAL_REPORT.md` — audit, changes, tests and remaining limitations of the platform evolution

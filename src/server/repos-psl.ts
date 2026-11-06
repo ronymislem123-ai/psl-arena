@@ -157,6 +157,16 @@ export function insertRating(args: { userId: string; profileId: string; analysis
   return getRating(args.userId, id)!;
 }
 
+/** Several ratings by id (owner-scoped; unknown ids are skipped, order of `ids` kept). */
+export function getRatings(userId: string, ids: string[]): RatingRecord[] {
+  const out: RatingRecord[] = [];
+  for (const id of ids.slice(0, 8)) {
+    const r = getRating(userId, id);
+    if (r) out.push(r);
+  }
+  return out;
+}
+
 export function deleteRating(userId: string, id: string): boolean {
   return getDb().prepare("DELETE FROM psl_ratings WHERE id = ? AND user_id = ?").run(id, userId).changes > 0;
 }
@@ -312,6 +322,38 @@ export function getTournamentVersion(userId: string, tournamentId: string, versi
   if (!getTournament(userId, tournamentId)) return null;
   const row = getDb().prepare("SELECT snapshot_json FROM tournament_versions WHERE id = ? AND tournament_id = ?").get(versionId, tournamentId) as { snapshot_json: string } | undefined;
   return row ? (JSON.parse(row.snapshot_json) as TournamentRecord) : null;
+}
+
+export interface Award {
+  tournamentId: string;
+  tournamentName: string;
+  completedAt: string | null;
+  kind: "champion" | "overallWinner" | "categoryWinner" | "multiCategory";
+  categoryId: string | null;
+  categoryName: string | null;
+  shared: boolean;
+  count: number;
+}
+
+/** Awards a profile earned in completed tournaments (category wins, overall wins, knockout championships). */
+export function awardsForProfile(userId: string, profileId: string): Award[] {
+  const rows = getDb().prepare("SELECT t.id FROM tournaments t JOIN tournament_participants p ON p.tournament_id = t.id WHERE t.user_id = ? AND p.profile_id = ? AND t.status = 'completed' ORDER BY t.completed_at DESC").all(userId, profileId) as { id: string }[];
+  const out: Award[] = [];
+  for (const { id } of rows) {
+    const t = getTournament(userId, id);
+    if (!t?.results) continue;
+    const me = t.participants.find((p) => p.profileId === profileId);
+    if (!me) continue;
+    const wins = t.results.categoryRankings.filter((r) => r.winners.includes(me.id));
+    for (const r of wins) {
+      const cat = t.config.categories.find((c) => c.id === r.categoryId);
+      out.push({ tournamentId: t.id, tournamentName: t.name, completedAt: t.completedAt, kind: "categoryWinner", categoryId: r.categoryId, categoryName: cat?.name ?? r.categoryId, shared: r.winners.length > 1, count: 1 });
+    }
+    if (wins.length >= 3) out.push({ tournamentId: t.id, tournamentName: t.name, completedAt: t.completedAt, kind: "multiCategory", categoryId: null, categoryName: null, shared: false, count: wins.length });
+    if (t.results.overallWinnerIds.includes(me.id)) out.push({ tournamentId: t.id, tournamentName: t.name, completedAt: t.completedAt, kind: "overallWinner", categoryId: null, categoryName: null, shared: t.results.overallWinnerIds.length > 1, count: 1 });
+    if (t.results.knockoutChampionId === me.id) out.push({ tournamentId: t.id, tournamentName: t.name, completedAt: t.completedAt, kind: "champion", categoryId: null, categoryName: null, shared: false, count: 1 });
+  }
+  return out;
 }
 
 export function pslStats(userId: string) {

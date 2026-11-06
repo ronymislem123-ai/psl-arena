@@ -13,7 +13,8 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/repos";
-import type { RatingSummary } from "@/server/repos-psl";
+import type { Award, RatingRecord, RatingSummary } from "@/server/repos-psl";
+import { AwardsCard, RatingTimeline } from "@/components/compare/progress";
 import { formatPsl } from "@/engine/psl/rating";
 
 export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
@@ -61,7 +62,7 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
   );
 }
 
-export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = [] }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[]; ratings?: RatingSummary[] }) {
+export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = [], ratingRecords = [], awards = [] }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[]; ratings?: RatingSummary[]; ratingRecords?: RatingRecord[]; awards?: Award[] }) {
   const { t, lang } = useT();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -120,6 +121,8 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
         }
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-5">
+        <RatingTimeline records={ratingRecords} />
         <Card>
           <CardHeader title={t("nav.history")} />
           <CardBody>
@@ -164,7 +167,9 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
             )}
           </CardBody>
         </Card>
+        </div>
         <div className="space-y-5">
+        <AwardsCard awards={awards} />
         <Card>
           <CardHeader title={t("historyPsl.ratings")} />
           <CardBody>

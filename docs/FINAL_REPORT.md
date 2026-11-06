@@ -54,8 +54,8 @@ Executed on 2026-11-06 (details in `docs/TEST_REPORT.md`, experiments in `docs/V
 
 | Suite | Result |
 | --- | --- |
-| Unit tests (`npm test`, 17 files) | **160 passed**, 1 diagnostic dump skipped — incl. 4 new files: `psl-scale` (5), `psl-rubric` (10 incl. hand-checked coverage/validity), `tournament` (11), `psl-store` (8) |
-| End-to-end (`npm run test:e2e`, one run of the whole suite) | **15 passed** — battle flows (9), side view (2), PSL platform (3: scale builder, rater, tournaments), consistency experiment (1) |
+| Unit tests (`npm test`, 18 files) | **179 passed**, 1 diagnostic dump skipped — incl. 5 new files: `psl-scale` (5), `psl-rubric` (10 incl. hand-checked coverage/validity), `tournament` (11), `psl-store` (8), `compare` (6) |
+| End-to-end (`npm run test:e2e`, one run of the whole suite) | **16 passed** — battle flows (9), side view (2), PSL platform (3: scale builder, rater, tournaments), compare/progress/awards (1), consistency experiment (1) |
 | Static checks | `npm run typecheck` clean, `npm run lint` clean, `npm run build` succeeds |
 | Consistency experiments | identical file ⇒ Δ 0.000 PSL (both portraits); mirrored Δ 0.03; 60 % downscale Δ 0.03; tighter crop Δ 0.01 with coverage dropping 72 % → 64 % (provisional); tier stable in every case |
 
@@ -74,6 +74,10 @@ Executed on 2026-11-06 (details in `docs/TEST_REPORT.md`, experiments in `docs/V
 - **Docs:** RUBRIC, SCALES, TOURNAMENT, RESEARCH_LOG, VALIDATION, FINAL_REPORT; README, DATA_MODEL, PRIVACY, ARCHITECTURE, OPEN_ITEMS, TEST_REPORT updated.
 - **External dependencies:** none added (the modules use the existing stack: Next.js, React, zod, better-sqlite3, Playwright, Vitest).
 - **Configuration:** no new environment variables are required. `PSL_ARENA_VISION_PROVIDER` is reserved for a future visual provider.
+
+## Addendum — Comparison, progress and awards module (`docs/COMPARE.md`)
+
+Added after the platform evolution as the next module (brief items 10.2 and 10.4): `/compare` shows 2–4 stored ratings side by side (score, tier, scale, rubric/engine versions, coverage, confidence, quality, profile view; 7 area rows and 41 criterion rows with deltas against the reference column and the spread; largest gains/losses of the last column) and flags differing rubric/engine versions, scales, coverage, image quality, profile-view or visual-assessment usage, provisional and invalid ratings. Profile pages show a progress timeline (first/latest/best, total change within one rubric version, mean change per rating, per-step deltas with the biggest criterion changes) and tournament awards (category wins incl. shared, multi-category, overall wins, knockout championships). Entry points: rating page, history selection, profile page, picker. Tests: `compare.test.ts` (engine), awards in `psl-store.test.ts`, `compare.spec.ts` (end-to-end).
 
 ## H. Remaining limitations
 

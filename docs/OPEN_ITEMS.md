@@ -30,12 +30,13 @@
 * **Tournament ties**: knockout matches that stay tied after the three tie-breakers need a manual decision (recorded); there is no coin flip by design.
 * **Bracket on phones** scrolls horizontally with zoom buttons; a dedicated round-by-round list view would be friendlier.
 * **Tournament version viewer** opens the archived JSON; a rendered read-only view of an old version is a follow-up.
+* **Awards** are derived from completed tournaments only; there are no cross-tournament achievements (e.g. "won 5 tournaments") yet.
 
 ## Product / engineering
 * **Accounts:** local e-mail/password login with per-account isolation, recovery-code password reset and optional TOTP two-factor authentication exist. Still missing: e-mail verification, e-mail-based reset links (no mail transport), WebAuthn/passkeys, an admin role for managing accounts (sign-up can only be locked globally via `PSL_ARENA_ALLOW_SIGNUP`; operators use the CLI).
 * **Server-side settings** exist (`/api/settings`) but the UI uses the device-local store; syncing is a small follow-up.
 * **i18n:** the full UI including ratio names, formulas, methodology, limitations, categories, additional measurements, landmark labels and all engine-generated messages is available in EN and DE. Engine results store language-neutral codes; results saved before this change render their stored English messages in the German UI.
-* **Compare different analyses of the same profile** is available as a history table + score trend; a side-by-side diff view of two analyses of one person is not built.
+* **Comparison** of ratings (side-by-side with deltas and comparability warnings) and a per-profile progress series exist (`docs/COMPARE.md`); a diff view of two raw frontal *analyses* (ratio tables) is still only available through the battle comparison tab.
 * **Mobile:** the app installs as a PWA and works in phone browsers; a native wrapper (Capacitor) or a store listing is not provided. Offline use covers the ML assets and the app shell; analyses still need the server for saving.
 * **Performance:** hairline estimation samples pixels one at a time (fine for ≤1600 px images; could be vectorised). Uncertainty simulation runs 40 samples server-side per analysis (~100 ms).
 * **GPU delegate:** CPU WASM is used by default (deterministic, works headless); GPU can be enabled in `landmarker.ts`.

@@ -76,6 +76,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
             <a href={`/api/ratings/${record.id}?download=1`} download><Button variant="outline" size="sm"><Download size={14} /> {t("rater.result.exportJson")}</Button></a>
             <Button variant="outline" size="sm" onClick={() => window.print()}><Printer size={14} /> {t("rater.result.print")}</Button>
             <Link href={`/rater?profile=${record.profileId}`}><Button variant="outline" size="sm"><RefreshCw size={14} /> {t("rater.result.reRate")}</Button></Link>
+            <Link href={`/compare?ids=${record.id}`}><Button variant="outline" size="sm">{t("compare.compareWith")}</Button></Link>
             <Button variant="danger" size="sm" onClick={del}><Trash2 size={14} /></Button>
           </div>
         }

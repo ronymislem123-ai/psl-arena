@@ -20,6 +20,8 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
   const { t, lang } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"battles" | "analyses" | "side" | "ratings" | "tournaments">(ratings.length ? "ratings" : "battles");
+  const [selected, setSelected] = useState<string[]>([]);
+  const toggleSel = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 4 ? s : [...s, id]));
   const delB = async (id: string) => {
     if (!confirm(t("common.deleteConfirm"))) return;
     await api.deleteBattle(id);
@@ -92,9 +94,15 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
             {ratings.length === 0 ? (
               <Empty>{t("history.empty")}</Empty>
             ) : (
+              <>
+              <div className="flex items-center justify-between gap-2 pb-3 text-xs text-fg-3">
+                <span>{t("historyPsl.selectHint")}</span>
+                <Link href={selected.length >= 2 ? `/compare?ids=${selected.join(",")}` : "#"}><Button size="sm" variant="outline" disabled={selected.length < 2} data-testid="history-compare">{t("historyPsl.compareSelected", { n: selected.length })}</Button></Link>
+              </div>
               <ul className="divide-y divide-line" data-testid="ratings-history">
                 {ratings.map((r) => (
                   <li key={r.id} className="flex items-center gap-3 py-3">
+                    <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggleSel(r.id)} className="h-4 w-4 accent-[#4f7cff]" aria-label={t("historyPsl.select")} data-testid={`select-${r.id}`} />
                     <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={44} />
                     <div className="min-w-0 flex-1">
                       <Link href={`/rater/${r.id}`} className="font-medium hover:text-accent">{r.profileLabel}</Link>
@@ -108,6 +116,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                   </li>
                 ))}
               </ul>
+              </>
             )}
           </CardBody>
         </Card>

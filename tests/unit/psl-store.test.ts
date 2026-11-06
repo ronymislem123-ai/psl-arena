@@ -167,6 +167,13 @@ describe("tournaments", () => {
     const done = sv.runTournamentAction(userId, tid, "start").tournament; // ranking completes immediately
     expect(done.status).toBe("completed");
     expect(done.results!.officialMethod).toBe("weighted");
+    // awards of the first profile come from completed tournaments only
+    const awards = psl.awardsForProfile(userId, profiles[0]);
+    expect(awards.length).toBeGreaterThan(0);
+    expect(awards.every((a) => a.tournamentId === tid)).toBe(true);
+    expect(awards.some((a) => a.kind === "categoryWinner")).toBe(true);
+    expect(psl.awardsForProfile(otherId, profiles[0])).toEqual([]);
+    expect(psl.getRatings(userId, [done.participants[0].ratingId!, "rate_nope"]).length).toBe(1);
     const copy = sv.runTournamentAction(userId, tid, "duplicate").tournament;
     expect(copy.id).not.toBe(tid);
     expect(copy.status).toBe("draft");
