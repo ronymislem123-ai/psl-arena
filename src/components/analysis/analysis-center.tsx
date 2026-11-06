@@ -508,7 +508,7 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
           <div>
             <div className="text-[10px] uppercase tracking-wider text-fg-3 mb-1">{t("analysis.pose")} / {t("analysis.expression")}</div>
             <div className="text-sm text-fg-1 font-mono num">
-              yaw {q.pose.yaw.toFixed(1)}° · pitch {q.pose.pitch.toFixed(1)}° · roll {q.pose.roll.toFixed(1)}° · neutral {(q.expression.neutrality * 100).toFixed(0)} % (smile {(q.expression.smile * 100).toFixed(0)} %, jaw {(q.expression.jawOpen * 100).toFixed(0)} %, blink {(q.expression.blink * 100).toFixed(0)} %)
+              {t("analysis.poseLine", { yaw: q.pose.yaw.toFixed(1), pitch: q.pose.pitch.toFixed(1), roll: q.pose.roll.toFixed(1), neutral: (q.expression.neutrality * 100).toFixed(0), smile: (q.expression.smile * 100).toFixed(0), jaw: (q.expression.jawOpen * 100).toFixed(0), blink: (q.expression.blink * 100).toFixed(0) })}
             </div>
           </div>
           {q.issues.length > 0 && (
@@ -525,14 +525,14 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
       </Card>
       <div className="space-y-5">
         <Card>
-          <CardHeader title={t("analysis.uncertainty")} subtitle={u ? u.method : t("analysis.uncertaintyNote")} />
+          <CardHeader title={t("analysis.uncertainty")} subtitle={u ? t("analysis.uncertaintyMethod") : t("analysis.uncertaintyNote")} />
           <CardBody>
             {u ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                <Stat label="σ overall" value={u.overallSigma.toFixed(2)} />
-                <Stat label="σ proportion" value={u.proportionSigma.toFixed(2)} />
-                <Stat label="σ harmony" value={u.harmonySigma.toFixed(2)} />
-                <Stat label="σ symmetry" value={u.symmetrySigma.toFixed(2)} />
+                <Stat label={t("analysis.sigmaOverall")} value={u.overallSigma.toFixed(2)} />
+                <Stat label={t("analysis.sigmaProportion")} value={u.proportionSigma.toFixed(2)} />
+                <Stat label={t("analysis.sigmaHarmony")} value={u.harmonySigma.toFixed(2)} />
+                <Stat label={t("analysis.sigmaSymmetry")} value={u.symmetrySigma.toFixed(2)} />
                 <Stat label={t("analysis.samples")} value={String(u.samples)} />
                 <Stat label={t("analysis.jitter")} value={u.jitterPx.toFixed(2)} />
                 {result.categories.map((c) => (
