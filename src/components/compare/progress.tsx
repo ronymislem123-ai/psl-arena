@@ -4,6 +4,7 @@ import { Award as AwardIcon, TrendingUp, Trophy } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Empty } from "@/components/ui/controls";
 import { progressSeries, type CompareItem } from "@/engine/psl/compare";
+import { computeAchievements } from "@/engine/tournament/achievements";
 import { formatPsl } from "@/engine/psl/rating";
 import { useT } from "@/lib/i18n";
 import { categoryName, criterionName } from "@/lib/i18n/psl-texts";
@@ -67,12 +68,28 @@ export function RatingTimeline({ records }: { records: RatingRecord[] }) {
   );
 }
 
-export function AwardsCard({ awards }: { awards: Award[] }) {
+export function AwardsCard({ awards, entered = 0 }: { awards: Award[]; entered?: number }) {
   const { t, lang } = useT();
+  const { stats, achievements } = computeAchievements(awards, entered);
   return (
     <Card data-testid="awards">
-      <CardHeader title={t("awards.title")} icon={<AwardIcon size={18} className="text-amber" />} />
-      <CardBody>
+      <CardHeader title={t("awards.title")} icon={<AwardIcon size={18} className="text-amber" />} subtitle={entered > 0 ? t("awards.stats") : undefined} />
+      <CardBody className="space-y-4">
+        {entered > 0 && (
+          <div className="grid grid-cols-3 gap-2 text-center" data-testid="award-stats">
+            {[["entered", stats.tournamentsEntered], ["overallWins", stats.overallWins], ["championships", stats.championships], ["categoryWins", stats.categoryWins], ["distinct", stats.distinctCategories], ["withAward", stats.tournamentsWithAward]].map(([k, v]) => (
+              <div key={k as string} className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase tracking-wider text-fg-3 leading-tight">{t(`awards.${k}`)}</div><div className="font-display text-lg num">{v as number}</div></div>
+            ))}
+            {stats.mostWonCategory && <div className="col-span-3 text-xs text-fg-2">{t("awards.mostWon")}: {categoryName(stats.mostWonCategory.id, stats.mostWonCategory.name, lang)} ({stats.mostWonCategory.count}×)</div>}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1.5" data-testid="achievements">
+          {achievements.map((a) => (
+            <span key={a.id} className={cn("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px]", a.earned ? "border-amber/50 bg-amber-soft text-amber" : "border-line text-fg-3")} title={t(`achievements.${a.id}Hint`, a.params ?? {})} data-earned={a.earned ? "true" : "false"}>
+              <Trophy size={11} /> {t(`achievements.${a.id}`)} <span className="font-mono">{t("awards.progress", { p: a.progress, t: a.target })}</span>
+            </span>
+          ))}
+        </div>
         {awards.length === 0 ? (
           <Empty>{t("awards.empty")}</Empty>
         ) : (

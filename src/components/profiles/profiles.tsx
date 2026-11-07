@@ -62,7 +62,7 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
   );
 }
 
-export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = [], ratingRecords = [], awards = [] }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[]; ratings?: RatingSummary[]; ratingRecords?: RatingRecord[]; awards?: Award[] }) {
+export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = [], ratingRecords = [], awards = [], participation = { completed: 0, total: 0 } }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[]; ratings?: RatingSummary[]; ratingRecords?: RatingRecord[]; awards?: Award[]; participation?: { completed: number; total: number } }) {
   const { t, lang } = useT();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -169,7 +169,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
         </Card>
         </div>
         <div className="space-y-5">
-        <AwardsCard awards={awards} />
+        <AwardsCard awards={awards} entered={participation.completed} />
         <Card>
           <CardHeader title={t("historyPsl.ratings")} />
           <CardBody>

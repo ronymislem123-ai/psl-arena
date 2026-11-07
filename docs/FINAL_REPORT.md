@@ -54,8 +54,8 @@ Executed on 2026-11-06 (details in `docs/TEST_REPORT.md`, experiments in `docs/V
 
 | Suite | Result |
 | --- | --- |
-| Unit tests (`npm test`, 18 files) | **179 passed**, 1 diagnostic dump skipped — incl. 5 new files: `psl-scale` (5), `psl-rubric` (10 incl. hand-checked coverage/validity), `tournament` (11), `psl-store` (8), `compare` (6) |
-| End-to-end (`npm run test:e2e`, one run of the whole suite) | **16 passed** — battle flows (9), side view (2), PSL platform (3: scale builder, rater, tournaments), compare/progress/awards (1), consistency experiment (1) |
+| Unit tests (`npm test`, 19 files) | **186 passed**, 1 diagnostic dump skipped — incl. 6 new files: `psl-scale` (5), `psl-rubric` (10 incl. hand-checked coverage/validity), `tournament` (11), `psl-store` (8), `compare` (6), `compare-extended` (7) |
+| End-to-end (`npm run test:e2e`, one run of the whole suite) | **16 passed** — battle flows (9), side view (2), PSL platform (3: scale builder, rater, tournaments), compare/progress/awards/analyses/versions (1), consistency experiment (1) |
 | Static checks | `npm run typecheck` clean, `npm run lint` clean, `npm run build` succeeds |
 | Consistency experiments | identical file ⇒ Δ 0.000 PSL (both portraits); mirrored Δ 0.03; 60 % downscale Δ 0.03; tighter crop Δ 0.01 with coverage dropping 72 % → 64 % (provisional); tier stable in every case |
 
@@ -78,6 +78,8 @@ Executed on 2026-11-06 (details in `docs/TEST_REPORT.md`, experiments in `docs/V
 ## Addendum — Comparison, progress and awards module (`docs/COMPARE.md`)
 
 Added after the platform evolution as the next module (brief items 10.2 and 10.4): `/compare` shows 2–4 stored ratings side by side (score, tier, scale, rubric/engine versions, coverage, confidence, quality, profile view; 7 area rows and 41 criterion rows with deltas against the reference column and the spread; largest gains/losses of the last column) and flags differing rubric/engine versions, scales, coverage, image quality, profile-view or visual-assessment usage, provisional and invalid ratings. Profile pages show a progress timeline (first/latest/best, total change within one rubric version, mean change per rating, per-step deltas with the biggest criterion changes) and tournament awards (category wins incl. shared, multi-category, overall wins, knockout championships). Entry points: rating page, history selection, profile page, picker. Tests: `compare.test.ts` (engine), awards in `psl-store.test.ts`, `compare.spec.ts` (end-to-end).
+
+Second extension (2026-11-07), still inside the module: **raw frontal-analysis comparison** on ratio level (five scores, seven category indices, symmetry metrics, all 42 ratios with value/T1/index deltas; engine, quality, hairline, coverage, config and unusable warnings; entry from history and the analysis center), **tournament version comparison** (participants, format, categories, weights, winners, category winners and ranking positions between the current record and archived versions) with a **rendered read-only view of archived versions**, and **cross-tournament achievements** (statistics plus seven badges with documented thresholds). Tests: `compare-extended.test.ts`, participation counts in `psl-store.test.ts`, extended `compare.spec.ts`.
 
 ## H. Remaining limitations
 

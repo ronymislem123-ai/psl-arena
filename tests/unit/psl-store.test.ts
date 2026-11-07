@@ -173,6 +173,8 @@ describe("tournaments", () => {
     expect(awards.every((a) => a.tournamentId === tid)).toBe(true);
     expect(awards.some((a) => a.kind === "categoryWinner")).toBe(true);
     expect(psl.awardsForProfile(otherId, profiles[0])).toEqual([]);
+    expect(psl.tournamentParticipation(userId, profiles[0])).toEqual({ completed: 1, total: 1 });
+    expect(psl.tournamentParticipation(otherId, profiles[0])).toEqual({ completed: 0, total: 0 });
     expect(psl.getRatings(userId, [done.participants[0].ratingId!, "rate_nope"]).length).toBe(1);
     const copy = sv.runTournamentAction(userId, tid, "duplicate").tournament;
     expect(copy.id).not.toBe(tid);

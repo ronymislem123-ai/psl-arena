@@ -39,6 +39,7 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
             <Badge tone="cyan">{t("common.coverage")}: {result.coverage.evaluable}/{result.coverage.total}</Badge>
             <Badge tone="accent">{t("common.confidence")}: {fmt.pct(result.scores.confidence)}</Badge>
             <Link href={`/profiles/${profileId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
+            <Link href={`/compare?mode=analyses&analyses=${analysisId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("compareAnalyses.title")} →</Link>
           </span>
         }
         action={

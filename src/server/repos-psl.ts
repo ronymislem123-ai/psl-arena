@@ -356,6 +356,12 @@ export function awardsForProfile(userId: string, profileId: string): Award[] {
   return out;
 }
 
+/** How many tournaments a profile took part in (completed ones count for achievements). */
+export function tournamentParticipation(userId: string, profileId: string): { completed: number; total: number } {
+  const row = getDb().prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) AS completed FROM tournaments t JOIN tournament_participants p ON p.tournament_id = t.id WHERE t.user_id = ? AND p.profile_id = ?").get(userId, profileId) as { total: number; completed: number | null };
+  return { completed: row.completed ?? 0, total: row.total };
+}
+
 export function pslStats(userId: string) {
   const db = getDb();
   const c = (sql: string) => (db.prepare(sql).get(userId) as { n: number }).n;

@@ -22,6 +22,8 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
   const [tab, setTab] = useState<"battles" | "analyses" | "side" | "ratings" | "tournaments">(ratings.length ? "ratings" : "battles");
   const [selected, setSelected] = useState<string[]>([]);
   const toggleSel = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 4 ? s : [...s, id]));
+  const [selectedA, setSelectedA] = useState<string[]>([]);
+  const toggleSelA = (id: string) => setSelectedA((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 4 ? s : [...s, id]));
   const delB = async (id: string) => {
     if (!confirm(t("common.deleteConfirm"))) return;
     await api.deleteBattle(id);
@@ -183,9 +185,15 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
             {analyses.length === 0 ? (
               <Empty>{t("history.empty")}</Empty>
             ) : (
-              <ul className="divide-y divide-line">
+              <>
+              <div className="flex items-center justify-between gap-2 pb-3 text-xs text-fg-3">
+                <span>{t("historyPsl.selectHint")}</span>
+                <Link href={selectedA.length >= 2 ? `/compare?mode=analyses&analyses=${selectedA.join(",")}` : "#"}><Button size="sm" variant="outline" disabled={selectedA.length < 2} data-testid="history-compare-analyses">{t("historyPsl.compareSelected", { n: selectedA.length })}</Button></Link>
+              </div>
+              <ul className="divide-y divide-line" data-testid="analyses-history">
                 {analyses.map((a) => (
                   <li key={a.id} className="flex items-center gap-3 py-3">
+                    <input type="checkbox" checked={selectedA.includes(a.id)} onChange={() => toggleSelA(a.id)} className="h-4 w-4 accent-[#4f7cff]" aria-label={t("historyPsl.select")} data-testid={`select-analysis-${a.id}`} />
                     <FaceThumb imageId={a.imageId} label={a.profileLabel} size={44} />
                     <div className="min-w-0 flex-1">
                       <Link href={`/analysis/${a.id}`} className="font-medium hover:text-accent">
@@ -206,6 +214,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                   </li>
                 ))}
               </ul>
+              </>
             )}
           </CardBody>
         </Card>

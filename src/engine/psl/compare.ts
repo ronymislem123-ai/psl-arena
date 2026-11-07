@@ -178,3 +178,97 @@ export function progressSeries(items: CompareItem[]): ProgressSeries {
     meanStep: comparableSteps.length ? comparableSteps.reduce((s, x) => s + Math.abs(x.scoreDelta!), 0) / comparableSteps.length : null,
   };
 }
+
+// ---------------------------------------------------------------- raw frontal analyses
+import type { AnalysisResult, Availability, CategoryId, RatioId } from "../types";
+import { CATEGORY_ORDER, RATIO_BY_ID, RATIO_DEFINITIONS } from "../ratios/database";
+
+export interface AnalysisCompareItem {
+  id: string;
+  label: string;
+  createdAt: string;
+  result: AnalysisResult;
+}
+
+export type AnalysisCompareWarningCode = "engineVersion" | "qualityDiffers" | "hairlineDiffers" | "coverageDiffers" | "configDiffers" | "unusable" | "captureDistanceDiffers";
+
+export interface AnalysisCompareWarning {
+  code: AnalysisCompareWarningCode;
+  params?: Record<string, string | number>;
+}
+
+export interface RatioCompareRow {
+  id: RatioId;
+  number: number;
+  unit: string;
+  values: (number | null)[];
+  indices: (number | null)[];
+  inT1: (boolean | null)[];
+  availability: Availability[];
+  valueDeltas: (number | null)[];
+  indexDeltas: (number | null)[];
+  /** available in every analysis */
+  common: boolean;
+}
+
+export type ScoreKey = "overall" | "proportion" | "harmony" | "structure" | "symmetry";
+
+export interface AnalysisComparison {
+  items: { id: string; label: string; createdAt: string; engineVersion: string; quality: AnalysisResult["quality"]["level"]; analyzable: boolean; coverage: number; evaluable: number; total: number; confidence: number; hairline: boolean; includeReconstructed: boolean; captureDistance: string; overall: number | null }[];
+  scores: ValueRow<ScoreKey>[];
+  categories: ValueRow<CategoryId>[];
+  symmetryMetrics: ValueRow<string>[];
+  ratios: RatioCompareRow[];
+  /** ratios whose index improved / worsened most in the last analysis vs. the reference (common ratios only) */
+  gains: RatioCompareRow[];
+  losses: RatioCompareRow[];
+  warnings: AnalysisCompareWarning[];
+  comparable: boolean;
+  commonRatios: number;
+}
+
+export function compareAnalyses(items: AnalysisCompareItem[]): AnalysisComparison {
+  if (items.length < 2) throw new Error("At least two analyses are required.");
+  const results = items.map((i) => i.result);
+  const uniq = <T,>(xs: T[]) => Array.from(new Set(xs));
+  const warnings: AnalysisCompareWarning[] = [];
+  const engines = uniq(results.map((r) => r.engineVersion));
+  if (engines.length > 1) warnings.push({ code: "engineVersion", params: { versions: engines.join(", ") } });
+  const levels = uniq(results.map((r) => r.quality.level));
+  if (levels.length > 1) warnings.push({ code: "qualityDiffers", params: { levels: levels.join(", ") } });
+  const hair = results.map((r) => r.landmarks.some((l) => l.id === "trichion"));
+  if (uniq(hair).length > 1) warnings.push({ code: "hairlineDiffers" });
+  const covs = results.map((r) => r.coverage.fraction);
+  if (Math.max(...covs) - Math.min(...covs) > 0.1) warnings.push({ code: "coverageDiffers", params: { min: Math.round(Math.min(...covs) * 100), max: Math.round(Math.max(...covs) * 100) } });
+  if (uniq(results.map((r) => r.config.includeReconstructed)).length > 1) warnings.push({ code: "configDiffers" });
+  if (uniq(results.map((r) => r.config.captureDistance)).length > 1) warnings.push({ code: "captureDistanceDiffers", params: { values: uniq(results.map((r) => r.config.captureDistance)).join(", ") } });
+  if (results.some((r) => !r.quality.analyzable)) warnings.push({ code: "unusable", params: { n: results.filter((r) => !r.quality.analyzable).length } });
+
+  const scoreKeys: ScoreKey[] = ["overall", "proportion", "harmony", "structure", "symmetry"];
+  const scores = scoreKeys.map((k) => row(k, results.map((r) => r.scores[k])));
+  const categories = CATEGORY_ORDER.map((c) => row(c, results.map((r) => r.categories.find((x) => x.id === c)?.index ?? null)));
+  const metricIds = uniq(results.flatMap((r) => r.symmetry.metrics.map((m) => m.id)));
+  const symmetryMetrics = metricIds.map((id) => row(id, results.map((r) => r.symmetry.metrics.find((m) => m.id === id)?.score ?? null)));
+  const ratios: RatioCompareRow[] = RATIO_DEFINITIONS.map((def) => {
+    const rs = results.map((r) => r.ratios.find((x) => x.id === def.id));
+    const values = rs.map((x) => (x && x.availability === "available" ? x.value : null));
+    const indices = rs.map((x) => (x && x.availability === "available" ? x.index : null));
+    const v = row(def.id, values);
+    const ix = row(def.id, indices);
+    return { id: def.id, number: def.number, unit: def.unit, values, indices, inT1: rs.map((x) => (x && x.availability === "available" ? x.inT1 : null)), availability: rs.map((x) => x?.availability ?? "unavailable"), valueDeltas: v.deltas, indexDeltas: ix.deltas, common: values.every((x) => x != null) };
+  });
+  const last = items.length - 1;
+  const common = ratios.filter((r) => r.common && r.indexDeltas[last] != null);
+  const gains = [...common].filter((r) => r.indexDeltas[last]! > 1).sort((a, b) => b.indexDeltas[last]! - a.indexDeltas[last]!).slice(0, 5);
+  const losses = [...common].filter((r) => r.indexDeltas[last]! < -1).sort((a, b) => a.indexDeltas[last]! - b.indexDeltas[last]!).slice(0, 5);
+  return {
+    items: items.map((it, i) => ({ id: it.id, label: it.label, createdAt: it.createdAt, engineVersion: it.result.engineVersion, quality: it.result.quality.level, analyzable: it.result.quality.analyzable, coverage: it.result.coverage.fraction, evaluable: it.result.coverage.evaluable, total: it.result.coverage.total, confidence: it.result.scores.confidence, hairline: hair[i], includeReconstructed: it.result.config.includeReconstructed, captureDistance: it.result.config.captureDistance, overall: it.result.scores.overall })),
+    scores, categories, symmetryMetrics, ratios, gains, losses, warnings,
+    comparable: engines.length === 1,
+    commonRatios: ratios.filter((r) => r.common).length,
+  };
+}
+
+export function ratioName(id: RatioId): string {
+  return RATIO_BY_ID[id].name;
+}

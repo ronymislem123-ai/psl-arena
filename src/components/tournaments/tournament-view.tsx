@@ -26,7 +26,7 @@ import type { TournamentRecord, TournamentVersionRow } from "@/server/repos-psl"
 
 type Tab = "overview" | "bracket" | "groups" | "duels" | "categories" | "results" | "versions";
 
-export function TournamentView({ tournament: initial, versions }: { tournament: TournamentRecord; versions: TournamentVersionRow[] }) {
+export function TournamentView({ tournament: initial, versions, readOnly }: { tournament: TournamentRecord; versions: TournamentVersionRow[]; readOnly?: { currentVersion: number } }) {
   const { t, lang } = useT();
   const router = useRouter();
   const [tr, setTr] = useState(initial);
@@ -95,6 +95,9 @@ export function TournamentView({ tournament: initial, versions }: { tournament: 
           </span>
         }
         action={
+          readOnly ? (
+            <Link href={`/tournaments/${tr.id}`}><Button variant="outline" size="sm">{t("common.back")}</Button></Link>
+          ) : (
           <div className="flex flex-wrap gap-2 print:hidden">
             {tr.status === "draft" && <Link href={`/tournaments/${tr.id}/edit`}><Button variant="outline" size="sm"><Pencil size={14} /> {t("scales.edit")}</Button></Link>}
             {tr.status === "draft" && <Button size="sm" onClick={() => act("start")} loading={busy} disabled={tr.participants.length < 2} data-testid="tournament-start"><Play size={14} /> {t("tournaments.start")}</Button>}
@@ -108,10 +111,12 @@ export function TournamentView({ tournament: initial, versions }: { tournament: 
             <Button size="sm" variant="ghost" onClick={() => window.print()} title={t("tournaments.print")}><Printer size={14} /></Button>
             <Button size="sm" variant="ghost" onClick={del} title={t("tournaments.delete")}><Trash2 size={14} /></Button>
           </div>
+          )
         }
       />
+      {readOnly && <div className="rounded-xl border border-violet/40 bg-violet-soft px-4 py-2 text-sm text-[#c4b5fd]" data-testid="archived-banner">{t("compareVersions.archivedBanner", { n: tr.version, current: readOnly.currentVersion })}</div>}
       {error && <div className="rounded-xl border border-rose/40 bg-rose-soft px-4 py-2 text-sm text-[#ff8fa3]" role="alert">{error}</div>}
-      {(blocked || tiedMatches.length > 0) && tr.status === "running" && (
+      {!readOnly && (blocked || tiedMatches.length > 0) && tr.status === "running" && (
         <div className="rounded-xl border border-amber/40 bg-amber-soft px-4 py-3 text-sm text-amber" data-testid="tournament-blocked">
           <div>{t("tournaments.blocked")}</div>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -187,7 +192,7 @@ export function TournamentView({ tournament: initial, versions }: { tournament: 
         <Card>
           <CardBody className="pt-5">
             {tr.state?.bracket ? (
-              <BracketView bracket={tr.state.bracket} names={names} onMatch={(m: Match) => m.a && m.b && setDuel({ a: m.a, b: m.b })} onDecide={tr.status === "running" ? (m, w) => act("decide", { matchId: m.id, winnerId: w }) : undefined} />
+              <BracketView bracket={tr.state.bracket} names={names} onMatch={(m: Match) => m.a && m.b && setDuel({ a: m.a, b: m.b })} onDecide={!readOnly && tr.status === "running" ? (m, w) => act("decide", { matchId: m.id, winnerId: w }) : undefined} />
             ) : (
               <Empty>{tr.config.format === "group" && tr.state?.phase === "groups" ? t("tournaments.tabs.groups") : t("tournaments.draftHint")}</Empty>
             )}
@@ -216,7 +221,7 @@ export function TournamentView({ tournament: initial, versions }: { tournament: 
 
       {tab === "versions" && (
         <Card>
-          <CardHeader title={t("tournaments.versions")} subtitle={t("tournaments.currentVersion", { n: tr.version })} />
+          <CardHeader title={t("tournaments.versions")} subtitle={t("tournaments.currentVersion", { n: tr.version })} action={versions.length > 0 ? <Link href={`/compare?mode=versions&tournament=${tr.id}`}><Button size="sm" variant="outline" data-testid="versions-compare-link">{t("compareVersions.title")}</Button></Link> : undefined} />
           <CardBody>
             {versions.length === 0 ? <Empty>{t("tournaments.noVersions")}</Empty> : (
               <ul className="divide-y divide-line">
@@ -225,7 +230,8 @@ export function TournamentView({ tournament: initial, versions }: { tournament: 
                     <Badge tone="muted">v{v.version}</Badge>
                     <span className="flex-1 text-fg-1">{v.note}</span>
                     <span className="text-xs text-fg-3">{t("tournaments.archivedAt")} {fmt.date(v.createdAt, lang)}</span>
-                    <a href={`/api/tournaments/${tr.id}/versions/${v.id}`} target="_blank" rel="noreferrer"><Button size="sm" variant="outline">{t("common.open")}</Button></a>
+                    <Link href={`/tournaments/${tr.id}/versions/${v.id}`} data-testid={`version-open-${v.version}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <a href={`/api/tournaments/${tr.id}/versions/${v.id}`} target="_blank" rel="noreferrer" className="text-xs text-fg-3 underline underline-offset-2">JSON</a>
                   </li>
                 ))}
               </ul>

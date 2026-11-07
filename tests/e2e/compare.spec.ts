@@ -108,4 +108,60 @@ test("compare, progress and awards", async ({ page }) => {
   const awardsText2 = (await page.getByTestId("awards").textContent()) ?? "";
   expect(`${awardsText}${awardsText2}`).toMatch(/Category winner|Overall winner/);
   await shot(page, "72-profile-progress-awards");
+
+  // achievements: "First win" is earned on at least one of the two profiles
+  const earnedA = await page.locator('[data-testid="achievements"] [data-earned="true"]').count();
+  await page.goto(`/profiles/${alpha.profileId}`);
+  const earnedB = await page.locator('[data-testid="achievements"] [data-earned="true"]').count();
+  expect(earnedA + earnedB).toBeGreaterThan(0);
+  await expect(page.getByTestId("award-stats")).toBeVisible();
+
+  // raw frontal analyses: history selection → ratio-level comparison
+  await page.goto("/history");
+  await page.getByRole("tab", { name: /Analyses/ }).click();
+  const analysisBoxes = page.locator('[data-testid^="select-analysis-"]');
+  expect(await analysisBoxes.count()).toBeGreaterThanOrEqual(2);
+  await analysisBoxes.nth(0).check();
+  await analysisBoxes.nth(1).check();
+  await page.getByTestId("history-compare-analyses").click();
+  await page.waitForURL(/\/compare\?mode=analyses&analyses=/);
+  await expect(page.getByTestId("analyses-compare-view")).toBeVisible();
+  await expect(page.locator('[data-testid="analyses-ratios"] tbody tr')).toHaveCount(42);
+  await expect(page.locator('[data-testid="analyses-categories"] tbody tr')).toHaveCount(7);
+  await expect(page.getByText("Same engine version")).toBeVisible();
+  await page.getByRole("switch").click();
+  expect(await page.locator('[data-testid="analyses-ratios"] tbody tr').count()).toBeLessThan(42);
+  await shot(page, "73-compare-analyses");
+  // the analysis center links into the comparison with its analysis preselected
+  await page.goto(`/analysis/${alpha.analysisId}`);
+  await page.getByRole("link", { name: /Compare frontal analyses/ }).click();
+  await page.waitForURL(/\/compare\?mode=analyses&analyses=ana_/);
+  await expect(page.getByTestId("analyses-picker").locator('input[type="checkbox"]:checked')).toHaveCount(1);
+
+  // tournament versions: reopen the completed cup, change a weight, complete again, compare versions
+  const reopened = await page.request.post(`/api/tournaments/${tid}/actions`, { data: { action: "reopen", note: "weights changed" } });
+  expect(reopened.ok()).toBeTruthy();
+  const cur = (await reopened.json()).tournament;
+  const cfg2 = { ...cur.config, categories: cur.config.categories.map((c: { id: string; weight: number }) => ({ ...c, weight: c.id === "eyeArea" ? 100 : 0 })) };
+  expect((await page.request.patch(`/api/tournaments/${tid}`, { data: { config: cfg2 } })).ok()).toBeTruthy();
+  const again = (await (await page.request.post(`/api/tournaments/${tid}/actions`, { data: { action: "start" } })).json()).tournament;
+  expect(again.status).toBe("completed");
+  expect(again.version).toBe(2);
+  await page.goto(`/compare?mode=versions&tournament=${tid}`);
+  await expect(page.getByTestId("versions-compare-view")).toBeVisible();
+  await expect(page.getByTestId("versions-diff")).toBeVisible();
+  await expect(page.locator('[data-testid="versions-categories"] tbody tr')).toHaveCount(3);
+  await expect(page.locator('[data-testid="versions-ranking"] tbody tr')).toHaveCount(2);
+  await expect(page.getByText(/Weight changes/)).toBeVisible();
+  await shot(page, "74-compare-versions");
+  // rendered, read-only archived version
+  await page.goto(`/tournaments/${tid}`);
+  await page.getByRole("tab", { name: "Versions" }).click();
+  await page.getByTestId("version-open-1").click();
+  await page.waitForURL(/\/tournaments\/tour_[a-z0-9]+\/versions\/tv_/);
+  await expect(page.getByTestId("archived-banner")).toContainText("Archived version 1");
+  await expect(page.getByTestId("tournament-start")).toHaveCount(0);
+  await expect(page.getByTestId("tournament-reopen")).toHaveCount(0);
+  await expect(page.getByTestId("tournament-results")).toBeVisible();
+  await shot(page, "75-archived-version");
 });
