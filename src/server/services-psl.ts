@@ -8,6 +8,7 @@ import { RUBRIC_VERSION } from "@/engine/psl/rubric";
 import { BUILTIN_SCALE_ID, exportScale, snapshotScale, validateScale, type PslScale, type PslTier, type ScaleExport } from "@/engine/psl/scale";
 import { computeResults, initialState, resolveTiedMatch, step } from "@/engine/tournament/engine";
 import type { ParticipantData, TournamentConfig } from "@/engine/tournament/types";
+import { base64ToBytes } from "./bytes";
 import { ServiceError } from "./errors";
 import { readImage, storeImage } from "./images";
 import { getAnalysis, getProfile, getSideAnalysis, listSideAnalyses } from "./repos";
@@ -64,10 +65,10 @@ export function exportScaleJson(userId: string, id: string): ScaleExport {
   return exportScale(s);
 }
 
-function decodeDataUrl(dataUrl: string): { buf: Buffer; mime: string } {
+function decodeDataUrl(dataUrl: string): { buf: Uint8Array; mime: string } {
   const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
   if (!m) throw new ServiceError(400, "Invalid image data URL.");
-  const buf = Buffer.from(m[2], "base64");
+  const buf = base64ToBytes(m[2]);
   if (buf.length > 8_000_000) throw new ServiceError(413, "Image too large (max 8 MB).");
   return { buf, mime: m[1] };
 }

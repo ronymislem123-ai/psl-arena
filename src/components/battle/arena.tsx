@@ -12,6 +12,7 @@ import { useSettings } from "@/lib/settings";
 import { cn, fmt } from "@/lib/utils";
 import { imageUrl } from "@/lib/api";
 import type { AnalysisResult, BattleResult, BattleRound } from "@/engine/types";
+import { paths } from "@/lib/paths";
 
 export interface ArenaSide {
   label: string;
@@ -301,12 +302,12 @@ export function BattleSummaryLinks({ a, b }: { a: ArenaSide; b: ArenaSide }) {
   const { t } = useT();
   return (
     <div className="flex flex-wrap gap-2">
-      <Link href={`/analysis/${a.analysisId}`}>
+      <Link href={paths.analysis(a.analysisId)}>
         <Button variant="outline" size="sm">
           {t("common.viewAnalysis")}: {a.label}
         </Button>
       </Link>
-      <Link href={`/analysis/${b.analysisId}`}>
+      <Link href={paths.analysis(b.analysisId)}>
         <Button variant="outline" size="sm">
           {t("common.viewAnalysis")}: {b.label}
         </Button>

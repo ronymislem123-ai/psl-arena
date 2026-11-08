@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { categoryName, criterionName } from "@/lib/i18n/psl-texts";
 import { cn, fmt } from "@/lib/utils";
 import type { Award, RatingRecord } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
 
 const signed = (v: number | null) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}`);
 
@@ -52,7 +53,7 @@ export function RatingTimeline({ records }: { records: RatingRecord[] }) {
                   const to = s.points.find((p) => p.id === st.toId)!;
                   return (
                     <li key={st.toId} className="py-1.5 flex flex-wrap items-center gap-2">
-                      <Link href={`/rater/${st.toId}`} className="hover:text-accent">{fmt.date(to.createdAt, lang)}</Link>
+                      <Link href={paths.rating(st.toId)} className="hover:text-accent">{fmt.date(to.createdAt, lang)}</Link>
                       <span className="text-xs text-fg-3">{t("progress.days", { n: Math.round(st.days) })}</span>
                       <span className={cn("font-mono", st.scoreDelta == null ? "text-fg-3" : st.scoreDelta > 0 ? "text-mint" : st.scoreDelta < 0 ? "text-[#ff8fa3]" : "")}>{st.comparable ? signed(st.scoreDelta) : t("progress.noComparable")}</span>
                       {st.biggestChanges.length > 0 && <span className="text-xs text-fg-2">{t("progress.biggest")}: {st.biggestChanges.map((b) => `${criterionName(b.id, lang)} ${signed(b.delta)}`).join(", ")}</span>}
@@ -101,7 +102,7 @@ export function AwardsCard({ awards, entered = 0 }: { awards: Award[]; entered?:
                   {a.kind === "multiCategory" ? t("awards.multiCategory", { n: a.count }) : a.kind === "categoryWinner" ? `${t("awards.categoryWinner")}: ${categoryName(a.categoryId ?? "", a.categoryName ?? "", lang)}` : t(`awards.${a.kind}`)}
                   {a.shared && <span className="text-xs text-fg-3"> ({t("awards.shared")})</span>}
                   <span className="text-xs text-fg-3"> {t("awards.in")} </span>
-                  <Link href={`/tournaments/${a.tournamentId}`} className="text-xs hover:text-accent underline underline-offset-2">{a.tournamentName}</Link>
+                  <Link href={paths.tournament(a.tournamentId)} className="text-xs hover:text-accent underline underline-offset-2">{a.tournamentName}</Link>
                 </span>
               </li>
             ))}

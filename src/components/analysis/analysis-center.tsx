@@ -20,6 +20,8 @@ import { useSettings } from "@/lib/settings";
 import { useSessionImage } from "@/lib/session-images";
 import { imageUrl } from "@/lib/api";
 import { cn, fmt, scoreLabel, scoreTone } from "@/lib/utils";
+import { paths } from "@/lib/paths";
+import { ApiLink } from "@/components/shared/api-link";
 
 type Tab = "overview" | "ratios" | "landmarks" | "symmetry" | "features" | "quality";
 
@@ -38,7 +40,7 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
             <Badge tone={levelTone(result.quality.level)}>{t("common.quality")}: {t(`quality.${result.quality.level}`)}</Badge>
             <Badge tone="cyan">{t("common.coverage")}: {result.coverage.evaluable}/{result.coverage.total}</Badge>
             <Badge tone="accent">{t("common.confidence")}: {fmt.pct(result.scores.confidence)}</Badge>
-            <Link href={`/profiles/${profileId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
+            <Link href={paths.profile(profileId)} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
             <Link href={`/compare?mode=analyses&analyses=${analysisId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("compareAnalyses.title")} →</Link>
           </span>
         }
@@ -553,9 +555,9 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
             <div>uncertaintySamples = {result.config.uncertaintySamples} · seed = {result.config.seed}</div>
             <div>engine = {result.engineVersion} · id = {analysisId}</div>
             <div className="pt-2">
-              <a href={`/api/analyses/${analysisId}`} target="_blank" rel="noreferrer">
+              <ApiLink href={`/api/analyses/${analysisId}`} newTab>
                 <Button variant="outline" size="sm">{t("analysis.rawJson")}</Button>
-              </a>
+              </ApiLink>
             </div>
           </CardBody>
         </Card>

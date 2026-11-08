@@ -27,6 +27,7 @@ import { buildAnalysisInput } from "@/lib/vision/pipeline";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/repos";
 import type { ScaleSummary } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
 
 type Mode = "upload" | "existing";
 
@@ -97,7 +98,7 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
       } else {
         res = await api.createRating({ ...common, analysisId, sideAnalysisId: sideChoice === "none" ? null : undefined, useLatestSide: sideChoice === "latest" });
       }
-      router.push(`/rater/${res.rating.id}`);
+      router.push(paths.rating(res.rating.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);

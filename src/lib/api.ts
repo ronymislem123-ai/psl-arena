@@ -6,21 +6,9 @@ import type { RatingRecord, RatingSummary, ScaleInput, ScaleSummary, TournamentR
 import type { PslScale, ScaleExport } from "@/engine/psl/scale";
 import type { TournamentConfig } from "@/engine/tournament/types";
 import type { CategoryRanking } from "@/engine/tournament/types";
+import { request } from "./transport";
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
-  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
-  // A 401 from a data endpoint means the session is gone → back to the login page.
-  // Auth endpoints answer 401 for wrong credentials/codes, which the forms display themselves.
-  if (res.status === 401 && typeof window !== "undefined" && !url.startsWith("/api/auth/")) {
-    const target = new URL("/login", window.location.origin);
-    target.searchParams.set("next", window.location.pathname + window.location.search);
-    window.location.assign(target.toString()); // full reload: the session is gone, drop all client state
-
-  }
-  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
-  return body;
-}
+export { imageUrl, downloadApi } from "./transport";
 
 export const api = {
   createAnalysis: (payload: {
@@ -110,4 +98,3 @@ export interface AuthUserDto {
   createdAt: string;
 }
 
-export const imageUrl = (id: string | null | undefined) => (id ? `/api/images/${id}` : null);

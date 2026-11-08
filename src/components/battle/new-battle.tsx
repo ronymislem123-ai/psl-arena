@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { warmUpLandmarker } from "@/lib/vision/landmarker";
 import type { CaptureDistance } from "@/engine/types";
+import { paths } from "@/lib/paths";
 
 export function NewBattle() {
   const { t } = useT();
@@ -33,7 +34,7 @@ export function NewBattle() {
     try {
       const id = await s.start();
       s.reset();
-      router.push(`/battle/${id}`);
+      router.push(paths.battle(id));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }

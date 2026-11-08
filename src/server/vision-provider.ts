@@ -13,7 +13,7 @@ import type { VisualAssessmentSet } from "@/engine/psl/rating";
 export interface VisualAssessmentProvider {
   id: string;
   modelVersion: string;
-  assess(image: { buf: Buffer; mime: string }, criteria: CriterionDefinition[]): Promise<VisualAssessmentSet>;
+  assess(image: { buf: Uint8Array; mime: string }, criteria: CriterionDefinition[]): Promise<VisualAssessmentSet>;
 }
 
 export const VISUAL_CRITERIA = CRITERIA.filter((c) => c.method === "visual");

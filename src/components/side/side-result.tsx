@@ -18,6 +18,7 @@ import { SIDE_ASSUMPTION_TEXTS, SIDE_ISSUE_TEXTS, SIDE_SOURCE_TEXTS, sideLandmar
 import { useSessionImage } from "@/lib/session-images";
 import { cn, fmt, scoreLabel, scoreTone } from "@/lib/utils";
 import type { SideAnalysisRecord } from "@/server/repos";
+import { paths } from "@/lib/paths";
 
 const SOURCE_TONE: Record<string, Tone> = { guide: "violet", literature: "cyan", descriptive: "muted" };
 
@@ -53,7 +54,7 @@ export function SideResult({ record }: { record: SideAnalysisRecord }) {
               {r.scoredCount} {t("side.scored")} · {r.measurements.length - r.scoredCount} {t("side.descriptive")}
             </Badge>
             {r.scoreSigma != null && <Badge tone="muted">σ {r.scoreSigma.toFixed(1)}</Badge>}
-            <Link href={`/profiles/${record.profileId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">
+            <Link href={paths.profile(record.profileId)} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">
               {t("nav.profiles")} →
             </Link>
           </span>

@@ -16,6 +16,7 @@ import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/
 import type { Award, RatingRecord, RatingSummary } from "@/server/repos-psl";
 import { AwardsCard, RatingTimeline } from "@/components/compare/progress";
 import { formatPsl } from "@/engine/psl/rating";
+import { paths } from "@/lib/paths";
 
 export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
   const { t, lang } = useT();
@@ -34,11 +35,11 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {profiles.map((p) => (
             <Card key={p.id} className="p-4 flex gap-4">
-              <Link href={`/profiles/${p.id}`}>
+              <Link href={paths.profile(p.id)}>
                 <FaceThumb imageId={p.imageId} label={p.label} size={72} />
               </Link>
               <div className="min-w-0 flex-1">
-                <Link href={`/profiles/${p.id}`} className="font-display font-semibold truncate block hover:text-accent">
+                <Link href={paths.profile(p.id)} className="font-display font-semibold truncate block hover:text-accent">
                   {p.label}
                 </Link>
                 <div className="text-xs text-fg-3">
@@ -46,7 +47,7 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
                 </div>
                 <div className="mt-1 font-display text-xl num">{fmt.score(p.latestOverall, 1)}</div>
                 <div className="mt-2 flex gap-1">
-                  <Link href={`/profiles/${p.id}`}>
+                  <Link href={paths.profile(p.id)}>
                     <Button size="sm" variant="outline">{t("common.open")}</Button>
                   </Link>
                   <Button size="sm" variant="ghost" onClick={() => del(p)} title={t("common.delete")}>
@@ -153,7 +154,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
                         <Badge tone={levelTone(a.qualityLevel)}>{t(`quality.${a.qualityLevel}`)}</Badge>
                       </td>
                       <td className="py-2 text-right whitespace-nowrap">
-                        <Link href={`/analysis/${a.id}`}>
+                        <Link href={paths.analysis(a.id)}>
                           <Button size="sm" variant="outline">{t("common.open")}</Button>
                         </Link>
                         <Button size="sm" variant="ghost" onClick={() => delAnalysis(a.id)} className="ml-1">
@@ -180,11 +181,11 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
                 {ratings.map((r) => (
                   <li key={r.id} className="flex items-center gap-2 py-2 text-sm">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/rater/${r.id}`} className="hover:text-accent">{fmt.date(r.createdAt, lang)}</Link>
+                      <Link href={paths.rating(r.id)} className="hover:text-accent">{fmt.date(r.createdAt, lang)}</Link>
                       <div className="text-xs text-fg-3">{r.scaleName} · {r.tierName ?? "—"}{r.provisional ? ` · ${t("rater.result.provisional")}` : ""}</div>
                     </div>
                     <span className="font-mono num">{formatPsl(r.score)}</span>
-                    <Link href={`/rater/${r.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <Link href={paths.rating(r.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
                   </li>
                 ))}
               </ul>
@@ -216,7 +217,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
                 {sideAnalyses.map((a) => (
                   <li key={a.id} className="flex items-center gap-2 py-2 text-sm">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/side-view/${a.id}`} className="hover:text-accent">
+                      <Link href={paths.sideView(a.id)} className="hover:text-accent">
                         {fmt.date(a.createdAt, lang)}
                       </Link>
                       <div className="text-xs text-fg-3">
@@ -224,7 +225,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
                       </div>
                     </div>
                     <span className="font-mono num">{fmt.score(a.score, 1)}</span>
-                    <Link href={`/side-view/${a.id}`}>
+                    <Link href={paths.sideView(a.id)}>
                       <Button size="sm" variant="outline">{t("common.open")}</Button>
                     </Link>
                     <Button size="sm" variant="ghost" onClick={() => delSide(a.id)}>

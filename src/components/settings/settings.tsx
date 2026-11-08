@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Input, Select, Toggle } from "@/components/ui/controls";
 import { RecoveryCodes } from "@/components/auth/recovery-codes";
+import { BrowserDataCard } from "./browser-data";
 import { PageHeader } from "@/components/layout/app-shell";
 import { BRAND } from "@/config/brand";
 import { ENGINE_VERSION } from "@/engine/analysis";
@@ -14,6 +15,7 @@ import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { fmt } from "@/lib/utils";
 import type { CaptureDistance } from "@/engine/types";
+import { ApiLink } from "@/components/shared/api-link";
 
 export interface AccountInfo {
   email: string;
@@ -21,7 +23,8 @@ export interface AccountInfo {
   createdAt: string;
 }
 
-export function SettingsView({ account }: { account: AccountInfo }) {
+/** `account` is null in the browser edition, which has no accounts. */
+export function SettingsView({ account }: { account: AccountInfo | null }) {
   const { t } = useT();
   const s = useSettings();
   const router = useRouter();
@@ -37,9 +40,15 @@ export function SettingsView({ account }: { account: AccountInfo }) {
     <div className="space-y-6">
       <PageHeader kicker={t("nav.settings")} title={t("settings.title")} />
       <div className="grid gap-5 lg:grid-cols-2">
-        <AccountCard account={account} />
-        <TwoFactorCard onChanged={() => setRecoveryTick((t) => t + 1)} />
-        <RecoveryCard refreshKey={recoveryTick} />
+        {account ? (
+          <>
+            <AccountCard account={account} />
+            <TwoFactorCard onChanged={() => setRecoveryTick((t) => t + 1)} />
+            <RecoveryCard refreshKey={recoveryTick} />
+          </>
+        ) : (
+          <BrowserDataCard />
+        )}
         <Card>
           <CardHeader title={t("settings.appearance")} />
           <CardBody className="space-y-2">
@@ -80,11 +89,11 @@ export function SettingsView({ account }: { account: AccountInfo }) {
           <CardBody className="space-y-3">
             <Toggle checked={s.storeImagesByDefault} onChange={(v) => s.set({ storeImagesByDefault: v })} label={t("battle.storeImages")} hint={t("battle.storeImagesHint")} />
             <div className="flex flex-wrap gap-2 pt-2">
-              <a href="/api/data" download>
+              <ApiLink href="/api/data">
                 <Button variant="outline" size="sm">
                   <Download size={14} /> {t("settings.exportData")}
                 </Button>
-              </a>
+              </ApiLink>
               <Button variant="danger" size="sm" onClick={deleteAll}>
                 <Trash2 size={14} /> {t("settings.deleteAll")}
               </Button>

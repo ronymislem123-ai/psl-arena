@@ -17,6 +17,7 @@ import { symmetryMetricLabelById } from "@/lib/i18n/engine-text";
 import { categoryText, ratioText } from "@/lib/i18n/ratio-texts";
 import { cn, fmt } from "@/lib/utils";
 import type { AnalysisRecord } from "@/server/repos";
+import { paths } from "@/lib/paths";
 
 const signed = (v: number | null, digits = 1) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(digits)}`);
 const dc = (v: number | null, eps = 0.5) => (v == null || Math.abs(v) < eps ? "text-fg-3" : v > 0 ? "text-mint" : "text-[#ff8fa3]");
@@ -67,7 +68,7 @@ export function AnalysesCompareView({ records }: { records: AnalysisRecord[] }) 
                   <th key={it.id} className="text-left py-2 align-top">
                     <div className="flex items-center gap-2">
                       <FaceThumb imageId={records[i].imageId} label={it.label} size={40} />
-                      <div className="min-w-0"><Link href={`/analysis/${it.id}`} className="font-medium hover:text-accent block truncate">{it.label}</Link><div className="text-[11px] text-fg-3 font-normal">{fmt.date(it.createdAt, lang)}{i === 0 ? ` · ${t("compare.reference")}` : ""}</div></div>
+                      <div className="min-w-0"><Link href={paths.analysis(it.id)} className="font-medium hover:text-accent block truncate">{it.label}</Link><div className="text-[11px] text-fg-3 font-normal">{fmt.date(it.createdAt, lang)}{i === 0 ? ` · ${t("compare.reference")}` : ""}</div></div>
                     </div>
                   </th>
                 ))}

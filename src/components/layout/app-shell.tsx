@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Clock3, DraftingCompass, LayoutDashboard, LayoutList, LogOut, MoreHorizontal, ScanFace, Settings, SlidersHorizontal, Swords, Trophy, UserRound, Users, X, Zap } from "lucide-react";
+import { Clock3, DraftingCompass, HardDrive, LayoutDashboard, LayoutList, LogOut, MoreHorizontal, ScanFace, Settings, SlidersHorizontal, Swords, Trophy, UserRound, Users, X, Zap } from "lucide-react";
 import { BRAND } from "@/config/brand";
 import { api } from "@/lib/api";
+import { IS_STATIC } from "@/lib/base-path";
 import { useT } from "@/lib/i18n";
 import { rehydrateSettings, useSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,20 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
             </Link>
           ))}
         </nav>
-        {user && (
+        {IS_STATIC && (
+          <div className="px-3 py-3 border-t border-line">
+            <Link href="/settings" className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-white/5" data-testid="browser-edition-badge">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-mint/15 text-mint">
+                <HardDrive size={15} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{t("browser.edition")}</div>
+                <div className="text-[11px] text-fg-3 truncate">{t("browser.localData")}</div>
+              </div>
+            </Link>
+          </div>
+        )}
+        {user && !IS_STATIC && (
           <div className="px-3 py-3 border-t border-line">
             <div className="flex items-center gap-2.5 rounded-xl px-2 py-2">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet/20 text-[#c4b5fd]">
@@ -113,7 +127,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
             <Link href="/rater" className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white">
               {t("navPsl.rater")}
             </Link>
-            {user && (
+            {user && !IS_STATIC && (
               <button onClick={logout} disabled={signingOut} className="rounded-lg p-1.5 text-fg-2 hover:bg-white/10" aria-label={t("auth.logout")}>
                 <LogOut size={16} />
               </button>

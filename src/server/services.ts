@@ -2,16 +2,17 @@ import { analyzeFace } from "@/engine/analysis";
 import { resolveBattle } from "@/engine/battle";
 import type { AnalysisInput } from "@/engine/types";
 import { analyzeSideView, SIDE_LANDMARK_ORDER, type SidePoints } from "@/engine/side-view";
+import { base64ToBytes } from "./bytes";
 import { ServiceError } from "./errors";
 import { createProfile, getAnalysis, getProfile, insertAnalysis, insertBattle, insertSideAnalysis, type AnalysisRecord, type BattleRecord, type SideAnalysisRecord } from "./repos";
 import { storeImage } from "./images";
 
 export { ServiceError };
 
-function decodeDataUrl(dataUrl: string): { buf: Buffer; mime: string } {
+function decodeDataUrl(dataUrl: string): { buf: Uint8Array; mime: string } {
   const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
   if (!m) throw new ServiceError(400, "Invalid image data URL.");
-  const buf = Buffer.from(m[2], "base64");
+  const buf = base64ToBytes(m[2]);
   if (buf.length > 8_000_000) throw new ServiceError(413, "Image too large (max 8 MB).");
   return { buf, mime: m[1] };
 }

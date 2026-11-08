@@ -13,6 +13,7 @@ import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, BattleSummary, ProfileRow } from "@/server/repos";
 import type { RatingSummary, TournamentSummary } from "@/server/repos-psl";
 import type { stats as statsFn } from "@/server/repos";
+import { paths } from "@/lib/paths";
 
 type Stats = ReturnType<typeof statsFn>;
 
@@ -97,7 +98,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
               <ul className="divide-y divide-line">
                 {recentRatings.map((r) => (
                   <li key={r.id}>
-                    <Link href={`/rater/${r.id}`} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
+                    <Link href={paths.rating(r.id)} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
                       <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={40} />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{r.profileLabel}</div>
@@ -121,7 +122,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
               <ul className="divide-y divide-line">
                 {recentTournaments.map((tr) => (
                   <li key={tr.id}>
-                    <Link href={`/tournaments/${tr.id}`} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
+                    <Link href={paths.tournament(tr.id)} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{tr.name}</div>
                         <div className="text-xs text-fg-3">{t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} · {t(`tournaments.status.${tr.status}`)}</div>
@@ -143,7 +144,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
               <ul className="divide-y divide-line">
                 {recentBattles.map((b) => (
                   <li key={b.id}>
-                    <Link href={`/battle/${b.id}`} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
+                    <Link href={paths.battle(b.id)} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
                       <div className="flex -space-x-2">
                         <FaceThumb imageId={b.imageAId} label={b.labelA} size={40} />
                         <FaceThumb imageId={b.imageBId} label={b.labelB} size={40} />
@@ -176,7 +177,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
               <ul className="divide-y divide-line">
                 {recentAnalyses.map((a) => (
                   <li key={a.id}>
-                    <Link href={`/analysis/${a.id}`} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
+                    <Link href={paths.analysis(a.id)} className="flex items-center gap-3 py-3 hover:bg-white/3 rounded-lg px-1 -mx-1">
                       <FaceThumb imageId={a.imageId} label={a.profileLabel} size={40} />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{a.profileLabel}</div>
@@ -202,7 +203,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
           ) : (
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-8">
               {profiles.map((p) => (
-                <Link key={p.id} href={`/profiles/${p.id}`} className="glass rounded-xl p-3 text-center hover:border-accent/40 transition-colors">
+                <Link key={p.id} href={paths.profile(p.id)} className="glass rounded-xl p-3 text-center hover:border-accent/40 transition-colors">
                   <FaceThumb imageId={p.imageId} label={p.label} size={64} className="mx-auto rounded-full" />
                   <div className="mt-2 text-sm font-medium truncate">{p.label}</div>
                   <div className="text-xs text-fg-3 num">{fmt.score(p.latestOverall, 1)}</div>

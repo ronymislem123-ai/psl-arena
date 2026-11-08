@@ -22,6 +22,8 @@ import { buildReportText, reportLines } from "@/lib/psl-report";
 import { useSessionImage } from "@/lib/session-images";
 import { cn, fmt, scoreTone } from "@/lib/utils";
 import type { RatingRecord } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
+import { ApiLink } from "@/components/shared/api-link";
 
 const SOURCE_TONE: Record<string, Tone> = { frontal: "cyan", profile: "violet", mixed: "accent", "visual-model": "amber", derived: "mint" };
 const pslTone = (v: number | null) => (v == null ? "muted" : scoreTone(v * 10));
@@ -67,13 +69,13 @@ export function RatingResult({ record }: { record: RatingRecord }) {
             <Badge tone="cyan">{t("rater.result.coverage")}: {Math.round(r.coverage * 100)} %</Badge>
             <Badge tone="accent">{t("rater.result.confidence")}: {fmt.pct(r.confidence)}</Badge>
             {r.scoreSigma != null && <Badge tone="muted">{t("rater.result.sigma")} ±{r.scoreSigma.toFixed(2)}</Badge>}
-            <Link href={`/profiles/${record.profileId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
+            <Link href={paths.profile(record.profileId)} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
           </span>
         }
         action={
           <div className="flex flex-wrap gap-2 print:hidden">
             <Button variant="outline" size="sm" onClick={copy} data-testid="rating-copy"><Copy size={14} /> {copied ? t("rater.result.copied") : t("rater.result.copyReport")}</Button>
-            <a href={`/api/ratings/${record.id}?download=1`} download><Button variant="outline" size="sm"><Download size={14} /> {t("rater.result.exportJson")}</Button></a>
+            <ApiLink href={`/api/ratings/${record.id}?download=1`}><Button variant="outline" size="sm"><Download size={14} /> {t("rater.result.exportJson")}</Button></ApiLink>
             <Button variant="outline" size="sm" onClick={() => window.print()}><Printer size={14} /> {t("rater.result.print")}</Button>
             <Link href={`/rater?profile=${record.profileId}`}><Button variant="outline" size="sm"><RefreshCw size={14} /> {t("rater.result.reRate")}</Button></Link>
             <Link href={`/compare?ids=${record.id}`}><Button variant="outline" size="sm">{t("compare.compareWith")}</Button></Link>

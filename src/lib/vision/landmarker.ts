@@ -5,9 +5,10 @@
  * origin (/mediapipe/wasm, /models) so no third-party request is made.
  */
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import { withBase } from "@/lib/base-path";
 
-export const WASM_BASE = "/mediapipe/wasm";
-export const MODEL_PATH = "/models/face_landmarker.task";
+export const WASM_BASE = withBase("/mediapipe/wasm");
+export const MODEL_PATH = withBase("/models/face_landmarker.task");
 
 let instance: Promise<FaceLandmarker> | null = null;
 let loadedDelegate: "GPU" | "CPU" | null = null;

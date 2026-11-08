@@ -74,3 +74,8 @@ API: `/api/auth/{signup,login,logout,me,password,sessions,account}`, `/api/profi
 * Measurement quality is first-class: confidence, coverage, uncertainty and quality level propagate into categories, overall scores and battle verdicts.
 * Privacy by default: local detection, opt-in encrypted image storage, one-click export and delete-all.
 * Accounts isolate data: all repository functions take the user id and filter by it; images are only served to their owner.
+
+## Two build targets
+* **Server app** (`npm run build`): Next.js server with route handlers, better-sqlite3, accounts, encrypted photo files.
+* **Browser edition** (`npm run build:static`, `docs/BROWSER_EDITION.md`): static export for GitHub Pages. `next.config.ts` limits routes to `*.static.tsx` files and resolves `*.static.ts` siblings first, which swaps the database (sql.js + IndexedDB), image storage, auth (one local user), HTTP helpers and the client transport. The unchanged route handlers run inside the page (`src/static/backend.ts`); record pages take the id as a query parameter (`src/lib/paths.ts`).
+

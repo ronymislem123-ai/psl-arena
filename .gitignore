@@ -1,8 +1,9 @@
 node_modules/
 .next/
-out/
-data/
+/out/
+/data/
 public/mediapipe/wasm/
+public/sqljs/
 *.log
 .env
 .env.local

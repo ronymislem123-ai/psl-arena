@@ -22,6 +22,7 @@ import { useSettings } from "@/lib/settings";
 import { loadImageFile, type LoadedImage } from "@/lib/vision/image";
 import { cn, fmt } from "@/lib/utils";
 import type { ProfileRow } from "@/server/repos";
+import { paths } from "@/lib/paths";
 
 const TOTAL = SIDE_LANDMARK_ORDER.length;
 
@@ -145,7 +146,7 @@ export function SidePlacer() {
         points: points as SidePoints,
       });
       rememberSessionImage(res.sideAnalysis.id, img.dataUrl);
-      router.push(`/side-view/${res.sideAnalysis.id}`);
+      router.push(paths.sideView(res.sideAnalysis.id));
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
       setSaving(false);

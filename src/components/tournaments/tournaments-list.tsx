@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
 import type { TournamentSummary } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
 
 export const STATUS_TONE: Record<string, Tone> = { draft: "muted", running: "cyan", paused: "amber", completed: "mint" };
 
@@ -24,7 +25,7 @@ export function TournamentsList({ tournaments }: { tournaments: TournamentSummar
   };
   const dup = async (id: string) => {
     const r = await api.tournamentAction(id, { action: "duplicate" });
-    router.push(`/tournaments/${r.tournament.id}`);
+    router.push(paths.tournament(r.tournament.id));
     router.refresh();
   };
   return (
@@ -38,7 +39,7 @@ export function TournamentsList({ tournaments }: { tournaments: TournamentSummar
             <Card key={tr.id} className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <Link href={`/tournaments/${tr.id}`} className="font-display text-lg font-semibold hover:text-accent block truncate">{tr.name}</Link>
+                  <Link href={paths.tournament(tr.id)} className="font-display text-lg font-semibold hover:text-accent block truncate">{tr.name}</Link>
                   <div className="text-xs text-fg-3">{t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} {t("tournaments.participants").toLowerCase()} · v{tr.version} · {fmt.date(tr.updatedAt, lang)}</div>
                 </div>
                 <Badge tone={STATUS_TONE[tr.status]}>{t(`tournaments.status.${tr.status}`)}</Badge>
@@ -48,7 +49,7 @@ export function TournamentsList({ tournaments }: { tournaments: TournamentSummar
               )}
               <p className="text-xs text-fg-2 line-clamp-2">{tr.description || t(`tournaments.formatHint.${tr.format}`)}</p>
               <div className="flex flex-wrap gap-1.5">
-                <Link href={`/tournaments/${tr.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                <Link href={paths.tournament(tr.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
                 <Button size="sm" variant="ghost" onClick={() => dup(tr.id)} title={t("tournaments.duplicate")}><Copy size={14} /></Button>
                 <Button size="sm" variant="ghost" onClick={() => del(tr.id)} title={t("tournaments.delete")}><Trash2 size={14} /></Button>
               </div>

@@ -16,6 +16,7 @@ import { useT } from "@/lib/i18n";
 import { areaName, criterionName } from "@/lib/i18n/psl-texts";
 import { cn, fmt } from "@/lib/utils";
 import type { RatingRecord } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
 
 const signed = (v: number | null) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}`);
 const deltaClass = (v: number | null) => (v == null || Math.abs(v) < 0.05 ? "text-fg-3" : v > 0 ? "text-mint" : "text-[#ff8fa3]");
@@ -67,7 +68,7 @@ export function CompareView({ records }: { records: RatingRecord[] }) {
                     <div className="flex items-center gap-2">
                       <FaceThumb imageId={records[i].profileImageId} label={it.label} size={40} />
                       <div className="min-w-0">
-                        <Link href={`/rater/${it.id}`} className="font-medium hover:text-accent block truncate">{it.label}</Link>
+                        <Link href={paths.rating(it.id)} className="font-medium hover:text-accent block truncate">{it.label}</Link>
                         <div className="text-[11px] text-fg-3 font-normal">{fmt.date(it.createdAt, lang)}{i === 0 ? ` · ${t("compare.reference")}` : ""}</div>
                       </div>
                     </div>

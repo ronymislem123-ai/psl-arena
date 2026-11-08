@@ -20,6 +20,8 @@ import { useT } from "@/lib/i18n";
 import { scaleIssueText } from "@/lib/i18n/psl-texts";
 import { loadImageFile } from "@/lib/vision/image";
 import { cn } from "@/lib/utils";
+import { paths } from "@/lib/paths";
+import { ApiLink } from "@/components/shared/api-link";
 
 type Draft = Pick<PslScale, "name" | "description" | "rangeMin" | "rangeMax" | "tiers">;
 
@@ -117,7 +119,7 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
       setMessage(t("scales.saved"));
       if (!scaleId) {
         setScaleId(s.id);
-        router.replace(`/scales/${s.id}?saved=1`);
+        router.replace(paths.scale(s.id, { saved: true }));
       }
       router.refresh();
     } catch (e) {
@@ -186,12 +188,12 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
         action={
           <div className="flex flex-wrap gap-2">
             {scaleId && (
-              <a href={`/api/scales/${scaleId}/export`} download>
+              <ApiLink href={`/api/scales/${scaleId}/export`}>
                 <Button variant="outline" size="sm"><Download size={14} /> {t("scales.export")}</Button>
-              </a>
+              </ApiLink>
             )}
             {scaleId && (
-              <Button variant="outline" size="sm" onClick={async () => { const r = await api.duplicateScale(scaleId); router.push(`/scales/${r.scale.id}`); router.refresh(); }} data-testid="scale-duplicate">
+              <Button variant="outline" size="sm" onClick={async () => { const r = await api.duplicateScale(scaleId); router.push(paths.scale(r.scale.id)); router.refresh(); }} data-testid="scale-duplicate">
                 <Copy size={14} /> {t("scales.duplicate")}
               </Button>
             )}

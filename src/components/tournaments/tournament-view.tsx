@@ -23,6 +23,8 @@ import { useT } from "@/lib/i18n";
 import { categoryName, criterionName } from "@/lib/i18n/psl-texts";
 import { cn, fmt } from "@/lib/utils";
 import type { TournamentRecord, TournamentVersionRow } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
+import { ApiLink } from "@/components/shared/api-link";
 
 type Tab = "overview" | "bracket" | "groups" | "duels" | "categories" | "results" | "versions";
 
@@ -49,7 +51,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
     try {
       const res = await api.tournamentAction(tr.id, { action, ...extra });
       if (action === "duplicate") {
-        router.push(`/tournaments/${res.tournament.id}`);
+        router.push(paths.tournament(res.tournament.id));
         return;
       }
       setTr(res.tournament);
@@ -96,10 +98,10 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
         }
         action={
           readOnly ? (
-            <Link href={`/tournaments/${tr.id}`}><Button variant="outline" size="sm">{t("common.back")}</Button></Link>
+            <Link href={paths.tournament(tr.id)}><Button variant="outline" size="sm">{t("common.back")}</Button></Link>
           ) : (
           <div className="flex flex-wrap gap-2 print:hidden">
-            {tr.status === "draft" && <Link href={`/tournaments/${tr.id}/edit`}><Button variant="outline" size="sm"><Pencil size={14} /> {t("scales.edit")}</Button></Link>}
+            {tr.status === "draft" && <Link href={paths.tournamentEdit(tr.id)}><Button variant="outline" size="sm"><Pencil size={14} /> {t("scales.edit")}</Button></Link>}
             {tr.status === "draft" && <Button size="sm" onClick={() => act("start")} loading={busy} disabled={tr.participants.length < 2} data-testid="tournament-start"><Play size={14} /> {t("tournaments.start")}</Button>}
             {tr.status === "running" && tiedMatches.length === 0 && <Button size="sm" onClick={() => act("advance")} loading={busy} data-testid="tournament-advance"><SkipForward size={14} /> {t("tournaments.advance")}</Button>}
             {tr.status === "running" && tiedMatches.length === 0 && <Button size="sm" variant="outline" onClick={() => act("playAll")} loading={busy} data-testid="tournament-playall"><Play size={14} /> {t("tournaments.playAll")}</Button>}
@@ -107,7 +109,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
             {tr.status === "paused" && <Button size="sm" onClick={() => act("resume")} loading={busy}><Play size={14} /> {t("tournaments.resume")}</Button>}
             {tr.status === "completed" && <Button size="sm" variant="outline" onClick={() => act("reopen")} loading={busy} data-testid="tournament-reopen"><RotateCcw size={14} /> {t("tournaments.reopen")}</Button>}
             <Button size="sm" variant="ghost" onClick={() => act("duplicate")} loading={busy} title={t("tournaments.duplicate")}><Copy size={14} /></Button>
-            <a href={`/api/tournaments/${tr.id}?download=1`} download><Button size="sm" variant="ghost" title={t("tournaments.exportJson")}><Download size={14} /></Button></a>
+            <ApiLink href={`/api/tournaments/${tr.id}?download=1`}><Button size="sm" variant="ghost" title={t("tournaments.exportJson")}><Download size={14} /></Button></ApiLink>
             <Button size="sm" variant="ghost" onClick={() => window.print()} title={t("tournaments.print")}><Printer size={14} /></Button>
             <Button size="sm" variant="ghost" onClick={del} title={t("tournaments.delete")}><Trash2 size={14} /></Button>
           </div>
@@ -230,8 +232,8 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
                     <Badge tone="muted">v{v.version}</Badge>
                     <span className="flex-1 text-fg-1">{v.note}</span>
                     <span className="text-xs text-fg-3">{t("tournaments.archivedAt")} {fmt.date(v.createdAt, lang)}</span>
-                    <Link href={`/tournaments/${tr.id}/versions/${v.id}`} data-testid={`version-open-${v.version}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
-                    <a href={`/api/tournaments/${tr.id}/versions/${v.id}`} target="_blank" rel="noreferrer" className="text-xs text-fg-3 underline underline-offset-2">JSON</a>
+                    <Link href={paths.tournamentVersion(tr.id, v.id)} data-testid={`version-open-${v.version}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <ApiLink href={`/api/tournaments/${tr.id}/versions/${v.id}`} newTab className="text-xs text-fg-3 underline underline-offset-2">JSON</ApiLink>
                   </li>
                 ))}
               </ul>

@@ -64,6 +64,10 @@ Ratings and tournaments store snapshots of the scale (and of each participant's 
 | Persistence | SQLite (`data/psl-arena.sqlite`): users, sessions, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
 | UI | Next.js 16 App Router, React 19, Tailwind 4, framer-motion; dark premium HUD design; EN/DE; reduced-motion support; responsive (desktop side-by-side, mobile stacked); installable PWA with offline-cached ML runtime and safe-area aware layout. |
 
+## Online without a server (GitHub Pages)
+
+`npm run build:static` produces a **browser edition**: the same app as a static website in which the database (SQLite via WebAssembly), the analyses and any kept photos live only in the visitor's browser — no accounts, no upload. `.github/workflows/pages.yml` publishes it on GitHub Pages on every push to `main` (one-time: Settings → Pages → Source "GitHub Actions"). It installs as a PWA, works offline after the first visit, and moves data between devices via backup files. Details, differences and limits: `docs/BROWSER_EDITION.md`.
+
 ## On your phone
 
 PSL ARENA is an installable web app (PWA): open it in the phone browser and use **Add to Home Screen** (Android: menu → "Install app"; iOS Safari: share → "Add to Home Screen"). It then runs full-screen with its own icon; the ML runtime and model are cached for offline use. Photos can be taken directly with the camera from the upload field.
@@ -97,10 +101,13 @@ The Docker volume `arena-data` holds the SQLite database, the encrypted photos a
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` / `build` / `start` | Next.js |
-| `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, side view, database) on real landmark fixtures |
+| `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, side view, database) on real landmark fixtures, plus the browser-edition project (route handlers on sql.js) |
 | `npm run test:e2e` | Playwright end-to-end (battles, side view, scale builder, rater, tournaments, consistency experiments). Needs `npx playwright install chromium` once. |
 | `npm run typecheck` / `npm run lint` | TypeScript / ESLint |
-| `npm run prepare-assets` | Re-copy the WASM runtime and verify the model |
+| `npm run build:static -- --base /psl-arena` | Browser edition as a static site in `out/` (`docs/BROWSER_EDITION.md`) |
+| `npm run serve:static -- --base /psl-arena` | Serve `out/` like GitHub Pages at `http://localhost:3300/psl-arena/` |
+| `npx playwright test -c playwright.static.config.ts` | End-to-end tests of the browser edition (after `build:static`) |
+| `npm run prepare-assets` | Re-copy the WASM runtimes (MediaPipe, sql.js) and verify the model |
 | `npm run reset-password -- <e-mail>` | Operator fallback: set a new (or generated temporary) password for an account and sign it out everywhere |
 
 ## Configuration
@@ -119,6 +126,7 @@ Serve the app over HTTPS when it is reachable from other machines: the session c
 - `docs/SCALES.md` — PSL scales: data model, standard scale, assignment and validation rules, editor
 - `docs/TOURNAMENT.md` — tournament engine: categories, winners, tie-breakers, formats, versions
 - `docs/COMPARE.md` — comparison of ratings, progress series, awards
+- `docs/BROWSER_EDITION.md` — the static browser edition for GitHub Pages: architecture, privacy, publishing, tests
 - `docs/RESEARCH_LOG.md` — looksmax.org / scientific research protocol and the decisions taken
 - `docs/VALIDATION.md` — rating-consistency experiments with the measured numbers
 - `docs/FINAL_REPORT.md` — audit, changes, tests and remaining limitations of the platform evolution

@@ -24,3 +24,11 @@
 - **Sharing:** there is no public sharing of ratings, images or tournaments. Exports (JSON, print/PDF) are downloads for the signed-in owner only.
 - **Deletion:** ratings, scales (with images), tournaments (with participants and versions) can be deleted individually; "delete all data" and account deletion remove them with everything else.
 - **Legal note:** processing facial images of other people requires a lawful basis and, in the EU, the data-subject information obligations of the GDPR; biometric categorisation for sensitive attributes is prohibited under the EU AI Act and is not performed here. This documentation is not a legal compliance guarantee; operators should obtain their own legal review before offering the service to others.
+
+## Browser edition (GitHub Pages)
+
+- **No server, no accounts.** The static build (`docs/BROWSER_EDITION.md`) runs analyses, ratings, tournaments and storage entirely in the visitor's browser. Nothing is uploaded; the host only serves files and sees ordinary page-load metadata.
+- **Storage.** The SQLite database (sql.js) is kept in the browser's IndexedDB for this site and device. Photos are stored only on opt-in, as BLOBs in that database, without a separate encryption key (one stored in the same browser profile would add no real protection). Clearing site data deletes everything; Safari evicts storage of websites unused for seven days unless the app is on the Home Screen.
+- **Backups** are single SQLite files with all data including kept photos; they are created and restored only by the user. Restoring accepts only browser-edition backups.
+- **Same safeguards.** Consent and adult confirmations, no age estimation, no identification and no sensitive-attribute inference apply unchanged; all request validation runs through the same zod schemas.
+

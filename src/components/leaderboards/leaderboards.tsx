@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { categoryName } from "@/lib/i18n/psl-texts";
 import type { CategoryRanking } from "@/engine/tournament/types";
+import { paths } from "@/lib/paths";
 
 type Data = Awaited<ReturnType<typeof api.leaderboards>>;
 
@@ -46,7 +47,7 @@ export function Leaderboards() {
                           <li key={e.participantId} className="flex items-center gap-2 text-sm">
                             <span className="w-5 font-mono text-xs text-fg-3">{e.rank}</span>
                             <FaceThumb imageId={p?.imageId} label={p?.name} size={28} className="rounded-full" />
-                            <Link href={`/profiles/${e.participantId}`} className="min-w-0 flex-1 truncate hover:text-accent">{p?.name ?? e.participantId}</Link>
+                            <Link href={paths.profile(e.participantId)} className="min-w-0 flex-1 truncate hover:text-accent">{p?.name ?? e.participantId}</Link>
                             <span className="font-mono num">{formatPsl(e.score)}</span>
                           </li>
                         );

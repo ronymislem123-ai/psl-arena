@@ -15,6 +15,7 @@ import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, BattleSummary, SideAnalysisSummary } from "@/server/repos";
 import type { RatingSummary, TournamentSummary } from "@/server/repos-psl";
 import { formatPsl } from "@/engine/psl/rating";
+import { paths } from "@/lib/paths";
 
 export function History({ battles, analyses, sideAnalyses, ratings = [], tournaments = [] }: { battles: BattleSummary[]; analyses: AnalysisSummary[]; sideAnalyses: SideAnalysisSummary[]; ratings?: RatingSummary[]; tournaments?: TournamentSummary[] }) {
   const { t, lang } = useT();
@@ -66,7 +67,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                       <FaceThumb imageId={b.imageBId} label={b.labelB} size={44} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <Link href={`/battle/${b.id}`} className="font-medium hover:text-accent">
+                      <Link href={paths.battle(b.id)} className="font-medium hover:text-accent">
                         {b.labelA} <span className="text-fg-3">vs</span> {b.labelB}
                       </Link>
                       <div className="text-xs text-fg-3">
@@ -77,7 +78,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                       {fmt.score(b.overallA, 1)} : {fmt.score(b.overallB, 1)}
                     </div>
                     <VerdictBadge verdict={b.verdict} labelA={b.labelA} labelB={b.labelB} />
-                    <Link href={`/battle/${b.id}`}>
+                    <Link href={paths.battle(b.id)}>
                       <Button size="sm" variant="outline">{t("common.open")}</Button>
                     </Link>
                     <Button size="sm" variant="ghost" onClick={() => delB(b.id)}>
@@ -107,13 +108,13 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                     <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggleSel(r.id)} className="h-4 w-4 accent-[#4f7cff]" aria-label={t("historyPsl.select")} data-testid={`select-${r.id}`} />
                     <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={44} />
                     <div className="min-w-0 flex-1">
-                      <Link href={`/rater/${r.id}`} className="font-medium hover:text-accent">{r.profileLabel}</Link>
+                      <Link href={paths.rating(r.id)} className="font-medium hover:text-accent">{r.profileLabel}</Link>
                       <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {t("rater.result.rubric")} {r.rubricVersion} · {t("rater.result.coverage")} {Math.round(r.coverage * 100)} %</div>
                     </div>
                     <Badge tone={r.valid ? "mint" : r.provisional ? "amber" : "rose"}>{r.valid ? t("rater.result.valid") : r.provisional ? t("rater.result.provisional") : t("rater.result.invalid")}</Badge>
                     <span className="text-xs text-fg-2 hidden sm:inline">{r.tierName ?? "—"}</span>
                     <div className="font-display text-lg num">{formatPsl(r.score)}</div>
-                    <Link href={`/rater/${r.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <Link href={paths.rating(r.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
                     <Button size="sm" variant="ghost" onClick={() => delR(r.id)}><Trash2 size={14} /></Button>
                   </li>
                 ))}
@@ -133,12 +134,12 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                 {tournaments.map((tr) => (
                   <li key={tr.id} className="flex items-center gap-3 py-3">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/tournaments/${tr.id}`} className="font-medium hover:text-accent">{tr.name}</Link>
+                      <Link href={paths.tournament(tr.id)} className="font-medium hover:text-accent">{tr.name}</Link>
                       <div className="text-xs text-fg-3">{fmt.date(tr.updatedAt, lang)} · {t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} {t("tournaments.participants").toLowerCase()} · v{tr.version}</div>
                     </div>
                     <Badge tone={tr.status === "completed" ? "mint" : tr.status === "running" ? "cyan" : tr.status === "paused" ? "amber" : "muted"}>{t(`tournaments.status.${tr.status}`)}</Badge>
                     <span className="text-xs text-fg-2 hidden sm:inline truncate max-w-[30%]">{tr.winnerNames.join(", ")}</span>
-                    <Link href={`/tournaments/${tr.id}`}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                    <Link href={paths.tournament(tr.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
                     <Button size="sm" variant="ghost" onClick={() => delT(tr.id)}><Trash2 size={14} /></Button>
                   </li>
                 ))}
@@ -158,7 +159,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                   <li key={a.id} className="flex items-center gap-3 py-3">
                     <FaceThumb imageId={a.imageId} label={a.profileLabel} size={44} />
                     <div className="min-w-0 flex-1">
-                      <Link href={`/side-view/${a.id}`} className="font-medium hover:text-accent">
+                      <Link href={paths.sideView(a.id)} className="font-medium hover:text-accent">
                         {a.profileLabel}
                       </Link>
                       <div className="text-xs text-fg-3">
@@ -166,7 +167,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                       </div>
                     </div>
                     <div className="font-display text-lg num">{fmt.score(a.score, 1)}</div>
-                    <Link href={`/side-view/${a.id}`}>
+                    <Link href={paths.sideView(a.id)}>
                       <Button size="sm" variant="outline">{t("common.open")}</Button>
                     </Link>
                     <Button size="sm" variant="ghost" onClick={() => delS(a.id)}>
@@ -196,7 +197,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                     <input type="checkbox" checked={selectedA.includes(a.id)} onChange={() => toggleSelA(a.id)} className="h-4 w-4 accent-[#4f7cff]" aria-label={t("historyPsl.select")} data-testid={`select-analysis-${a.id}`} />
                     <FaceThumb imageId={a.imageId} label={a.profileLabel} size={44} />
                     <div className="min-w-0 flex-1">
-                      <Link href={`/analysis/${a.id}`} className="font-medium hover:text-accent">
+                      <Link href={paths.analysis(a.id)} className="font-medium hover:text-accent">
                         {a.profileLabel}
                       </Link>
                       <div className="text-xs text-fg-3">
@@ -205,7 +206,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                     </div>
                     <Badge tone={levelTone(a.qualityLevel)}>{t(`quality.${a.qualityLevel}`)}</Badge>
                     <div className="font-display text-lg num">{fmt.score(a.overall, 1)}</div>
-                    <Link href={`/analysis/${a.id}`}>
+                    <Link href={paths.analysis(a.id)}>
                       <Button size="sm" variant="outline">{t("common.open")}</Button>
                     </Link>
                     <Button size="sm" variant="ghost" onClick={() => delA(a.id)}>

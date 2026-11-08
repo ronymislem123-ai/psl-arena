@@ -19,6 +19,7 @@ import { useT } from "@/lib/i18n";
 import { categoryName, criterionName } from "@/lib/i18n/psl-texts";
 import { fmt } from "@/lib/utils";
 import type { RatingSummary, ScaleSummary, TournamentRecord } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
 
 interface Part {
   profileId: string;
@@ -80,7 +81,7 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
     try {
       const payload = { name: name.trim(), description, config, scaleId, participants: parts.map((p) => ({ profileId: p.profileId, ratingId: p.ratingId || undefined, displayName: p.displayName })) };
       const res = existing ? await api.updateTournament(existing.id, payload) : await api.createTournament(payload);
-      router.push(`/tournaments/${res.tournament.id}`);
+      router.push(paths.tournament(res.tournament.id));
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

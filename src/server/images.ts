@@ -23,10 +23,10 @@ export interface StoredImage {
   sha256: string;
 }
 
-export function storeImage(userId: string, buf: Buffer, mime: string, width: number, height: number): StoredImage {
+export function storeImage(userId: string, buf: Uint8Array, mime: string, width: number, height: number): StoredImage {
   const id = newId("img");
   const path = join(imagesDir(), `${id}.bin`);
-  writeFileSync(path, encryptBuffer(buf), { mode: 0o600 });
+  writeFileSync(path, encryptBuffer(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)), { mode: 0o600 });
   const sha256 = createHash("sha256").update(buf).digest("hex");
   getDb()
     .prepare("INSERT INTO images (id, user_id, mime, width, height, bytes, sha256, encrypted, path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)")
@@ -34,7 +34,7 @@ export function storeImage(userId: string, buf: Buffer, mime: string, width: num
   return { id, mime, width, height, bytes: buf.length, sha256 };
 }
 
-export function readImage(userId: string, id: string): { buf: Buffer; mime: string } | null {
+export function readImage(userId: string, id: string): { buf: Uint8Array; mime: string } | null {
   const row = getDb().prepare("SELECT mime, path FROM images WHERE id = ? AND user_id = ?").get(id, userId) as { mime: string; path: string } | undefined;
   if (!row || !existsSync(row.path)) return null;
   const buf = decryptBuffer(readFileSync(row.path));

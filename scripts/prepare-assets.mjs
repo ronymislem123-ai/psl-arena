@@ -24,6 +24,17 @@ for (const f of readdirSync(wasmSrc)) {
 }
 console.log(`[prepare-assets] copied ${readdirSync(wasmSrc).length} wasm runtime files to public/mediapipe/wasm`);
 
+// sql.js WebAssembly build for the browser edition (local SQLite database).
+try {
+  const sqlDist = dirname(require.resolve("sql.js"));
+  const sqlDst = join(root, "public", "sqljs");
+  mkdirSync(sqlDst, { recursive: true });
+  for (const f of ["sql-wasm.wasm", "sql-wasm-browser.wasm"]) cpSync(join(sqlDist, f), join(sqlDst, f));
+  console.log("[prepare-assets] copied sql.js wasm to public/sqljs");
+} catch {
+  console.warn("[prepare-assets] sql.js not installed yet; skipping its wasm copy.");
+}
+
 const model = join(root, "public", "models", "face_landmarker.task");
 if (!existsSync(model) || statSync(model).size < 1_000_000) {
   console.warn(

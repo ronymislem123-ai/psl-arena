@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n";
 import { categoryName } from "@/lib/i18n/psl-texts";
 import { cn, fmt } from "@/lib/utils";
 import type { TournamentSummary, TournamentVersionRow } from "@/server/repos-psl";
+import { paths } from "@/lib/paths";
 
 export interface VersionOption {
   id: string;
@@ -65,7 +66,7 @@ export function VersionsCompareView({ tournaments, tournamentId, versions, optio
               <Badge key={i} tone={i === 0 ? "muted" : "cyan"}>v{v.version} · {t(`tournaments.status.${v.status}`)} · {v.participants} {t("tournaments.participants").toLowerCase()}{v.completedAt ? ` · ${fmt.date(v.completedAt, lang)}` : ""}</Badge>
             ))}
             {options.filter((o) => o.id === selA || o.id === selB).filter((o) => o.id !== "current").map((o) => (
-              <Link key={o.id} href={`/tournaments/${tournamentId}/versions/${o.id}`} className="underline underline-offset-2 text-fg-2 hover:text-fg-0">{t("compareVersions.openArchived")} (v{o.version}) →</Link>
+              <Link key={o.id} href={paths.tournamentVersion(tournamentId, o.id)} className="underline underline-offset-2 text-fg-2 hover:text-fg-0">{t("compareVersions.openArchived")} (v{o.version}) →</Link>
             ))}
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
