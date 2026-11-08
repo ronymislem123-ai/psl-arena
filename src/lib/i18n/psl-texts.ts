@@ -3,6 +3,7 @@ import { AREA_META, CRITERION_BY_ID, type CriterionId, type RubricArea } from "@
 import type { ScaleIssue } from "@/engine/psl/scale";
 import { DEFAULT_CATEGORIES } from "@/engine/tournament/categories";
 import type { Lang } from "./index";
+import { CRITERION_DETAILS_DE } from "./criterion-details-de";
 
 export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition: string }> = {
   canthalTilt: { name: "Kanthale Neigung", definition: "Neigung der Augenachse (äußerer relativ zum inneren Augenwinkel)." },
@@ -88,6 +89,12 @@ export function criterionName(id: CriterionId, lang: Lang): string {
 }
 export function criterionDefinition(id: CriterionId, lang: Lang): string {
   return lang === "de" ? CRITERION_TEXTS_DE[id]?.definition ?? CRITERION_BY_ID[id].definition : CRITERION_BY_ID[id].definition;
+}
+export function criterionRequirements(id: CriterionId, lang: Lang): string {
+  return lang === "de" ? CRITERION_DETAILS_DE[id]?.requirements ?? CRITERION_BY_ID[id].requirements : CRITERION_BY_ID[id].requirements;
+}
+export function criterionLimitations(id: CriterionId, lang: Lang): string[] {
+  return lang === "de" ? CRITERION_DETAILS_DE[id]?.limitations ?? CRITERION_BY_ID[id].limitations : CRITERION_BY_ID[id].limitations;
 }
 export function areaName(id: RubricArea, lang: Lang): string {
   return lang === "de" ? AREA_TEXTS_DE[id].name : AREA_META[id].name;

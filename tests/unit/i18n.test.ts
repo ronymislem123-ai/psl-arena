@@ -103,3 +103,22 @@ describe("German measurement texts", () => {
     expect(verdictReason(inconclusive, "de")).toMatch(/Qualitätsprüfung/);
   });
 });
+
+describe("criterion detail texts (rating dialog)", () => {
+  it("every criterion has a German requirement and the same number of limitations as the English source", async () => {
+    const { CRITERIA, LEGACY_CRITERIA } = await import("@/engine/psl/rubric");
+    const { CRITERION_DETAILS_DE } = await import("@/lib/i18n/criterion-details-de");
+    const { criterionLimitations, criterionRequirements } = await import("@/lib/i18n/psl-texts");
+    for (const c of [...CRITERIA, ...LEGACY_CRITERIA]) {
+      const de = CRITERION_DETAILS_DE[c.id];
+      expect(de, c.id).toBeDefined();
+      expect(de.requirements.length, c.id).toBeGreaterThan(0);
+      expect(de.limitations.length, c.id).toBe(c.limitations.length);
+      expect(criterionRequirements(c.id, "en")).toBe(c.requirements);
+      expect(criterionLimitations(c.id, "de")).toEqual(de.limitations);
+      // no English source text left in the German version
+      for (const l of de.limitations) expect(c.limitations.includes(l) && l !== "", `${c.id}: ${l}`).toBe(false);
+      if (c.requirements !== "—") expect(de.requirements, c.id).not.toBe(c.requirements);
+    }
+  });
+});

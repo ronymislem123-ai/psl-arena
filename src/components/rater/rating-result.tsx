@@ -20,7 +20,7 @@ import { CRITERION_BY_ID } from "@/engine/psl/rubric";
 import { formatTierRange } from "@/engine/psl/scale";
 import { api, imageUrl } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { areaDescription, areaName, criterionDefinition, criterionName, descriptiveReason } from "@/lib/i18n/psl-texts";
+import { areaDescription, areaName, criterionDefinition, criterionLimitations, criterionName, criterionRequirements, descriptiveReason } from "@/lib/i18n/psl-texts";
 import { buildReportText, reportLines } from "@/lib/psl-report";
 import { useSessionImage } from "@/lib/session-images";
 import { cn, fmt, scoreTone } from "@/lib/utils";
@@ -232,12 +232,12 @@ export function RatingResult({ record }: { record: RatingRecord }) {
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px] text-sm">
             <div className="space-y-3">
               <Section title={t("analysis.detail.what")}>{criterionDefinition(open.id, lang)}</Section>
-              <Section title={t("analysis.detail.how")}>{CRITERION_BY_ID[open.id].requirements}</Section>
+              <Section title={t("analysis.detail.how")}>{criterionRequirements(open.id, lang)}</Section>
               <Section title={t("analysis.detail.limitations")}>
-                <ul className="list-disc pl-5 space-y-1">{CRITERION_BY_ID[open.id].limitations.map((l, i) => <li key={i}>{l}</li>)}</ul>
+                <ul className="list-disc pl-5 space-y-1">{criterionLimitations(open.id, lang).map((l, i) => <li key={i}>{l}</li>)}</ul>
               </Section>
               <Section title={t("analysis.detail.landmarks")}>
-                <div className="flex flex-wrap gap-1">{open.usedInputs.map((u) => <Badge key={u} tone="mint">{u}</Badge>)}{open.missingInputs.map((u) => <Badge key={u} tone="muted">{u}</Badge>)}</div>
+                <div className="flex flex-wrap gap-1">{open.usedInputs.map((u) => <Badge key={u} tone="mint">{u === "self-assessment" ? t("rater.result.source.self-assessment") : u}</Badge>)}{open.missingInputs.map((u) => <Badge key={u} tone="muted">{u}</Badge>)}</div>
               </Section>
             </div>
             <div className="space-y-3">
