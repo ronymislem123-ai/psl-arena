@@ -173,13 +173,13 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
 
 export function PageHeader({ title, subtitle, kicker, action }: { title: ReactNode; subtitle?: ReactNode; kicker?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-      <div>
+    <div className="mb-6 md:mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <div className="min-w-0 lg:flex-[1_1_24rem]">
         {kicker && <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-cyan/80 mb-1.5">{kicker}</div>}
-        <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight">{title}</h1>
+        <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight break-words">{title}</h1>
         {subtitle && <p className="mt-2 text-fg-2 max-w-2xl">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 lg:flex-[0_1_auto] lg:justify-end">{action}</div>}
     </div>
   );
 }

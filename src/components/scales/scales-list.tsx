@@ -1,4 +1,5 @@
 "use client";
+import { scaleText } from "@/lib/i18n/scale-texts";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -77,7 +78,7 @@ export function ScalesList({ scales, full }: { scales: ScaleSummary[]; full: Rec
                 {s.builtIn ? <Badge tone="violet">{t("scales.builtIn")}</Badge> : s.isTemplate ? <Badge tone="cyan">{t("scales.template")}</Badge> : null}
               </div>
               {f && <ScaleBar tiers={f.tiers} rangeMin={f.rangeMin} rangeMax={f.rangeMax} compact labels={false} />}
-              <p className="text-xs text-fg-2 line-clamp-2">{s.description}</p>
+              <p className="text-xs text-fg-2 line-clamp-2">{scaleText(s.description, lang)}</p>
               <div className="flex flex-wrap gap-1.5">
                 <Link href={paths.scale(s.id)}><Button size="sm" variant="outline">{s.builtIn ? t("scales.view") : t("scales.edit")}</Button></Link>
                 <Button size="sm" variant="ghost" onClick={() => dup(s)} title={t("scales.duplicate")}><Copy size={14} /> {s.builtIn ? t("scales.restoreDefault") : t("scales.duplicate")}</Button>

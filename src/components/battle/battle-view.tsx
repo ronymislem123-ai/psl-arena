@@ -57,7 +57,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
   const { t, lang } = useT();
   const verdictText = battle.verdict === "A" ? `${a.label} — ${t("battle.winner")}` : battle.verdict === "B" ? `${b.label} — ${t("battle.winner")}` : battle.verdict === "draw" ? t("battle.verdictDraw") : t("battle.verdictInconclusive");
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <Card strong>
         <CardHeader title={t("battle.reveal")} subtitle={verdictReason(battle, lang)} />
         <CardBody className="space-y-5">
@@ -102,7 +102,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
         <Card>
           <CardHeader title={t("battle.rounds")} />
           <CardBody>
-            <table className="w-full text-sm">
+            <div className="-mx-1 overflow-x-auto px-1"><table className="w-full text-sm">
               <tbody>
                 {battle.rounds.map((r, i) => (
                   <tr key={r.id} className="border-t border-line">
@@ -117,7 +117,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </CardBody>
         </Card>
         <Card>
@@ -162,7 +162,7 @@ function Compare({ a, b }: { a: ArenaSide; b: ArenaSide }) {
           {a.analysis.categories.map((ca) => {
             const cb = b.analysis.categories.find((c) => c.id === ca.id)!;
             return (
-              <div key={ca.id} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <div key={ca.id} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
                 <div className="flex items-center gap-2 justify-end">
                   <span className="font-mono text-xs num w-8 text-right">{fmt.score(ca.index)}</span>
                   <div className="w-full max-w-[320px] flex justify-end">
@@ -179,7 +179,7 @@ function Compare({ a, b }: { a: ArenaSide; b: ArenaSide }) {
               </div>
             );
           })}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pt-2 border-t border-line">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 pt-2 border-t border-line">
             <div className="text-right font-mono text-xs num">{fmt.score(a.analysis.symmetry.score)}</div>
             <div className="text-xs text-fg-2 w-28 text-center">{t("analysis.symmetryScore")}</div>
             <div className="font-mono text-xs num">{fmt.score(b.analysis.symmetry.score)}</div>

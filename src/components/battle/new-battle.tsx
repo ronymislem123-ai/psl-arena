@@ -51,7 +51,7 @@ export function NewBattle() {
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_auto_1fr] items-stretch">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch">
         <UploadSlot side="a" />
         <div className="hidden lg:flex items-center justify-center">
           <div className="font-display text-4xl font-bold text-fg-3 tracking-widest select-none">VS</div>

@@ -25,7 +25,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
         <div className="absolute inset-0 hud-grid opacity-40 pointer-events-none" />
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
         <div className="absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-violet/15 blur-3xl pointer-events-none" />
-        <div className="relative grid gap-8 md:grid-cols-[1.3fr_1fr] items-center">
+        <div className="relative grid gap-8 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-center">
           <div>
             <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-cyan/80">{t("dashboard.welcome")}</div>
             <h1 className="mt-2 font-display text-4xl md:text-6xl font-bold tracking-tight text-glow">{BRAND.name}</h1>

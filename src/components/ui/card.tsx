@@ -11,15 +11,15 @@ export function Card({ className, strong, children, ...props }: HTMLAttributes<H
 
 export function CardHeader({ title, subtitle, action, className, icon }: { title: ReactNode; subtitle?: ReactNode; action?: ReactNode; className?: string; icon?: ReactNode }) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 px-5 pt-5 pb-3", className)}>
-      <div className="flex items-start gap-3 min-w-0">
+    <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 pt-5 pb-3", className)}>
+      <div className="flex min-w-0 flex-[1_1_16rem] items-start gap-3">
         {icon && <div className="mt-0.5 text-cyan shrink-0">{icon}</div>}
         <div className="min-w-0">
           <h3 className="font-display text-base font-semibold tracking-tight text-fg-0">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-sm text-fg-2">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-sm leading-relaxed text-fg-2">{subtitle}</p>}
         </div>
       </div>
-      {action}
+      {action && <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{action}</div>}
     </div>
   );
 }

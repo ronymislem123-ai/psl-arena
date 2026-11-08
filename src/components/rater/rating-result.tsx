@@ -1,4 +1,5 @@
 "use client";
+import { scaleText } from "@/lib/i18n/scale-texts";
 import { IdealExampleButton } from "@/components/ideal/ideal-example";
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -94,7 +95,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
       {/* hero */}
       <Card strong>
         <CardBody className="pt-5">
-          <div className="grid gap-6 lg:grid-cols-[auto_1fr_1fr] items-center">
+          <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center">
             <div className="flex items-center gap-4">
               <FaceThumb imageId={record.profileImageId} src={src} label={record.profileLabel} size={96} className="rounded-2xl" />
               <ScoreRing value={r.score} max={scoreMax} size={150} stroke={10} label={t("rater.result.score")} digits={decimals} tone={r.score == null ? "muted" : undefined} animate />
@@ -106,7 +107,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
                 <TierBadge tier={r.tier} size="lg" />
                 {r.tier && <span className="font-mono text-xs text-fg-3">{formatTierRange(r.tier)}</span>}
               </div>
-              {r.tier?.description && <p className="text-sm text-fg-2">{r.tier.description}</p>}
+              {r.tier?.description && <p className="text-sm text-fg-2">{scaleText(r.tier.description, lang)}</p>}
               {r.tier?.percentile && <p className="text-xs text-fg-3">{r.tier.percentile}</p>}
               <ScaleBar tiers={r.scale.tiers} rangeMin={r.scale.rangeMin} rangeMax={r.scale.rangeMax} value={r.score} className="pt-7" />
             </div>
@@ -226,7 +227,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
 
       <Dialog open={!!open} onClose={() => setOpen(null)} title={open ? criterionName(open.id, lang) : ""} wide>
         {open && (
-          <div className="grid gap-4 md:grid-cols-[1fr_240px] text-sm">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px] text-sm">
             <div className="space-y-3">
               <Section title={t("analysis.detail.what")}>{criterionDefinition(open.id, lang)}</Section>
               <Section title={t("analysis.detail.how")}>{CRITERION_BY_ID[open.id].requirements}</Section>

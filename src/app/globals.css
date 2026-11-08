@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/*
+ * Layout guard (2026-11-08): grid items default to `min-width: auto`, so a single
+ * long unbreakable line (a truncated list, an input, a wide table) widened the whole
+ * column on phones beyond the viewport and pushed neighbouring cards on top of each
+ * other. Grid items may shrink; content that must not wrap truncates or scrolls in
+ * its own box. In the base layer, so `min-w-*` utilities still win.
+ */
+@layer base {
+  .grid > * {
+    min-width: 0;
+  }
+  img, video {
+    max-width: 100%;
+  }
+  /* consistent column spacing in every data table (headers no longer run into each other) */
+  :where(th, td):not(:first-child) {
+    padding-left: 0.75rem;
+  }
+  :where(th) {
+    white-space: nowrap;
+  }
+}
+
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;

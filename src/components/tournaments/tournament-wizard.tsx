@@ -92,7 +92,7 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
   return (
     <div className="space-y-6">
       <PageHeader kicker={t("navPsl.tournaments")} title={existing ? existing.name : t("tournaments.newTournament")} subtitle={t("tournaments.draftHint")} />
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div className="space-y-5">
           <Card>
             <CardHeader title={t("tournaments.name")} />
@@ -189,7 +189,7 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
                       <div className="text-[11px] text-fg-3 truncate">{c.overall ? t("tournaments.overallFace") : c.area ? `${t("tournaments.rubricCategory")}: ${areaName(c.area, lang)}` : c.criteria.map((x) => criterionName(x.id, lang)).join(", ")}</div>
                     </div>
                     <Input type="number" min={0} max={1000} value={c.weight} onChange={(e) => patchCategory(c.id, { weight: Number(e.target.value) })} className="h-8 w-20 font-mono" aria-label={t("tournaments.weights")} />
-                    <span className="text-xs text-fg-3 w-8">{weightSum > 0 ? `${Math.round((Math.max(0, c.weight) / weightSum) * 100)} %` : "—"}</span>
+                    <span className="w-11 shrink-0 whitespace-nowrap text-right text-xs text-fg-3">{weightSum > 0 ? `${Math.round((Math.max(0, c.weight) / weightSum) * 100)} %` : "—"}</span>
                     {!c.builtIn && <Button size="sm" variant="ghost" onClick={() => setCfg({ categories: config.categories.filter((x) => x.id !== c.id), decisiveCategoryId: config.decisiveCategoryId === c.id ? config.categories[0].id : config.decisiveCategoryId })}><Trash2 size={14} /></Button>}
                     {c.builtIn && config.categories.length > 1 && <Button size="sm" variant="ghost" onClick={() => setCfg({ categories: config.categories.filter((x) => x.id !== c.id), decisiveCategoryId: config.decisiveCategoryId === c.id ? config.categories.find((x) => x.id !== c.id)!.id : config.decisiveCategoryId })} title={t("tournaments.removeCategory")}><Trash2 size={14} /></Button>}
                   </li>

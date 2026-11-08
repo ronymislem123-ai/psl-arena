@@ -18,7 +18,7 @@ export function CapturePanel({ capture, compact = false, className }: { capture:
         <span className="flex items-center gap-1.5"><Camera size={13} /> {t("capture.title")}</span>
         <span className="text-[10px] normal-case tracking-normal text-fg-3 group-open:hidden">{t("capture.show")}</span>
       </summary>
-      <dl className="mt-2 grid gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[auto_1fr]">
+      <dl className="mt-2 grid gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[auto_minmax(0,1fr)]">
         {items.map((i) => (
           <div key={i.id} className="contents" data-testid={`capture-${i.id}`} data-value={i.value} data-basis={i.basis}>
             <dt className="text-fg-3">{CAPTURE_LABELS[lang][i.id]}</dt>

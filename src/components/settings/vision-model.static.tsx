@@ -48,7 +48,7 @@ export function VisionModelCard() {
 
   return (
     <VisionModelShell status={status}>
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <Input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={stored ? t("settings.vision.keyStored") : "sk-ant-…"} aria-label={t("settings.vision.key")} data-testid="vision-key" />
         <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={DEFAULT_VISUAL_MODEL} aria-label={t("settings.vision.model")} className="sm:w-52" data-testid="vision-model" />
       </div>

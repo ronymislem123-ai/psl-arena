@@ -98,7 +98,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
   const notable = result.ratios.filter((r) => r.availability === "available" && r.inT1 === false && (r.index ?? 100) < 50).sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).slice(0, 8);
   const uncertain = result.ratios.filter((r) => r.availability === "available" && r.uncertain);
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="space-y-5">
         <Card strong>
           <CardBody className="pt-5">
@@ -156,7 +156,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
               {RUBRIC_AREAS.map((a) => {
                 const v = s.rubric!.categories[a] ?? null;
                 return (
-                  <div key={a} className="grid grid-cols-[140px_1fr_auto] items-center gap-3" title={areaDescription(a, lang)}>
+                  <div key={a} className="grid grid-cols-[140px_minmax(0,1fr)_auto] items-center gap-3" title={areaDescription(a, lang)}>
                     <div className="text-sm">{areaName(a, lang)} <span className="text-[10px] text-fg-3">{CATEGORY_WEIGHTS[a]} %</span></div>
                     <Progress value={v} tone={scoreTone(v)} />
                     <div className="text-right font-mono text-xs num w-24 text-fg-2">{fmt.score(v)}{result.uncertainty?.rubricSigma?.[a] != null && <span className="text-fg-3"> ±{result.uncertainty.rubricSigma[a].toFixed(1)}</span>}</div>
@@ -170,7 +170,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
           <CardHeader title={t("analysis.overview")} subtitle={t("analysis.categoryIndices")} />
           <CardBody className="space-y-2.5">
             {result.categories.map((c) => (
-              <div key={c.id} className="grid grid-cols-[120px_1fr_auto] items-center gap-3">
+              <div key={c.id} className="grid grid-cols-[120px_minmax(0,1fr)_auto] items-center gap-3">
                 <div className="text-sm">{categoryText(c.id, lang).label}</div>
                 <Progress value={c.index} tone={scoreTone(c.index)} />
                 <div className="text-right font-mono text-xs num w-24 text-fg-2">
@@ -317,7 +317,7 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
       </CardBody>
       <Dialog open={!!open} onClose={() => setOpen(null)} title={def ? `${def.abbreviation} — ${ratioText(def.id, lang).name}` : ""} wide>
         {open && def && expl && (
-          <div className="grid gap-5 md:grid-cols-[1fr_1fr]">
+          <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="space-y-3 text-sm">
               <div className="flex flex-wrap gap-2">
                 <Badge tone={statusTone(def.status)}>{t(`analysis.status.${def.status}`)}</Badge>
@@ -375,7 +375,7 @@ function Landmarks({ result, src, width, height }: { result: AnalysisResult; src
   const [showMesh, setShowMesh] = useState(showMeshDefault);
   const [sel, setSel] = useState<SemanticLandmark | null>(null);
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <Card strong>
         <CardHeader
           title={t("analysis.landmarks")}
@@ -423,7 +423,7 @@ function Symmetry({ result, src, width, height }: { result: AnalysisResult; src:
   const { t, lang } = useT();
   const s = result.symmetry;
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card strong>
         <CardBody className="pt-5">
           <ImagePanel result={result} src={src} width={width} height={height} layer="symmetry" />
@@ -436,7 +436,7 @@ function Symmetry({ result, src, width, height }: { result: AnalysisResult; src:
             {t("common.confidence")} {fmt.pct(s.confidence)} · σ {s.sigma?.toFixed(1) ?? "—"}
           </div>
           {s.metrics.map((m) => (
-            <div key={m.id} className="grid grid-cols-[1fr_auto_80px] items-center gap-3 text-sm">
+            <div key={m.id} className="grid grid-cols-[minmax(0,1fr)_auto_80px] items-center gap-3 text-sm">
               <div className="truncate">{symmetryMetricLabel(m, lang)}</div>
               <div className="font-mono text-xs text-fg-2 num">
                 {m.unit === "deg" ? `${m.value.toFixed(1)}°` : m.unit === "percent" ? `${m.value.toFixed(1)} %` : `${(m.value * 100).toFixed(1)} % IPD`} <span className="text-fg-3">/ {t("analysis.tolerance")} {m.unit === "deg" ? `${m.tolerance}°` : m.unit === "percent" ? `${m.tolerance} %` : `${(m.tolerance * 100).toFixed(0)} %`}</span>

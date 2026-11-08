@@ -164,7 +164,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
             <Card key={g.id}>
               <CardHeader title={t("tournaments.group", { name: g.name })} />
               <CardBody className="space-y-3">
-                <table className="w-full text-sm">
+                <div className="-mx-1 overflow-x-auto px-1"><table className="w-full text-sm">
                   <thead className="text-fg-3 uppercase tracking-wider text-[10px]"><tr><th className="text-left py-1">{t("tournaments.table")}</th><th className="text-right">{t("tournaments.played")}</th><th className="text-right">{t("tournaments.wins")}</th><th className="text-right">{t("tournaments.draws")}</th><th className="text-right">{t("tournaments.losses")}</th><th className="text-right">{t("tournaments.points")}</th></tr></thead>
                   <tbody>
                     {g.table.map((row) => (
@@ -173,7 +173,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
                 <div className="text-[11px] uppercase tracking-wider text-fg-3">{t("tournaments.fixtures")}</div>
                 <ul className="space-y-1 text-xs">
                   {g.fixtures.map((m) => (

@@ -104,18 +104,20 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
               </div>
               <ul className="divide-y divide-line" data-testid="ratings-history">
                 {ratings.map((r) => (
-                  <li key={r.id} className="flex items-center gap-3 py-3">
-                    <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggleSel(r.id)} className="h-4 w-4 accent-[#4f7cff]" aria-label={t("historyPsl.select")} data-testid={`select-${r.id}`} />
+                  <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+                    <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggleSel(r.id)} className="h-4 w-4 shrink-0 accent-[#4f7cff]" aria-label={t("historyPsl.select")} data-testid={`select-${r.id}`} />
                     <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={44} />
-                    <div className="min-w-0 flex-1">
-                      <Link href={paths.rating(r.id)} className="font-medium hover:text-accent">{r.profileLabel}</Link>
+                    <div className="min-w-0 flex-[1_1_12rem]">
+                      <Link href={paths.rating(r.id)} className="font-medium hover:text-accent break-words">{r.profileLabel}</Link>
                       <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {t("rater.result.rubric")} {r.rubricVersion} · {t("rater.result.coverage")} {Math.round(r.coverage * 100)} %</div>
                     </div>
-                    <Badge tone={r.valid ? "mint" : r.provisional ? "amber" : "rose"}>{r.valid ? t("rater.result.valid") : r.provisional ? t("rater.result.provisional") : t("rater.result.invalid")}</Badge>
-                    <span className="text-xs text-fg-2 hidden sm:inline">{r.tierName ?? "—"}</span>
-                    <div className="font-display text-lg num">{formatPsl(r.score)}</div>
-                    <Link href={paths.rating(r.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
-                    <Button size="sm" variant="ghost" onClick={() => delR(r.id)}><Trash2 size={14} /></Button>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Badge tone={r.valid ? "mint" : r.provisional ? "amber" : "rose"}>{r.valid ? t("rater.result.valid") : r.provisional ? t("rater.result.provisional") : t("rater.result.invalid")}</Badge>
+                      <span className="text-xs text-fg-2 hidden sm:inline">{r.tierName ?? "—"}</span>
+                      <div className="font-display text-lg num">{formatPsl(r.score)}</div>
+                      <Link href={paths.rating(r.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
+                      <Button size="sm" variant="ghost" onClick={() => delR(r.id)}><Trash2 size={14} /></Button>
+                    </div>
                   </li>
                 ))}
               </ul>

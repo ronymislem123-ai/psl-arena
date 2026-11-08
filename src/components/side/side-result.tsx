@@ -66,7 +66,7 @@ export function SideResult({ record }: { record: SideAnalysisRecord }) {
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.15fr]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="space-y-5">
           <Card strong>
             <CardBody className="pt-5 space-y-3">
@@ -200,7 +200,7 @@ function MeasurementDetail({ m }: { m: SideMeasurementResult }) {
   const def = SIDE_BY_ID[m.id];
   const tx = sideMeasurementText(m.id, lang);
   return (
-    <div className="grid gap-5 md:grid-cols-[1fr_260px]">
+    <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_260px]">
       <div className="space-y-4 text-sm">
         <Section title={t("side.detail.what")}>{tx.description}</Section>
         <Section title={t("side.detail.how")}>{tx.methodology}</Section>

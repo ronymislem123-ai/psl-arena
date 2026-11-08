@@ -68,7 +68,7 @@ export function IdealExampleButton({ compare, size = "sm" }: { compare?: Analysi
           )}
           {error && <div className="text-[#ff8fa3]">{error}</div>}
           {res && (
-            <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_1fr]">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
               <div className="space-y-3">
                 {res.redetected ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -78,7 +78,7 @@ export function IdealExampleButton({ compare, size = "sm" }: { compare?: Analysi
                 )}
                 <div className="rounded-xl border border-line p-3 text-xs space-y-1" data-testid="ideal-loop">
                   <div className="font-medium text-fg-1">{t("ideal.loop")}</div>
-                  <table className="w-full">
+                  <div className="-mx-1 overflow-x-auto px-1"><table className="w-full">
                     <thead className="text-fg-3">
                       <tr><th className="text-left">#</th><th className="text-right">{t("ideal.residual")}</th><th className="text-right">{t("ideal.inRange")}</th><th className="text-right">Σz²</th></tr>
                     </thead>
@@ -92,7 +92,7 @@ export function IdealExampleButton({ compare, size = "sm" }: { compare?: Analysi
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                   <p className="text-fg-3">{t("ideal.loopNote")}</p>
                   {res.redetected && res.bestIteration != null && <p className="text-fg-2">{t("ideal.gap", { r: ((res.iterations[res.bestIteration].residualMean ?? 0) * 100).toFixed(1) })}</p>}
                 </div>
@@ -104,7 +104,7 @@ export function IdealExampleButton({ compare, size = "sm" }: { compare?: Analysi
                   {res.redetected && <Badge tone="cyan" data-testid="ideal-redetected-count">{t("ideal.redetected")}: {res.redetected.checks.filter((c) => c.inRange).length}/{res.redetected.checks.length}</Badge>}
                   {res.redetected && <Badge tone="accent">{t("ideal.overall")}: {((res.redetected.analysis.scores.overall ?? 0) / 10).toFixed(1)}</Badge>}
                 </div>
-                <table className="w-full text-xs" data-testid="ideal-table">
+                <div className="-mx-1 overflow-x-auto px-1"><table className="w-full text-xs" data-testid="ideal-table">
                   <thead className="text-fg-3 uppercase tracking-wider text-[10px]">
                     <tr>
                       <th className="text-left py-1.5">{t("ideal.col.measure")}</th>
@@ -131,7 +131,7 @@ export function IdealExampleButton({ compare, size = "sm" }: { compare?: Analysi
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
                 <p className="text-[11px] text-fg-3 mt-2">{t("ideal.tableNote")}</p>
               </div>
             </div>

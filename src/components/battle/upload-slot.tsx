@@ -40,10 +40,9 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
 
   if (slot.status === "empty" || slot.status === "loading" || slot.status === "error") {
     return (
-      <div className="glass rounded-2xl p-5 h-full flex flex-col" data-testid={`slot-${side}`} data-ready={hydrated ? "true" : "false"}>
+      <div className="glass rounded-2xl p-5 flex flex-col" data-testid={`slot-${side}`} data-ready={hydrated ? "true" : "false"}>
         <div className="flex items-center justify-between mb-3">
           <div className={cn("font-display font-semibold tracking-wide", accent)}>{title}</div>
-          <span className="font-mono text-[11px] text-fg-3">{side === "a" ? "LEFT" : "RIGHT"}</span>
         </div>
         <div
           onDragOver={(e) => {
@@ -104,7 +103,7 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
   const nCorrected = Object.keys(slot.corrections.landmarks ?? {}).length;
 
   return (
-    <div className="glass rounded-2xl p-4 md:p-5 h-full flex flex-col gap-4" data-testid={`slot-${side}`} data-ready="true" data-state={q ? (q.analyzable ? "analyzable" : "unusable") : "pending"}>
+    <div className="glass rounded-2xl p-4 md:p-5 flex flex-col gap-4" data-testid={`slot-${side}`} data-ready="true" data-state={q ? (q.analyzable ? "analyzable" : "unusable") : "pending"}>
       <div className="flex items-center justify-between gap-3">
         <div className={cn("font-display font-semibold tracking-wide", accent)}>{title}</div>
         <div className="flex items-center gap-2">
@@ -123,7 +122,7 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <Input value={slot.label} onChange={(e) => setLabel(side, e.target.value)} placeholder={t("upload.labelPlaceholder")} aria-label={t("upload.label")} maxLength={60} />
         {prep.faces.length > 1 && (
           <Select value={slot.faceIndex} onChange={(e) => setFaceIndex(side, Number(e.target.value))} aria-label={t("upload.multipleFaces")}>
@@ -248,16 +247,17 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             {q.metrics.map((m) => (
               <div key={m.id} className="rounded-lg bg-white/3 px-2 py-1.5">
-                <div className="text-[10px] text-fg-3 truncate">{metricText(m, lang).label}</div>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-xs num">
+                <div className="text-[10px] text-fg-3 truncate" title={metricText(m, lang).label}>{metricText(m, lang).label}</div>
+                <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5">
+                  <span className="min-w-0 font-mono text-xs num">
                     {m.value}
-                    <span className="text-fg-3"> {metricText(m, lang).unit}</span>
+                    {metricText(m, lang).unit && metricText(m, lang).unit.length <= 5 && <span className="text-fg-3"> {metricText(m, lang).unit}</span>}
                   </span>
                   <Badge tone={levelTone(m.level)} className="px-1 py-0 text-[9px]">
                     {t(`quality.${m.level}`)}
                   </Badge>
                 </div>
+                {metricText(m, lang).unit && metricText(m, lang).unit.length > 5 && <div className="mt-0.5 text-[10px] leading-tight text-fg-3">{metricText(m, lang).unit}</div>}
               </div>
             ))}
           </div>

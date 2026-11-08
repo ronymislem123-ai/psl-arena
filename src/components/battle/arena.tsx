@@ -80,11 +80,11 @@ export function Arena({ battle, a, b, onFinished }: { battle: BattleResult; a: A
       <div className={cn("absolute -right-32 top-10 h-80 w-80 rounded-full blur-3xl pointer-events-none transition-opacity duration-1000", battle.verdict === "B" && phase === "done" ? "bg-mint/25 opacity-100" : "bg-violet/15 opacity-60")} />
 
       {/* top bar */}
-      <div className="relative flex items-center justify-between px-4 md:px-6 py-3 border-b border-line">
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.25em] text-cyan/80">
+      <div className="relative flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-b border-line">
+        <div className="flex items-center gap-2 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.25em] text-cyan/80">
           <Swords size={14} /> {t("battle.arena")} · {phase === "rounds" ? `${t("battle.round")} ${String(round + 1).padStart(2, "0")}/${rounds.length}` : phase === "done" ? t("battle.done") : phase === "intro" ? t("battle.phaseIntro") : phase === "scan" ? t("battle.phaseScan") : t("battle.phaseReveal")}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <div className="font-mono text-xs text-fg-2 num">
             {winsA} – {winsB}
           </div>
@@ -105,7 +105,7 @@ export function Arena({ battle, a, b, onFinished }: { battle: BattleResult; a: A
         </div>
       </div>
 
-      <div className="relative grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-6 px-3 md:px-8 py-6 md:py-10 items-start">
+      <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2 md:gap-6 px-3 md:px-8 py-6 md:py-10 items-start">
         <Fighter side="A" s={a} phase={phase} verdict={battle.verdict} />
         <div className="flex flex-col items-center justify-start pt-6 md:pt-16 min-w-[64px] md:min-w-[120px]">
           <AnimatePresence mode="wait">
@@ -146,8 +146,8 @@ function Fighter({ side, s, phase, verdict }: { side: "A" | "B"; s: ArenaSide; p
   const dir = side === "A" ? -1 : 1;
   const { t } = useT();
   return (
-    <motion.div initial={{ x: dir * 120, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 120, damping: 18 }} className={cn("flex flex-col items-center gap-3", side === "A" ? "justify-self-end" : "justify-self-start")}>
-      <div className={cn("relative rounded-2xl overflow-hidden border-2 transition-all duration-700", won ? "border-mint shadow-[0_0_60px_-10px_#34d39999]" : side === "A" ? "border-accent/50" : "border-violet/50")} style={{ width: "min(38vw, 300px)", aspectRatio: "3/4" }}>
+    <motion.div initial={{ x: dir * 120, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 120, damping: 18 }} className={cn("flex w-full max-w-[300px] flex-col items-center gap-3", side === "A" ? "justify-self-end" : "justify-self-start")}>
+      <div className={cn("relative rounded-2xl overflow-hidden border-2 transition-all duration-700", won ? "border-mint shadow-[0_0_60px_-10px_#34d39999]" : side === "A" ? "border-accent/50" : "border-violet/50")} style={{ width: "100%", aspectRatio: "3/4" }}>
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt={s.label} className="h-full w-full object-cover" />
@@ -168,8 +168,8 @@ function Fighter({ side, s, phase, verdict }: { side: "A" | "B"; s: ArenaSide; p
           </div>
         )}
       </div>
-      <div className="text-center">
-        <div className={cn("font-display font-semibold text-base md:text-lg truncate max-w-[38vw]", side === "A" ? "text-[#9db6ff]" : "text-[#c4b5fd]")}>{s.label}</div>
+      <div className="w-full min-w-0 text-center">
+        <div className={cn("font-display font-semibold text-base md:text-lg truncate", side === "A" ? "text-[#9db6ff]" : "text-[#c4b5fd]")}>{s.label}</div>
         <div className="font-mono text-[11px] text-fg-3">
           {side === "A" ? t("common.person1") : t("common.person2")} · {t("common.coverage")} {s.analysis.coverage.evaluable}/{s.analysis.coverage.total}
         </div>

@@ -106,23 +106,23 @@ export function VersionsCompareView({ tournaments, tournamentId, versions, optio
                 </div>
                 <div>
                   <div className="text-[11px] uppercase tracking-wider text-fg-2 mb-1">{t("compareVersions.categoryWinners")}</div>
-                  <table className="w-full text-sm" data-testid="versions-categories">
+                  <div className="-mx-1 overflow-x-auto px-1"><table className="w-full text-sm" data-testid="versions-categories">
                     <tbody>
                       {diff.results.categories.map((c) => (
                         <tr key={c.id} className={cn("border-t border-line", c.changed && "text-amber")}><td className="py-1">{cat(c.id, c.name)}</td><td className="py-1">{c.a.join(", ") || "—"}</td><td className="py-1 text-fg-3">→</td><td className="py-1">{c.b.join(", ") || "—"}</td><td className="py-1 text-right text-xs">{c.changed ? t("compareVersions.changed") : sameNames(c.a, c.b) ? t("compareVersions.unchangedLabel") : ""}</td></tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
                 <div>
                   <div className="text-[11px] uppercase tracking-wider text-fg-2 mb-1">{t("compareVersions.ranking")}</div>
-                  <table className="w-full text-sm" data-testid="versions-ranking">
+                  <div className="-mx-1 overflow-x-auto px-1"><table className="w-full text-sm" data-testid="versions-ranking">
                     <tbody>
                       {diff.results.ranking.map((r) => (
                         <tr key={r.name} className="border-t border-line"><td className="py-1">{r.name}</td><td className="py-1 text-right font-mono">{r.a ?? "—"}</td><td className="py-1 text-fg-3 text-center">→</td><td className="py-1 text-right font-mono">{r.b ?? "—"}</td><td className={cn("py-1 text-right font-mono text-xs", r.delta == null || r.delta === 0 ? "text-fg-3" : r.delta > 0 ? "text-mint" : "text-[#ff8fa3]")}>{r.delta == null ? "" : r.delta > 0 ? `▲${r.delta}` : r.delta < 0 ? `▼${-r.delta}` : "="}</td></tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               </CardBody>
             )}

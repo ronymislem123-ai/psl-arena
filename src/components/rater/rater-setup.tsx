@@ -169,7 +169,7 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
   return (
     <div className="space-y-6">
       <PageHeader kicker={t("navPsl.rater")} title={t("rater.title")} subtitle={t("rater.sub")} action={<Tabs tabs={[{ id: "upload", label: t("rater.modeUpload") }, { id: "existing", label: t("rater.modeExisting") }]} value={mode} onChange={(m) => setMode(m)} />} />
-      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="space-y-5">
           {mode === "upload" ? (
             <UploadSlot side="a" store={useRaterSetup} title={t("rater.uploadLabel")} />

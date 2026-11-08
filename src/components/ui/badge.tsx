@@ -15,7 +15,7 @@ const TONES: Record<Tone, string> = {
 
 export function Badge({ tone = "muted", className, children, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: Tone }) {
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap", TONES[tone], className)} {...props}>
+    <span className={cn("inline-flex max-w-full shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-4", TONES[tone], className)} {...props}>
       {children}
     </span>
   );

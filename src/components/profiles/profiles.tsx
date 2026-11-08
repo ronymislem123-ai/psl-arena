@@ -121,7 +121,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
           </div>
         }
       />
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
         <RatingTimeline records={ratingRecords} />
         <Card>
@@ -130,7 +130,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
             {analyses.length === 0 ? (
               <Empty>{t("history.empty")}</Empty>
             ) : (
-              <table className="w-full text-sm">
+              <div className="-mx-1 overflow-x-auto px-1"><table className="w-full text-sm">
                 <thead className="text-fg-3 uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="text-left py-2">{t("common.createdAt")}</th>
@@ -164,7 +164,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </CardBody>
         </Card>

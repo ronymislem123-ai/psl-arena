@@ -110,7 +110,7 @@ export function SettingsView({ account }: { account: AccountInfo | null }) {
               {BRAND.name} v{BRAND.version} · engine {ENGINE_VERSION} · MediaPipe Face Landmarker (478 points) · runs in-browser
             </div>
             <p>{t("settings.ethics")}</p>
-            <p className="text-xs text-fg-3">Reference ranges come from a community facial-harmony guide and are not validated beauty standards. See docs/RATIOS.md and docs/SCORING.md in the repository.</p>
+            <p className="text-xs text-fg-3">{t("settings.referenceNote")}</p>
           </CardBody>
         </Card>
       </div>

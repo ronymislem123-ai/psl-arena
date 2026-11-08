@@ -216,7 +216,7 @@ export function SidePlacer() {
   return (
     <div className="space-y-6">
       <PageHeader kicker={t("nav.sideView")} title={t("side.newTitle")} subtitle={t("side.newSub")} />
-      <div className="grid gap-5 lg:grid-cols-[1.45fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         {/* left: image / placement */}
         <div className="space-y-4">
           <div className="glass rounded-2xl p-4 md:p-5" data-testid="side-upload" data-ready={hydrated ? "true" : "false"}>
@@ -442,7 +442,7 @@ export function SidePlacer() {
                         )}
                       >
                         <span className={cn("grid h-5 w-5 shrink-0 place-items-center rounded-md font-mono text-[10px]", done ? "bg-mint/20 text-mint" : "bg-white/10 text-fg-2")}>{done ? "✓" : i + 1}</span>
-                        <span className="truncate">{sideLandmarkText(id, lang).name}</span>
+                        <span className="min-w-0 truncate">{sideLandmarkText(id, lang).name}</span>
                         {done && sources[id] && sources[id] !== "manual" && <span className="ml-auto shrink-0 rounded bg-cyan/15 px-1 text-[9px] uppercase tracking-wide text-cyan" data-testid={`side-src-${id}`}>{t(`side.auto.source.${sources[id]}`)}</span>}
                         {!done && !SIDE_CORE_POINTS.includes(id) && <span className="ml-auto shrink-0 text-[9px] text-fg-3">{t("side.auto.optional")}</span>}
                       </button>

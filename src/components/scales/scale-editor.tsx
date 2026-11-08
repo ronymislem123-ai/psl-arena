@@ -4,6 +4,7 @@
  * images and a live preview in five views. Bounds of neighbouring tiers are
  * linked so editing never creates gaps by accident.
  */
+import { scaleText } from "@/lib/i18n/scale-texts";
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,7 +29,7 @@ type Draft = Pick<PslScale, "name" | "description" | "rangeMin" | "rangeMax" | "
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScale; mode: "new" | "edit" | "view"; justSaved?: boolean }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
   const readOnly = mode === "view";
   const [draft, setDraft] = useState<Draft>(() => clone({ name: scale.name, description: scale.description, rangeMin: scale.rangeMin, rangeMax: scale.rangeMax, tiers: scale.tiers }));
@@ -211,7 +212,7 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
         </div>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div className="space-y-5">
           <Card>
             <CardHeader title={t("scales.name")} />
@@ -228,7 +229,7 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
               </Field>
               <div className="sm:col-span-2">
                 <Field label={t("scales.description")}>
-                  <textarea value={draft.description} onChange={(e) => update({ description: e.target.value })} maxLength={1000} disabled={readOnly} rows={2} className="w-full rounded-xl border border-line-strong bg-bg-2 px-3 py-2 text-sm text-fg-0 focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                  <textarea value={readOnly ? scaleText(draft.description, lang) : draft.description} onChange={(e) => update({ description: e.target.value })} maxLength={1000} disabled={readOnly} rows={2} className="w-full rounded-xl border border-line-strong bg-bg-2 px-3 py-2 text-sm text-fg-0 focus:outline-none focus:ring-2 focus:ring-accent/50" />
                 </Field>
               </div>
             </CardBody>
@@ -240,7 +241,7 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
               subtitle={t("scales.rulesText")}
               action={
                 !readOnly && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="ghost" onClick={distribute}>{t("scales.distribute")}</Button>
                     <Button size="sm" variant="outline" onClick={() => addTier(sorted.length - 1)} data-testid="tier-add"><Plus size={14} /> {t("scales.addTier")}</Button>
                   </div>
@@ -254,14 +255,14 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
                 const tierIssues = issues.filter((i) => i.tierId === tier.id);
                 return (
                   <div key={tier.id} className={cn("rounded-xl border bg-bg-1/40", tierIssues.length ? "border-rose/50" : "border-line")} data-testid={`tier-row-${tier.id}`}>
-                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-2 py-2 sm:grid-cols-[auto_1.4fr_0.6fr_0.9fr_0.9fr_auto]">
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 px-2 py-2 sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(0,0.6fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto]">
                       <input type="color" value={tier.color} onChange={(e) => patchTier(tier.id, { color: e.target.value })} disabled={readOnly} className="h-8 w-8 cursor-pointer rounded border border-line bg-transparent" aria-label={t("scales.color")} />
                       <Input value={tier.name} onChange={(e) => patchTier(tier.id, { name: e.target.value })} disabled={readOnly} className="h-8" aria-label={t("scales.tierName")} maxLength={60} />
                       <Input value={tier.short} onChange={(e) => patchTier(tier.id, { short: e.target.value })} disabled={readOnly} className="h-8 hidden sm:block" placeholder={t("scales.short")} aria-label={t("scales.short")} maxLength={20} />
                       <Input type="number" step="0.01" value={tier.min} onChange={(e) => setBound(index, "min", e.target.value)} disabled={readOnly} className="h-8 hidden sm:block font-mono" aria-label={t("scales.min")} />
                       <Input type="number" step="0.01" value={tier.max} onChange={(e) => setBound(index, "max", e.target.value)} disabled={readOnly} className="h-8 hidden sm:block font-mono" aria-label={t("scales.max")} />
-                      <div className="flex items-center gap-0.5">
-                        <span className="sm:hidden font-mono text-[11px] text-fg-2 mr-1">{formatTierRange(tier)}</span>
+                      <div className="col-span-2 flex items-center justify-end gap-0.5 sm:col-span-1">
+                        <span className="sm:hidden font-mono text-[11px] text-fg-2 mr-auto pl-1">{formatTierRange(tier)}</span>
                         <Button size="sm" variant="ghost" onClick={() => setExpanded(open ? null : tier.id)} aria-expanded={open} data-testid={`tier-expand-${tier.id}`}>{open ? "−" : "+"}</Button>
                         {!readOnly && (
                           <>
@@ -283,7 +284,7 @@ export function ScaleEditor({ scale, mode, justSaved = false }: { scale: PslScal
                         <Field label={t("scales.percentile")}><Input value={tier.percentile ?? ""} onChange={(e) => patchTier(tier.id, { percentile: e.target.value || null })} disabled={readOnly} maxLength={60} placeholder="e.g. top 2 %" /></Field>
                         <div className="sm:col-span-2">
                           <Field label={t("scales.tierDescription")}>
-                            <textarea value={tier.description} onChange={(e) => patchTier(tier.id, { description: e.target.value })} disabled={readOnly} rows={2} maxLength={600} className="w-full rounded-xl border border-line-strong bg-bg-2 px-3 py-2 text-sm text-fg-0 focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                            <textarea value={readOnly ? scaleText(tier.description, lang) : tier.description} onChange={(e) => patchTier(tier.id, { description: e.target.value })} disabled={readOnly} rows={2} maxLength={600} className="w-full rounded-xl border border-line-strong bg-bg-2 px-3 py-2 text-sm text-fg-0 focus:outline-none focus:ring-2 focus:ring-accent/50" />
                           </Field>
                         </div>
                         <div className="sm:col-span-2">

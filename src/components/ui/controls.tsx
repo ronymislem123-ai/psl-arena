@@ -16,9 +16,9 @@ export function Toggle({ checked, onChange, label, hint, disabled }: { checked: 
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={cn("relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors", checked ? "bg-accent border-accent" : "bg-white/10 border-line-strong")}
+        className={cn("relative mt-0.5 h-6 w-11 shrink-0 rounded-full border p-0 transition-colors", checked ? "bg-accent border-accent" : "bg-white/10 border-line-strong")}
       >
-        <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform", checked ? "translate-x-5" : "translate-x-0.5")} />
+        <span className={cn("absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform", checked ? "translate-x-5" : "translate-x-0.5")} />
       </button>
     </label>
   );
@@ -27,22 +27,22 @@ export function Toggle({ checked, onChange, label, hint, disabled }: { checked: 
 export function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: ReactNode }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer py-1">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#4f7cff] rounded" />
-      <span className="text-sm text-fg-1">{label}</span>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#4f7cff] rounded" />
+      <span className="min-w-0 text-sm text-fg-1">{label}</span>
     </label>
   );
 }
 
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select className={cn("h-10 rounded-xl border border-line-strong bg-bg-2 px-3 text-sm text-fg-0 focus:outline-none focus:ring-2 focus:ring-accent/50", className)} {...props}>
+    <select className={cn("h-10 min-w-0 max-w-full rounded-xl border border-line-strong bg-bg-2 px-3 text-sm text-fg-0 focus:outline-none focus:ring-2 focus:ring-accent/50", className)} {...props}>
       {children}
     </select>
   );
 }
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn("h-10 w-full rounded-xl border border-line-strong bg-bg-2 px-3 text-sm text-fg-0 placeholder:text-fg-3 focus:outline-none focus:ring-2 focus:ring-accent/50", className)} {...props} />;
+  return <input className={cn("h-10 w-full min-w-0 rounded-xl border border-line-strong bg-bg-2 px-3 text-sm text-fg-0 placeholder:text-fg-3 focus:outline-none focus:ring-2 focus:ring-accent/50", className)} {...props} />;
 }
 
 /** Label + control. The wrapping <label> associates the text with the control for assistive tech. */
@@ -86,14 +86,15 @@ export function Dialog({ open, onClose, title, children, wide }: { open: boolean
 
 export function Tabs<T extends string>({ tabs, value, onChange, className }: { tabs: { id: T; label: ReactNode; count?: number }[]; value: T; onChange: (v: T) => void; className?: string }) {
   return (
-    <div className={cn("flex gap-1 overflow-x-auto scrollbar-thin rounded-xl border border-line bg-bg-1/60 p-1", className)} role="tablist">
+    // wraps instead of scrolling: a half-visible tab label looked broken on phones
+    <div className={cn("flex max-w-full flex-wrap gap-1 rounded-xl border border-line bg-bg-1/60 p-1", className)} role="tablist">
       {tabs.map((t) => (
         <button
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={cn("flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors", value === t.id ? "bg-white/10 text-fg-0 shadow-sm" : "text-fg-2 hover:text-fg-0")}
+          className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors sm:flex-none", value === t.id ? "bg-white/10 text-fg-0 shadow-sm" : "text-fg-2 hover:text-fg-0")}
         >
           {t.label}
           {t.count != null && <span className="rounded-md bg-white/10 px-1.5 text-[10px] text-fg-2">{t.count}</span>}

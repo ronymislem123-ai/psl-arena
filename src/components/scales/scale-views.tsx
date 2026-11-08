@@ -1,4 +1,5 @@
 "use client";
+import { scaleText } from "@/lib/i18n/scale-texts";
 import { ImageOff } from "lucide-react";
 import { ScaleBar, TierBadge } from "@/components/psl/tier-badge";
 import { formatTierRange, tierGroups, type PslScale, type PslTier } from "@/engine/psl/scale";
@@ -24,7 +25,7 @@ function TierImages({ tier, size = 56 }: { tier: PslTier; size?: number }) {
 }
 
 export function ScaleViews({ scale, view, value }: { scale: ScaleLike; view: ScaleView; value?: number | null }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const sorted = [...scale.tiers].sort((a, b) => a.order - b.order);
   const desc = [...sorted].reverse();
   const groups = tierGroups(sorted);
@@ -74,7 +75,7 @@ export function ScaleViews({ scale, view, value }: { scale: ScaleLike; view: Sca
                 <td className="py-2 text-right font-mono num">{tier.min}</td>
                 <td className="py-2 text-right font-mono num">{tier.max}</td>
                 <td className="py-2 pl-3 text-xs text-fg-2">{tier.percentile ?? "—"}</td>
-                <td className="py-2 pl-3 text-xs text-fg-2 max-w-xs truncate" title={tier.description}>{tier.description || "—"}</td>
+                <td className="py-2 pl-3 text-xs text-fg-2 max-w-xs truncate" title={scaleText(tier.description, lang)}>{scaleText(tier.description, lang) || "—"}</td>
                 <td className="py-2 text-right font-mono text-xs">{tier.images.length}</td>
               </tr>
             ))}
@@ -95,7 +96,7 @@ export function ScaleViews({ scale, view, value }: { scale: ScaleLike; view: Sca
             <div className="p-3 space-y-2">
               {tier.group && <div className="text-[11px] uppercase tracking-wider text-fg-3">{tier.group}</div>}
               {tier.percentile && <div className="text-xs text-fg-2">{tier.percentile}</div>}
-              <p className="text-xs text-fg-1 min-h-[2rem]">{tier.description || "—"}</p>
+              <p className="text-xs text-fg-1 min-h-[2rem]">{scaleText(tier.description, lang) || "—"}</p>
               <TierImages tier={tier} />
             </div>
           </div>
@@ -136,7 +137,7 @@ export function ScaleViews({ scale, view, value }: { scale: ScaleLike; view: Sca
                 {tier.percentile && <span className="text-[11px] text-fg-3">· {tier.percentile}</span>}
                 {active && <span className="ml-auto font-mono text-[10px] text-white">◀ {value!.toFixed(2)}</span>}
               </div>
-              {tier.description && <p className="text-xs text-fg-2 mt-0.5">{tier.description}</p>}
+              {tier.description && <p className="text-xs text-fg-2 mt-0.5">{scaleText(tier.description, lang)}</p>}
               <div className="mt-1"><TierImages tier={tier} size={40} /></div>
             </div>
           </div>
