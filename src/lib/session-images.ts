@@ -9,11 +9,47 @@ const PREFIX = "psl-arena:img:";
  * photos on the server. Nothing leaves the device; sessionStorage is cleared when
  * the tab closes.
  */
-export function rememberSessionImage(analysisId: string, dataUrl: string) {
+const INDEX = "psl-arena:img-index";
+/** Most recent session photos kept (older ones fall back to placeholders). */
+const KEEP = 8;
+
+function readIndex(): string[] {
   try {
-    sessionStorage.setItem(PREFIX + analysisId, dataUrl);
+    return JSON.parse(sessionStorage.getItem(INDEX) ?? "[]") as string[];
   } catch {
-    /* quota exceeded or storage disabled — the UI falls back to placeholders */
+    return [];
+  }
+}
+
+/** Drops the oldest session photos so that at most `keep` remain (sessionStorage holds only a few MB). */
+export function freeSessionImages(keep = KEEP) {
+  try {
+    const idx = readIndex();
+    while (idx.length > keep) sessionStorage.removeItem(PREFIX + idx.shift()!);
+    sessionStorage.setItem(INDEX, JSON.stringify(idx));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function rememberSessionImage(analysisId: string, dataUrl: string) {
+  const write = () => {
+    sessionStorage.setItem(PREFIX + analysisId, dataUrl);
+    const idx = readIndex().filter((x) => x !== analysisId);
+    idx.push(analysisId);
+    sessionStorage.setItem(INDEX, JSON.stringify(idx));
+  };
+  try {
+    write();
+    freeSessionImages();
+  } catch {
+    // quota exceeded: make room by dropping older photos, then try once more
+    try {
+      freeSessionImages(2);
+      write();
+    } catch {
+      /* storage disabled or the photo alone is too large — the UI falls back to placeholders */
+    }
   }
 }
 

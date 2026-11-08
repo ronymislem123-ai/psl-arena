@@ -334,6 +334,38 @@ test.describe("PSL ARENA end-to-end", () => {
     await shot(page, "18-session-only-arena");
   });
 
+  test("a reload (e.g. after a mobile browser crash) brings the picked photos back", async ({ page }) => {
+    test.setTimeout(240_000);
+    await signIn(page);
+    await page.goto("/battle/new");
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    const inputs = page.locator('input[type="file"]');
+    await inputs.nth(0).setInputFiles(join(FIX, "portrait-a.jpg"));
+    // second photo picked right away: preparation is queued, both must end up analysable
+    await inputs.nth(1).setInputFiles(join(FIX, "portrait-b.jpg"));
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+    await expect(page.getByTestId("slot-b")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+    const labelA = page.getByTestId("slot-a").getByRole("textbox").first();
+    await labelA.fill("Reload A");
+    await page.getByTestId("correct-toggle-a").click();
+    await page.getByTestId("axis-a").fill("1.5");
+    await page.waitForTimeout(600); // debounced save
+    await page.reload();
+    await expect(page.getByTestId("setup-restored")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+    await expect(page.getByTestId("slot-b")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+    await expect(page.getByTestId("slot-a").getByRole("textbox").first()).toHaveValue("Reload A");
+    await expect(page.getByTestId("correct-a")).toContainText("+1.5°");
+    // removing the photos also removes them from the session
+    await page.getByTestId("slot-a").getByTitle("Remove").click();
+    await page.getByTestId("slot-b").getByTitle("Remove").click();
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => sessionStorage.getItem("psl-arena:setup:battle"))).toBeNull();
+    await page.reload();
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    await expect(page.getByTestId("setup-restored")).toHaveCount(0);
+  });
+
   test("landmark layers render and the German locale applies", async ({ page }) => {
     await signIn(page);
     await page.goto("/history");

@@ -15,6 +15,10 @@
 * **Open points.** No e-mail verification; sign-up can be locked with `PSL_ARENA_ALLOW_SIGNUP=false`. Use HTTPS when the server is reachable from other machines.
 
 
+## Crash-safe battle and rater setup
+
+- While a battle or rating is being prepared, the app's own downscaled copy of the chosen photos (≤ 1600 px JPEG) and the manual adjustments are kept in the tab's **sessionStorage**, so a reload — including the automatic reload after a phone browser ran out of memory — brings the selection back. Nothing is uploaded; the copy is deleted when the battle/rating starts, when the photos are removed, or when the tab is closed. Session copies of already analysed photos (used when photos are not stored) are limited to the 8 most recent.
+
 ## Manual corrections and the ideal example (engine 2.0)
 
 - **Manual landmark / axis corrections** are part of the analysis input: the moved points (pixel coordinates) and the axis tilt are stored with the analysis, flagged in the result (`corrections`) and shown wherever the analysis appears. Nothing else is collected.

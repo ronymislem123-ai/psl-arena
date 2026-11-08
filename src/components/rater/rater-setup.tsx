@@ -53,6 +53,8 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
   useEffect(() => {
     warmUpLandmarker();
     s.initConfig({ captureDistance: settings.defaultCaptureDistance, includeReconstructed: settings.includeReconstructed, storeImages: settings.storeImagesByDefault });
+    // bring back the photo of this tab after a reload or a browser crash
+    void s.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {

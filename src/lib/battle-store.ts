@@ -3,6 +3,8 @@ import { create } from "zustand";
 import { analyzeFace } from "@/engine/analysis";
 import type { AnalysisConfig, AnalysisCorrections, AnalysisResult, CaptureDistance, Point, SemanticLandmarkId } from "@/engine/types";
 import { buildAnalysisInput, prepareImage, type PreparedImage } from "@/lib/vision/pipeline";
+import { dataUrlToBlob } from "@/lib/vision/image";
+import { clearSetup, loadSetup, saveSetup, type SavedSetup, type SavedSlot } from "@/lib/setup-persist";
 import { api } from "@/lib/api";
 import { rememberSessionImage } from "@/lib/session-images";
 
@@ -41,6 +43,10 @@ interface BattleSetup {
   consent: { rights: boolean; adults: boolean };
   submitting: boolean;
   submitError: string | null;
+  /** set when the photos were brought back after a reload (crash-safe setup) */
+  restored: boolean;
+  /** re-loads the photos saved in this tab's session (after a reload or a browser crash) */
+  restore: () => Promise<void>;
   loadFile: (side: Side, file: File) => Promise<void>;
   clear: (side: Side) => void;
   setLabel: (side: Side, label: string) => void;
@@ -71,21 +77,90 @@ function buildInput(slot: SlotState, cfg: BattleSetup["config"], samples: number
   return buildAnalysisInput(slot.prep, slot.faceIndex, engineConfig(cfg, samples), slotManual(slot));
 }
 
-export function createSetupStore() {
-  return create<BattleSetup>()((set, get) => ({
+/**
+ * Photo preparation (full-size decode + face detection) runs one at a time: picking
+ * both photos quickly would otherwise hold two full-resolution decodes and two
+ * detections in memory at once, which is what pushes phone browsers over their
+ * memory limit.
+ */
+let prepQueue: Promise<unknown> = Promise.resolve();
+function queued<T>(fn: () => Promise<T>): Promise<T> {
+  const run = prepQueue.then(fn, fn);
+  prepQueue = run.catch(() => undefined);
+  return run;
+}
+
+function toSaved(slot: SlotState): SavedSlot | undefined {
+  if (!slot.prep) return undefined;
+  return {
+    dataUrl: slot.prep.image.dataUrl,
+    fileName: slot.fileName,
+    label: slot.label,
+    faceIndex: slot.faceIndex,
+    trichion: slot.trichion ?? null,
+    trichionSet: slot.trichion !== undefined,
+    trichionConfirmed: slot.trichionConfirmed,
+    neck: slot.neck,
+    corrections: slot.corrections,
+  };
+}
+
+export function createSetupStore(persistKey?: string) {
+  const store = create<BattleSetup>()((set, get) => ({
   a: emptySlot(),
   b: emptySlot(),
   config: { captureDistance: "unknown", includeReconstructed: true, storeImages: false },
   consent: { rights: false, adults: false },
   submitting: false,
   submitError: null,
+  restored: false,
+
+  restore: async () => {
+    if (!persistKey || typeof window === "undefined") return;
+    const saved = loadSetup(persistKey);
+    if (!saved) return;
+    for (const side of ["a", "b"] as const) {
+      const sv = saved[side];
+      if (!sv || get()[side].status !== "empty") continue;
+      set((s) => ({ [side]: { ...s[side], status: "loading", fileName: sv.fileName } }));
+      try {
+        const blob = await dataUrlToBlob(sv.dataUrl);
+        const prep = await queued(() => prepareImage(blob, sv.fileName ?? "photo.jpg"));
+        if (get()[side].status !== "loading") continue; // replaced or cleared meanwhile
+        if (prep.faces.length === 0) {
+          set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
+          continue;
+        }
+        set((s) => ({
+          [side]: {
+            ...s[side],
+            status: "ready",
+            prep,
+            faceIndex: Math.min(Math.max(0, sv.faceIndex), prep.faces.length - 1),
+            label: sv.label,
+            trichion: sv.trichionSet ? sv.trichion : undefined,
+            trichionConfirmed: sv.trichionConfirmed,
+            neck: sv.neck,
+            neckPlacing: false,
+            corrections: sv.corrections ?? noCorrections(),
+            correcting: false,
+          },
+          restored: true,
+        }));
+        get().recompute(side);
+      } catch (e) {
+        set((s) => ({ [side]: { ...s[side], status: "error", error: e instanceof Error ? e.message : String(e), prep: null } }));
+      }
+    }
+  },
 
   initConfig: (cfg) => set((s) => ({ config: { ...s.config, ...cfg } })),
 
   loadFile: async (side, file) => {
     set((s) => ({ [side]: { ...s[side], status: "loading", error: undefined, prep: null, preview: null, fileName: file.name } }));
     try {
-      const prep = await prepareImage(file, file.name);
+      const prep = await queued(() => prepareImage(file, file.name));
+      if (get()[side].fileName !== file.name || get()[side].status !== "loading") return; // superseded by a newer pick
       if (prep.faces.length === 0) {
         set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
         return;
@@ -181,14 +256,37 @@ export function createSetupStore() {
     }
   },
 
-  reset: () => set({ a: emptySlot(), b: emptySlot(), consent: { rights: false, adults: false }, submitting: false, submitError: null }),
+  reset: () => set({ a: emptySlot(), b: emptySlot(), consent: { rights: false, adults: false }, submitting: false, submitError: null, restored: false }),
   }));
+
+  if (persistKey && typeof window !== "undefined") {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    store.subscribe((s, prev) => {
+      if (s.a === prev.a && s.b === prev.b) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const cur = store.getState();
+        const before = loadSetup(persistKey);
+        const next: SavedSetup = { v: 1 };
+        for (const side of ["a", "b"] as const) {
+          const slot = cur[side];
+          // a slot that is (re)loading keeps its saved photo until the new one is ready
+          const keep = slot.status === "loading" ? before?.[side] : undefined;
+          const v = toSaved(slot) ?? keep;
+          if (v) next[side] = v;
+        }
+        if (next.a || next.b) saveSetup(persistKey, next);
+        else clearSetup(persistKey);
+      }, 300);
+    });
+  }
+  return store;
 }
 
 export type SetupStore = ReturnType<typeof createSetupStore>;
 
-/** Shared store of the two-person battle setup. */
-export const useBattleSetup = createSetupStore();
+/** Shared store of the two-person battle setup (crash-safe: survives a reload of the tab). */
+export const useBattleSetup = createSetupStore("battle");
 
 /** Separate store for the single-photo rater (slot "a" only). */
-export const useRaterSetup = createSetupStore();
+export const useRaterSetup = createSetupStore("rater");

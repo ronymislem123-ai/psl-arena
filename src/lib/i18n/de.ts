@@ -31,6 +31,7 @@ const base = {
     tableNote: "Abweichung = Abstand außerhalb des Referenzbereichs in Streuungseinheiten s (0 = innerhalb). Die Fünftel werden mit einer Gauß-Kurve um gleiche Fünftel bewertet; jeder Wert über 0 pp zählt daher als (kleine) Abweichung.",
     limitations: "Nur frontale 2D-Messgrößen – Profilkriterien (Kieferwinkel, Kinnprojektion, Nasenwinkel) haben hier kein Ziel.|Die Ziele sind Community-Referenzbereiche (docs/RATIOS.md); mehrere sind ungeprüfte Konventionen, und Messgrößen, deren Referenz widerlegt ist oder nicht zur Landmark-Konstruktion passt, sind ausgeschlossen.|Ausgangspunkt ist das Durchschnittsgesicht des MediaPipe-Modells; andere Ausgangsgesichter ergäben andere, ebenso gültige Lösungen.|Der Haaransatz ist aus der Konstruktion gesetzt, nicht erkannt.|Visuelle Kriterien (Lidexposition, Haut, Lippenform) sind nicht modelliert.",
   },
+  errors: { title: "Auf dieser Seite ist ein Fehler aufgetreten.", hint: "Versuche es erneut. Passiert es wieder, lade die Seite neu – für ein Battle oder eine Bewertung gewählte Fotos kommen in diesem Tab automatisch zurück. Schicke bei einer Meldung bitte den Text unten mit.", retry: "Erneut versuchen", reload: "Seite neu laden" },
   upload: {
     dropTitle: "Frontalfoto hier ablegen", dropSub: "oder klicken zum Auswählen · JPEG, PNG, WebP", choose: "Bild wählen", analyzing: "Landmarks werden erkannt…", loadingModel: "Gesichtsmodell wird geladen…",
     guidelines: "Foto-Richtlinien", g1: "Frontalansicht, Kamera auf Augenhöhe", g2: "Neutraler Ausdruck, Mund geschlossen", g3: "Gleichmäßiges Licht, keine harten Schatten", g4: "Keine Filter, Brille möglichst ab", g5: "Kamera mindestens ~1,5 m entfernt (keine Selfie-Verzerrung)",
@@ -41,7 +42,7 @@ const base = {
     layers: "Overlay", preview: "Vorschau-Score", previewSub: "Live-Vorschau – finale Werte werden beim Speichern berechnet.",
   },
   battle: {
-    newTitle: "Neue Battle", newSub: "Zwei Personen, eine Arena. Für jede Seite ein Foto hochladen, Erkennung prüfen und starten.",
+    restored: "Deine Fotos und Anpassungen von vor dem Neuladen wurden wiederhergestellt (nur in diesem Tab gespeichert).", newTitle: "Neue Battle", newSub: "Zwei Personen, eine Arena. Für jede Seite ein Foto hochladen, Erkennung prüfen und starten.",
     config: "Analysekonfiguration", captureDistance: "Aufnahmedistanz", captureUnknown: "Unbekannt", captureSelfie: "Selfie / Armlänge", captureStandard: "Standard (≥ 1,5 m)",
     includeReconstructed: "Rekonstruierte Verhältnisse einbeziehen", includeReconstructedHint: "Sechs Verhältnisse, deren Messkonvention aus dem Material rekonstruiert werden musste. Sie werden immer gekennzeichnet.",
     storeImages: "Fotos im Verlauf speichern", storeImagesHint: "Verschlüsselt auf diesem Server gespeichert. Ohne diese Option werden nur Landmark-Koordinaten und Scores gesichert.",

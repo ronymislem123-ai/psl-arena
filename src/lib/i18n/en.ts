@@ -30,6 +30,7 @@ const base = {
     tableNote: "Deviation = distance outside the reference range in dispersion units s (0 = inside). The fifths are scored with a Gaussian around equal fifths, so any value above 0 pp counts as a (small) deviation.",
     limitations: "Frontal 2D measures only — profile criteria (gonial angle, chin projection, nasal angles) have no target here.|Targets are community reference ranges (docs/RATIOS.md); several are untested conventions, and measures whose reference is contradicted or does not match the landmark construction are excluded.|The average face of the MediaPipe model is the starting point; other starting faces would give other, equally valid solutions.|The hairline is set from the construction, not detected.|Visual criteria (lid exposure, skin, lip shape) are not modelled.",
   },
+  errors: { title: "Something went wrong on this page.", hint: "Try again. If it keeps happening, reload the page — photos you picked for a battle or rating come back automatically in this tab. Please send the message below if you report the problem.", retry: "Try again", reload: "Reload page" },
   upload: {
     dropTitle: "Drop a frontal photo here", dropSub: "or click to choose · JPEG, PNG, WebP", choose: "Choose image", analyzing: "Detecting landmarks…", loadingModel: "Loading face model…",
     guidelines: "Photo guidelines", g1: "Frontal view, camera at eye level", g2: "Neutral expression, mouth closed", g3: "Even lighting, no heavy shadows", g4: "No filters, glasses off if possible", g5: "Camera at least ~1.5 m away (avoid selfie distortion)",
@@ -40,7 +41,7 @@ const base = {
     layers: "Overlay", preview: "Preview score", previewSub: "Live preview — final values are computed on save.",
   },
   battle: {
-    newTitle: "New Battle", newSub: "Two people, one arena. Upload a photo for each side, review the detection and start.",
+    restored: "Your photos and adjustments from before the reload were restored (kept only in this tab).", newTitle: "New Battle", newSub: "Two people, one arena. Upload a photo for each side, review the detection and start.",
     config: "Analysis configuration", captureDistance: "Capture distance", captureUnknown: "Unknown", captureSelfie: "Selfie / arm's length", captureStandard: "Standard (≥ 1.5 m)",
     includeReconstructed: "Include reconstructed ratios", includeReconstructedHint: "Six ratios whose measurement convention had to be reconstructed from the material. They are always flagged.",
     storeImages: "Store photos in history", storeImagesHint: "Encrypted at rest on this server. Without this, only landmark coordinates and scores are saved.",

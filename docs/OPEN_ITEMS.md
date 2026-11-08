@@ -50,3 +50,4 @@
 * **Ideal example is not photorealistic**; the re-detection residual stays ≈ 4 % IPD.
 * **No population calibration**: PSL = index ÷ 10 is a conformity score, not a percentile.
 * **Reference ranges** that every test face misses on the same side are excluded (JWHR, ET, DEV CT/ET, ICD/N); more faces could reveal further mismatches or re-admit them with corrected constructions.
+* **Tab crashes on phones (user report, 2026-11-08)** could not be reproduced in desktop Chromium (Pixel 7 emulation, 12-MP photos, 6× CPU throttling: renderer ≈ 370 MB, no leak, longest blocking task 1.3 s). Mitigations: serialised photo preparation (no two full-resolution decodes at once), crash-safe setup in sessionStorage, page error boundary with the error message. Open: device/browser of the report; decoding very large photos (24–48 MP) at reduced size directly.

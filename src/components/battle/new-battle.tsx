@@ -24,6 +24,8 @@ export function NewBattle() {
   useEffect(() => {
     warmUpLandmarker();
     s.initConfig({ captureDistance: settings.defaultCaptureDistance, includeReconstructed: settings.includeReconstructed, storeImages: settings.storeImagesByDefault });
+    // bring back the photos of this tab after a reload or a browser crash
+    void s.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -43,6 +45,11 @@ export function NewBattle() {
   return (
     <div className="space-y-6">
       <PageHeader kicker="Battle setup" title={t("battle.newTitle")} subtitle={t("battle.newSub")} />
+      {s.restored && (
+        <div className="rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-fg-1" data-testid="setup-restored">
+          {t("battle.restored")}
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_auto_1fr] items-stretch">
         <UploadSlot side="a" />
