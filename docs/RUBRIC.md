@@ -186,6 +186,35 @@ Claude through the official SDK, structured output validated with zod; provider
   still computed) or `visualNotAssessable` (the model declined this feature).
 * The visual criteria do not change the coverage (as in 2.0).
 
+### Free alternatives (no model, no cost)
+
+**Self-assessment (scored, labelled).** In the rater the user may rate the four
+visual criteria themselves (0–10, each optional). A self-assessed criterion is
+labelled "self-assessment" (source `self-assessment`, warning `selfAssessment`)
+and enters the hierarchy with half confidence and half reliability
+(`SELF_ASSESSMENT_WEIGHTING`), so it moves the score less than a model score of
+the same value. A vision-model score for the same criterion takes precedence.
+Self-assessments never replace a measured criterion and do not change coverage.
+
+**Photo measures (shown, not scored).** `src/engine/appearance.ts` measures six
+descriptive quantities; they appear next to the criterion and in its detail
+dialog but never enter the score, because no study gives reference ranges for
+them (a score would invent a norm):
+
+| Id | Criterion | Basis | Definition |
+|---|---|---|---|
+| `EYE_LID_BALANCE` | eye shape | mesh | share (%) of the fissure height above the canthal line (upper lid) |
+| `EYE_LID_APEX` | eye shape | mesh | position (%) of the highest upper-lid point from medial (0) to lateral (100) canthus |
+| `LIP_BOW` | lip shape | mesh | depth of the Cupid's-bow notch (0) below the bow peaks (37/267), % of upper vermilion height (peaks → stomion 13) |
+| `LIP_FULLNESS` | lip shape | mesh | vermilion height (0 → 17), % of lower-face height (2 → 152) |
+| `JAW_EDGE` | jawline definition | pixels | mean luminance step across the lower jaw border (6 points per side, inside vs. outside along the normal), ÷ face-luminance SD |
+| `MALAR_SHADE` | cheekbone projection | pixels | zygomatic patch minus cheek-hollow patch luminance, ÷ face-luminance SD |
+
+The pixel measures are computed in the browser (`imageAppearance` in
+`src/lib/vision/pipeline.ts`); only the two numbers are sent. They depend on
+lighting, make-up and beard and describe the photo, not the anatomy. Missing
+inputs (closed eyes, no pixels, flat image) give "not available", never a value.
+
 ## Known limitations
 
 - Community reference ranges, mostly derived from white adult faces; several are

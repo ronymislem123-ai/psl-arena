@@ -5,7 +5,7 @@
 import type { AnalysisInput } from "@/engine/types";
 import { rateFace, type RatingResult, type VisualStatus } from "@/engine/psl/rating";
 import { VisualModelError } from "@/lib/visual-model/claude";
-import { RUBRIC_VERSION } from "@/engine/psl/rubric";
+import { RUBRIC_VERSION, type CriterionId } from "@/engine/psl/rubric";
 import { BUILTIN_SCALE_ID, exportScale, snapshotScale, validateScale, type PslScale, type PslTier, type ScaleExport } from "@/engine/psl/scale";
 import { computeResults, initialState, resolveTiedMatch, step } from "@/engine/tournament/engine";
 import type { ParticipantData, TournamentConfig } from "@/engine/tournament/types";
@@ -99,6 +99,8 @@ export interface CreateRatingArgs {
   /** the photo for the vision model when it is not stored (sent only with consent, never stored) */
   visualImageDataUrl?: string;
   lang?: "de" | "en";
+  /** the user's own 0–10 assessment of the visual criteria (labelled, half weight) */
+  selfAssessment?: Partial<Record<CriterionId, number>> | null;
 }
 
 export async function createRating(userId: string, args: CreateRatingArgs) {
@@ -150,7 +152,7 @@ export async function createRating(userId: string, args: CreateRatingArgs) {
     }
   }
 
-  const result: RatingResult = rateFace({ frontal: analysis.result, side: side?.result ?? null, visual, visualStatus, visualError, scale: snapshotScale(scale), minCoverage: args.minCoverage });
+  const result: RatingResult = rateFace({ frontal: analysis.result, side: side?.result ?? null, visual, visualStatus, visualError, selfAssessment: args.selfAssessment ?? null, scale: snapshotScale(scale), minCoverage: args.minCoverage });
   return insertRating({ userId, profileId: analysis.profileId, analysisId: analysis.id, sideAnalysisId: side?.id ?? null, scaleId: scale.id, result });
 }
 

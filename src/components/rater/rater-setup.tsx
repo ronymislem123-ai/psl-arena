@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Eye, ImagePlus, ScanFace, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, ImagePlus, PenLine, ScanFace, ShieldCheck, XCircle } from "lucide-react";
 import { UploadSlot } from "@/components/battle/upload-slot";
 import { PageHeader } from "@/components/layout/app-shell";
 import { ScaleBar } from "@/components/psl/tier-badge";
@@ -33,6 +33,11 @@ import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/repos";
 import type { ScaleSummary } from "@/server/repos-psl";
 import { paths } from "@/lib/paths";
+import { criterionName } from "@/lib/i18n/psl-texts";
+import type { CriterionId } from "@/engine/psl/rubric";
+
+const SELF_CRITERIA = ["eyeShape", "lipShape", "cheekboneProjection", "jawlineDefinition"] as const satisfies readonly CriterionId[];
+type SelfCriterion = (typeof SELF_CRITERIA)[number];
 
 type Mode = "upload" | "existing";
 
@@ -62,6 +67,9 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
   // vision model for the visual criteria
   const [vision, setVision] = useState<{ configured: boolean; model: string | null; hint: string | null } | null>(null);
   const [visualConsent, setVisualConsent] = useState(false);
+  // optional self-assessment of the visual criteria (free alternative to the model)
+  const [selfOn, setSelfOn] = useState(false);
+  const [selfValues, setSelfValues] = useState<Partial<Record<SelfCriterion, number>>>({});
 
   useEffect(() => {
     api.rubric().then((r) => setVision(r.visualProvider)).catch(() => setVision(null));
@@ -125,7 +133,7 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
     setError(null);
     try {
       const consentToModel = !!vision?.configured && visualConsent;
-      const common = { scaleId, minCoverage, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const }, visualConsent: consentToModel, lang };
+      const common = { scaleId, minCoverage, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const }, visualConsent: consentToModel, lang, selfAssessment: selfOn && Object.keys(selfValues).length ? selfValues : null };
       let res;
       if (mode === "upload") {
         const input = buildAnalysisInput(slot.prep!, slot.faceIndex, { includeReconstructed: s.config.includeReconstructed, captureDistance: s.config.captureDistance, uncertaintySamples: 40, seed: 20251106 }, slotManual(slot));
@@ -276,6 +284,34 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
                 </>
               ) : (
                 <p className="text-fg-2">{t(vision?.hint === "browserKey" ? "rater.vision.setupBrowser" : vision?.hint === "missingKey" ? "rater.vision.setupKey" : "rater.vision.setupServer")} <Link href="/settings" className="text-accent underline underline-offset-2">{t("rater.vision.toSettings")}</Link></p>
+              )}
+            </CardBody>
+          </Card>
+          <Card data-testid="rater-self">
+            <CardHeader title={t("rater.self.title")} subtitle={t("rater.self.sub")} icon={<PenLine size={18} />} />
+            <CardBody className="space-y-3 text-xs">
+              <Toggle checked={selfOn} onChange={setSelfOn} label={t("rater.self.enable")} />
+              {selfOn && (
+                <>
+                  {SELF_CRITERIA.map((c) => {
+                    const v = selfValues[c];
+                    return (
+                      <div key={c} className="space-y-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-fg-1 text-sm min-w-0">{criterionName(c, lang)}</span>
+                          <span className="shrink-0 font-mono num text-fg-0" data-testid={`self-value-${c}`}>{v == null ? t("rater.self.skip") : `${fmt.score(v, 1)} / 10`}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="range" min={0} max={10} step={0.5} value={v ?? 5} onChange={(e) => setSelfValues((o) => ({ ...o, [c]: Number(e.target.value) }))} className={`min-w-0 flex-1 accent-[#f0506e] ${v == null ? "opacity-40" : ""}`} aria-label={criterionName(c, lang)} data-testid={`self-${c}`} />
+                          {v != null && (
+                            <button type="button" className="shrink-0 text-fg-3 underline underline-offset-2 hover:text-fg-1" onClick={() => setSelfValues((o) => { const n = { ...o }; delete n[c]; return n; })}>{t("rater.self.skip")}</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-fg-3">{t("rater.self.note")}</p>
+                </>
               )}
             </CardBody>
           </Card>

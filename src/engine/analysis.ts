@@ -3,6 +3,7 @@
  */
 import { alignMesh, buildLandmarks } from "./landmarks/mesh-map";
 import { computeAdditional } from "./ratios/additional";
+import { computeAppearance } from "./appearance";
 import { CATEGORY_ORDER, RATIO_BY_ID } from "./ratios/database";
 import { expectedIndex } from "./scoring/measurement";
 import { evaluateRatios } from "./ratios/evaluate";
@@ -159,6 +160,7 @@ export function analyzeFace(rawInput: AnalysisInput): AnalysisResult {
     quality: c.quality,
     ratios: c.ratios,
     additional,
+    appearance: computeAppearance(c.am.aligned, input.appearanceImage, { eyesOpen: !c.quality.issues.some((i) => i.code === "eyes-closed") }),
     symmetry: c.symmetry,
     features,
     categories: c.categories,

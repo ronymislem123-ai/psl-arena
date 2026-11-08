@@ -732,6 +732,8 @@ export interface AnalysisInput {
   transformMatrix?: number[] | null;
   rawQuality: RawQualityMetrics;
   config: AnalysisConfig;
+  /** rubric 2.1: image-based appearance measures from the photo (browser), shown, not scored */
+  appearanceImage?: import("./appearance").AppearanceImageInput | null;
 }
 
 export interface AnalysisCorrections {
@@ -748,6 +750,8 @@ export interface AnalysisResult {
   quality: QualityReport;
   ratios: RatioResult[];
   additional: AdditionalMeasurementResult[];
+  /** rubric 2.1: descriptive appearance measures of the visual criteria (never scored) */
+  appearance?: import("./appearance").AppearanceMeasure[];
   symmetry: SymmetryResult;
   features: FeatureObservation[];
   categories: CategoryScore[];

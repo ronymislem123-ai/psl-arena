@@ -98,3 +98,10 @@ Auftrag A–F aus Abschnitt 6 umgesetzt:
 - **Gefundene und behobene Fehler:** zod-4-Records (Provider-Antworten und Punktquellen wären abgelehnt worden), Umgebungs-Token im SDK, irreführende „angeschnitten“-Warnung durch den eigenen Zuschnitt.
 
 Offene Punkte: Validierung der automatischen Profilpunkte an echten, expertenannotierten Profilfotos; Live-Test des visuellen Modells mit einem echten Schlüssel; Gonion/Tragion-Erkennung (z. B. Ohr-Detektor).
+
+## 8. Kostenlose Alternativen zum visuellen Modell (2026-11-08)
+
+- **Selbsteinschätzung** (Rater-Karte „Selbsteinschätzung (optional)“, 4 Schieberegler 0–10, einzeln weglassbar): `selfAssessment` in `createRating` → `rateFace`; Quelle `self-assessment`, Warnung `selfAssessment`, halbe Konfidenz/Zuverlässigkeit (`SELF_ASSESSMENT_WEIGHTING`), Modell hat Vorrang, Abdeckung unverändert. Die Warnung „kein visuelles Modell“ entfällt, sobald alle vier selbst eingeschätzt sind.
+- **Messwerte aus dem Foto** (`src/engine/appearance.ts`): Oberlid-Anteil, Oberlid-Scheitel, Amorbogen-Tiefe, Lippenrot-Fülle (Mesh); Kieferkanten-Kontrast, Jochbein-Licht/Schatten (Pixel, im Browser gemessen, nur Zahlen gesendet). Angezeigt je Kriterium und im Detaildialog, **nicht bewertet** (keine Referenzbereiche). Siehe `docs/RUBRIC.md` → „Free alternatives“.
+- Tests: `tests/unit/appearance.test.ts` (synthetische Bilder: scharfe vs. weiche Kante, beleuchtete vs. flache Wangen; Gewichtung, Vorrang, Schema), E2E „rater: self-assessment …“ in `tests/e2e/psl.spec.ts`.
+- Offen: Die Bildmaße sind nicht gegen Expertenurteile validiert; Zielbereiche bewusst nicht vergeben.

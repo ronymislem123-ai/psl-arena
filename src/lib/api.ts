@@ -66,6 +66,7 @@ export const api = {
     visualConsent?: boolean;
     visualImageDataUrl?: string;
     lang?: "de" | "en";
+    selfAssessment?: Partial<Record<"eyeShape" | "lipShape" | "cheekboneProjection" | "jawlineDefinition", number>> | null;
   }) => request<{ rating: RatingRecord }>("/api/ratings", { method: "POST", body: JSON.stringify(payload) }),
   rubric: () => request<{ version: string; visualProvider: { configured: boolean; providerId: string | null; model: string | null; criteria: string[]; hint: "notConfigured" | "missingKey" | "browserKey" | null } }>("/api/rubric"),
   deleteRating: (id: string) => request<{ deleted: boolean }>(`/api/ratings/${id}`, { method: "DELETE" }),

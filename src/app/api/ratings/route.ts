@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       visualConsent: body.visualConsent,
       visualImageDataUrl: body.visualConsent ? body.visualImageDataUrl : undefined,
       lang: body.lang,
+      selfAssessment: body.selfAssessment ?? null,
     });
     return ok({ rating }, { status: 201 });
   } catch (e) {

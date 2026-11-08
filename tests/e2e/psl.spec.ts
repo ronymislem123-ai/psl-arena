@@ -15,7 +15,7 @@ async function signIn(page: Page) {
 }
 
 /** Rates a frontal photo through the real UI (in-browser detection) and returns the rating id + score. */
-async function rateUpload(page: Page, file: string, label: string, scaleId?: string, sideFile?: string) {
+async function rateUpload(page: Page, file: string, label: string, scaleId?: string, sideFile?: string, beforeRate?: (page: Page) => Promise<void>) {
   await page.goto("/rater");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("AI PSL Rater");
   await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
@@ -35,6 +35,7 @@ async function rateUpload(page: Page, file: string, label: string, scaleId?: str
     const text = await box.evaluate((el) => (el.closest("label")?.textContent ?? "").trim());
     if (/right to use|adult/i.test(text) && !(await box.isChecked())) await box.check();
   }
+  if (beforeRate) await beforeRate(page);
   await expect(page.getByTestId("rate-button")).toBeEnabled({ timeout: 30_000 });
   await page.getByTestId("rate-button").click();
   await page.waitForURL(/\/rater\/rate_/, { timeout: 120_000 });
@@ -219,6 +220,37 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await shot(page, "56b-rating-front-and-profile");
     await page.getByTestId("criterion-eyeShape").click();
     await expect(page.getByRole("dialog")).toContainText(/only with a vision model/);
+    await page.keyboard.press("Escape");
+  });
+
+  test("rater: self-assessment of the visual criteria (labelled, half weight) and photo measures shown but not scored", async ({ page }) => {
+    test.setTimeout(240_000);
+    await signIn(page);
+    const r = await rateUpload(page, "portrait-a.jpg", "Self Assessed", undefined, undefined, async (p) => {
+      const card = p.getByTestId("rater-self");
+      await expect(card).toContainText("Self-assessment");
+      await card.getByRole("switch").click();
+      await expect(p.getByTestId("self-value-eyeShape")).toContainText(/leave out/);
+      await p.getByTestId("self-eyeShape").fill("7.5");
+      await p.getByTestId("self-jawlineDefinition").fill("4");
+      await expect(p.getByTestId("self-value-eyeShape")).toContainText("7.5 / 10");
+    });
+    const rec = (await (await page.request.get(`/api/ratings/${r.id}`)).json()).rating;
+    const crit = (id: string) => rec.result.criteria.find((c: { id: string }) => c.id === id);
+    expect(crit("eyeShape")).toMatchObject({ assessable: true, source: "self-assessment", score: 7.5 });
+    expect(crit("jawlineDefinition").source).toBe("self-assessment");
+    expect(crit("lipShape").assessable).toBe(false);
+    expect(rec.result.warningCodes).toContain("selfAssessment");
+    expect(rec.result.selfAssessment).toEqual({ eyeShape: 7.5, jawlineDefinition: 4 });
+    // measured in the browser from the photo: geometry and image contrasts, all present
+    const app = Object.fromEntries(rec.result.appearance.map((m: { id: string; value: number | null }) => [m.id, m.value]));
+    for (const id of ["EYE_LID_BALANCE", "EYE_LID_APEX", "LIP_BOW", "LIP_FULLNESS", "JAW_EDGE", "MALAR_SHADE"]) expect(typeof app[id], id).toBe("number");
+    await expect(page.getByTestId("criterion-eyeShape")).toContainText(/self-assessment/i);
+    await expect(page.getByTestId("appearance-lipShape")).toBeVisible();
+    await page.getByTestId("criterion-eyeShape").click();
+    await expect(page.getByTestId("self-note")).toContainText("7.5 / 10");
+    await expect(page.getByTestId("appearance-detail")).toContainText(/not scored/);
+    await shot(page, "56c-self-assessment-dialog");
     await page.keyboard.press("Escape");
   });
 

@@ -4,6 +4,27 @@ import { detectFaces, type DetectedFace } from "./detect";
 import { estimateHairline, type HairlineEstimate } from "./hairline";
 import { loadImageFile, type LoadedImage } from "./image";
 import { computeRawQuality } from "./quality";
+import { measureImageAppearance, type AppearanceImageInput } from "@/engine/appearance";
+
+/** Image-based appearance measures (jaw edge, cheekbone shading) from the photo pixels; never leaves the device. */
+function imageAppearance(canvas: HTMLCanvasElement, mesh: Point[]): AppearanceImageInput | null {
+  try {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    const W = canvas.width;
+    const H = canvas.height;
+    const d = ctx.getImageData(0, 0, W, H).data;
+    return measureImageAppearance(mesh, (x, y) => {
+      const xi = Math.round(x);
+      const yi = Math.round(y);
+      if (xi < 0 || yi < 0 || xi >= W || yi >= H) return null;
+      const k = (yi * W + xi) * 4;
+      return 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2];
+    });
+  } catch {
+    return null;
+  }
+}
 
 export interface PreparedImage {
   image: LoadedImage;
@@ -44,6 +65,7 @@ export function buildAnalysisInput(prep: PreparedImage, faceIndex: number, confi
     blendshapes: face.blendshapes,
     transformMatrix: face.matrix,
     rawQuality: computeRawQuality(prep.image.canvas, face, prep.faces.length, prep.image),
+    appearanceImage: imageAppearance(prep.image.canvas, face.mesh),
     config,
   };
 }

@@ -44,6 +44,7 @@
 
 ## Automatic side view
 
+- **Free alternatives.** A self-assessment of the four visual criteria is entered by the user and stored with the rating (labelled as such). The descriptive photo measures for these criteria (eyelid and lip geometry, jaw-edge and cheekbone light/shadow contrast) are computed in the browser; only the resulting numbers are sent, never pixels.
 - Segmentation and profile detection run entirely in the browser (MediaPipe models served from this origin); the profile photo is stored only on opt-in, like frontal photos. Automatically detected points are stored with their source so that a result can always be traced to "detected" or "placed by the user".
 
 ## Browser edition (GitHub Pages)

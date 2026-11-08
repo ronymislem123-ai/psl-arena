@@ -27,6 +27,7 @@ export const analysisInputSchema = z.object({
     .nullable()
     .optional(),
   blendshapes: z.record(z.string(), z.number()),
+  appearanceImage: z.object({ jawEdgeContrast: z.number().min(-50).max(50).nullable(), malarContrast: z.number().min(-50).max(50).nullable() }).nullable().optional(),
   transformMatrix: z.array(z.number()).length(16).nullable().optional(),
   rawQuality: z.object({
     imageWidth: z.number().positive(),
@@ -185,6 +186,7 @@ export const createRatingSchema = z
     minCoverage: z.number().min(0.3).max(1).optional(),
     consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),
     visualConsent: z.boolean().optional(),
+    selfAssessment: z.partialRecord(z.enum(["eyeShape", "lipShape", "cheekboneProjection", "jawlineDefinition"]), z.number().min(0).max(10)).nullable().optional(),
     visualImageDataUrl: z.string().max(12_000_000).optional(),
     lang: z.enum(["de", "en"]).optional(),
   })

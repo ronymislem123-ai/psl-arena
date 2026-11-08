@@ -39,6 +39,12 @@ export interface RatingInput {
   visualStatus?: VisualStatus;
   /** short, language-neutral error code when the model call failed */
   visualError?: string;
+  /**
+   * rubric 2.1: the user's own 0–10 assessment of visual criteria (only those
+   * criteria; a vision-model result takes precedence). Enters the aggregation with
+   * reduced confidence/reliability and is labelled "self-assessment" everywhere.
+   */
+  selfAssessment?: Partial<Record<CriterionId, number>> | null;
   scale: PslScaleSnapshot;
   minCoverage?: number;
 }
@@ -55,7 +61,7 @@ export type NotAssessableCode =
   | "inputsUnavailable"
   | "notEnoughAreas"
   | "frontalUnusable";
-export type CriterionSource = "frontal" | "profile" | "mixed" | "visual-model" | "derived";
+export type CriterionSource = "frontal" | "profile" | "mixed" | "visual-model" | "self-assessment" | "derived";
 
 export interface CriterionScore {
   id: CriterionId;
@@ -124,9 +130,13 @@ export interface RatingResult {
   notAssessable: { id: CriterionId; code: NotAssessableCode }[];
   quality: { frontalLevel: QualityLevel; frontalAnalyzable: boolean; frontalIssues: number; sideIssues: number; sideUsed: boolean; visualUsed: boolean; hairline: boolean };
   inputs: { frontalCreatedAt: string; sideFacing: "left" | "right" | null; visualProvider: string | null; visualModel?: string | null; visualStatus?: VisualStatus; visualError?: string | null; sidePlacement?: "manual" | "automatic" | "mixed" | null };
+  /** rubric 2.1: descriptive appearance measures of the frontal analysis (shown, never scored) */
+  appearance?: import("../appearance").AppearanceMeasure[];
+  /** rubric 2.1: criteria the user assessed themselves (0–10 as entered) */
+  selfAssessment?: Partial<Record<CriterionId, number>>;
   /** rubric 2.1: per visual criterion, the model's short reason */
   visualNotes?: Partial<Record<CriterionId, string>>;
-  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "visualFailed" | "lowConfidence" | "legacyEngine")[];
+  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "visualFailed" | "selfAssessment" | "lowConfidence" | "legacyEngine")[];
   /** rubric 2.0 aggregation details */
   aggregation?: {
     method: "weighted-power-mean";
@@ -155,13 +165,19 @@ function sideMeasures(side: SideViewResult | null | undefined, into: MeasureMap)
   }
 }
 
-function visualMeasures(visual: VisualAssessmentSet | null | undefined, into: MeasureMap) {
-  if (!visual) return;
+/** Self-assessments count with half confidence and half reliability (subjective, not reproducible). */
+export const SELF_ASSESSMENT_WEIGHTING = { confidence: 0.5, reliability: 0.5 } as const;
+
+function visualMeasures(visual: VisualAssessmentSet | null | undefined, self: RatingInput["selfAssessment"], into: MeasureMap) {
   for (const def of CRITERIA) {
     if (def.method !== "visual") continue;
-    const v = visual.assessments[def.id];
-    if (!v) continue;
-    into.set(`v:${def.id}`, { index: uncalibrate(Math.max(0, Math.min(10, v.score))), confidence: v.confidence, reliability: 1, weight: 1, source: "visual" });
+    const v = visual?.assessments[def.id];
+    if (v) {
+      into.set(`v:${def.id}`, { index: uncalibrate(Math.max(0, Math.min(10, v.score))), confidence: v.confidence, reliability: 1, weight: 1, source: "visual" });
+      continue;
+    }
+    const s = self?.[def.id];
+    if (s != null && Number.isFinite(s)) into.set(`v:${def.id}`, { index: uncalibrate(Math.max(0, Math.min(10, s))), ...SELF_ASSESSMENT_WEIGHTING, weight: 1, source: "self" });
   }
 }
 
@@ -181,7 +197,7 @@ export function rateFace(input: RatingInput): RatingResult {
 
   const measures = frontalMeasures(frontal.ratios, frontal.symmetry, frontal.additional);
   sideMeasures(side, measures);
-  visualMeasures(visual, measures);
+  visualMeasures(visual, input.selfAssessment, measures);
   const h = aggregateHierarchy(measures);
 
   const criteria: CriterionScore[] = CRITERIA.map((def, i) => {
@@ -196,8 +212,8 @@ export function rateFace(input: RatingInput): RatingResult {
         def.method === "visual" ? visualCode : needsProfile && side?.analyzable ? "profileNotDeterminable" : needsProfile ? "requiresProfile" : "inputsUnavailable";
       return { ...base, assessable: false, notAssessableCode: code, index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
     }
-    const source: CriterionSource = a.fromVisual ? "visual-model" : a.fromFrontal && a.fromProfile ? "mixed" : a.fromProfile ? "profile" : "frontal";
-    const usedInputs = a.used.map((k) => (k.startsWith("r:") || k.startsWith("a:") ? k.slice(2) : k.startsWith("s:") ? `sym:${k.slice(2)}` : k.startsWith("p:") ? `side:${k.slice(2)}` : `visual:${visual?.providerId ?? "?"}`));
+    const source: CriterionSource = a.fromVisual ? "visual-model" : a.fromSelf ? "self-assessment" : a.fromFrontal && a.fromProfile ? "mixed" : a.fromProfile ? "profile" : "frontal";
+    const usedInputs = a.used.map((k) => (k.startsWith("r:") || k.startsWith("a:") ? k.slice(2) : k.startsWith("s:") ? `sym:${k.slice(2)}` : k.startsWith("p:") ? `side:${k.slice(2)}` : a.fromSelf ? "self-assessment" : `visual:${visual?.providerId ?? "?"}`));
     return { ...base, assessable: true, index: a.index, score: calibrate(a.index), confidence: a.confidence, reliability: a.reliability, source, usedInputs, missingInputs: a.missing };
   });
 
@@ -279,8 +295,9 @@ export function rateFace(input: RatingInput): RatingResult {
   if (!frontalUsable) warningCodes.push("frontalUnusable");
   if (provisional) warningCodes.push("lowCoverage");
   if (!side?.analyzable) warningCodes.push("noProfile");
-  if (!visual && visualStatus === "notConfigured") warningCodes.push("noVisualProvider");
+  if (!visual && visualStatus === "notConfigured" && criteria.some((c) => CRITERIA.some((d) => d.id === c.id && d.method === "visual") && !c.assessable)) warningCodes.push("noVisualProvider");
   if (visualStatus === "failed") warningCodes.push("visualFailed");
+  if (criteria.some((c) => c.source === "self-assessment")) warningCodes.push("selfAssessment");
   if (confidence > 0 && confidence < 0.5) warningCodes.push("lowConfidence");
   if (legacyEngine) warningCodes.push("legacyEngine");
 
@@ -316,6 +333,8 @@ export function rateFace(input: RatingInput): RatingResult {
       hairline: frontal.landmarks.some((l) => l.id === "trichion"),
     },
     inputs: { frontalCreatedAt: frontal.createdAt, sideFacing: side?.facing ?? null, visualProvider: visual?.providerId ?? null, visualModel: visual?.modelVersion ?? null, visualStatus, visualError: input.visualError ?? null, sidePlacement: side?.analyzable ? (side.placement ?? "manual") : null },
+    appearance: frontal.appearance,
+    selfAssessment: input.selfAssessment ? Object.fromEntries(Object.entries(input.selfAssessment).filter(([k, v]) => v != null && CRITERIA.some((c) => c.id === k && c.method === "visual"))) : undefined,
     visualNotes: visual ? Object.fromEntries(Object.entries(visual.assessments).filter(([, v]) => v?.note).map(([k, v]) => [k, v!.note!])) : undefined,
     warningCodes,
     aggregation: { method: "weighted-power-mean", p: AGGREGATION_P, overallIndex, arithmeticIndex: frontalUsable ? h.overallArithmetic : null, compensationPenalty: frontalUsable ? h.compensationPenalty : null, mcSamples: pslSamples.length },

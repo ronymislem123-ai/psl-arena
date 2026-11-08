@@ -21,7 +21,7 @@ import type { AdditionalMeasurementResult, RatioResult, SymmetryResult } from ".
 import { AGGREGATION_P, CATEGORY_WEIGHTS, CRITERIA, EYE_MOUTH_LENGTH, EYELID_RANGES, measureReliability, RUBRIC_AREAS, DERIVED_TOLERANCE, type CriterionDefinition, type CriterionId, type RubricArea } from "../psl/rubric";
 import { plateauIndex } from "./measurement";
 
-export type MeasureSource = "frontal" | "profile" | "visual";
+export type MeasureSource = "frontal" | "profile" | "visual" | "self";
 
 export interface Measure {
   /** 0–100 */
@@ -112,6 +112,8 @@ export interface CriterionAggregate {
   fromFrontal: boolean;
   fromProfile: boolean;
   fromVisual: boolean;
+  /** rubric 2.1: the user's own assessment (visual criteria only, labelled) */
+  fromSelf?: boolean;
 }
 
 export interface CategoryAggregate {
@@ -152,6 +154,7 @@ export function aggregateCriterion(def: CriterionDefinition, measures: MeasureMa
   let fromFrontal = false;
   let fromProfile = false;
   let fromVisual = false;
+  let fromSelf = false;
   for (const key of measureKeys(def)) {
     const m = measures.get(key);
     if (!m) {
@@ -166,6 +169,7 @@ export function aggregateCriterion(def: CriterionDefinition, measures: MeasureMa
     used.push(key);
     if (m.source === "frontal") fromFrontal = true;
     else if (m.source === "profile") fromProfile = true;
+    else if (m.source === "self") fromSelf = true;
     else fromVisual = true;
   }
   const wsum = used.reduce((s, k) => s + measures.get(k)!.weight, 0);
@@ -180,6 +184,7 @@ export function aggregateCriterion(def: CriterionDefinition, measures: MeasureMa
     fromFrontal,
     fromProfile,
     fromVisual,
+    fromSelf,
   };
 }
 
