@@ -232,13 +232,15 @@ test("German browser with page translation: battle setup does not crash", async 
   await ctx.close();
 });
 
-test("browser edition: automatic side view runs locally; vision model needs the user's own key and consent", async ({ page }) => {
+test("browser edition: automatic side view runs locally; vision model needs the user's own key and consent", async ({ page, baseURL }) => {
   test.setTimeout(300_000);
   const errors = collectErrors(page);
+  // only this origin may be contacted (also when run against the deployed site)
+  const own = new URL(baseURL!).hostname;
   const external: string[] = [];
   page.on("request", (r) => {
     const u = new URL(r.url());
-    if (!["127.0.0.1", "localhost"].includes(u.hostname)) external.push(u.hostname);
+    if (u.protocol.startsWith("http") && ![own, "127.0.0.1", "localhost"].includes(u.hostname)) external.push(u.hostname);
   });
   await page.goto("side-view/new/");
   await expect(page.getByTestId("side-upload")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
