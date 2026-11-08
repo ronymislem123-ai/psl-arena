@@ -12,10 +12,46 @@
  * feeds into the 42-ratio frontal score.
  */
 import { angleAt, angleBetween, clamp, createRng, dist, gaussian, stddev } from "./geometry";
-import { indexFromDeviation } from "./scoring/tiers";
+import { expectedIndex, plateauIndex } from "./scoring/measurement";
 import type { Point } from "./types";
 
-export const SIDE_VIEW_VERSION = "1.0.0";
+export const SIDE_VIEW_VERSION = "1.1.0";
+
+/**
+ * Anatomical reference frame of the profile. "image": the image axes are taken as
+ * the true horizontal/vertical (natural head position assumed). "frankfort": the
+ * soft-tissue Frankfort horizontal through the tragion and the soft-tissue
+ * orbitale defines the horizontal. "manual": the user rotates the reference axis.
+ * All vertical/horizontal-dependent measures (Z angle, lower-face height,
+ * lip–chin ratio, chin meridian) are computed in this frame; pure three-point
+ * angles are unaffected.
+ */
+export type SideReference = { kind: "image" } | { kind: "frankfort"; orbitale: Point } | { kind: "manual"; tiltDeg: number };
+
+/** Signed tilt (degrees, + = clockwise on screen) of the anatomical horizontal relative to the image horizontal. */
+export function referenceTilt(points: Pick<SidePoints, "tragion">, ref: SideReference | undefined): number {
+  if (!ref || ref.kind === "image") return 0;
+  if (ref.kind === "manual") return Math.max(-45, Math.min(45, ref.tiltDeg));
+  const v = { x: ref.orbitale.x - points.tragion.x, y: ref.orbitale.y - points.tragion.y };
+  const a = (Math.atan2(v.y, v.x) * 180) / Math.PI;
+  // the orbitale lies anterior to the tragion: take the direction closest to the image horizontal
+  return Math.abs(a) <= 90 ? a : a - 180 * Math.sign(a);
+}
+
+/** Rotates all points about the tragion so that the anatomical horizontal becomes the image horizontal. */
+export function toReferenceFrame(points: SidePoints, tiltDeg: number): SidePoints {
+  if (!tiltDeg) return points;
+  const t = points.tragion;
+  const r = (-tiltDeg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const out = {} as SidePoints;
+  for (const id of Object.keys(points) as SideLandmarkId[]) {
+    const p = points[id];
+    out[id] = { x: t.x + (p.x - t.x) * c - (p.y - t.y) * s, y: t.y + (p.x - t.x) * s + (p.y - t.y) * c };
+  }
+  return out;
+}
 
 export type SideLandmarkId =
   | "glabella"
@@ -81,7 +117,7 @@ export interface SideMeasurementDefinition {
 }
 
 const LIM_MANUAL = "Depends on manual landmark placement (±1–2 px typical).";
-const LIM_VERTICAL = "Uses the image vertical as the true vertical; a tilted head shifts the value.";
+const LIM_VERTICAL = "Measured against the anatomical reference axis (Frankfort horizontal from tragion and orbitale, a manually rotated axis, or — if neither is set — the image vertical); with the image vertical, a tilted head shifts the value.";
 const LIM_SOFT = "Soft-tissue proxy for a cephalometric (bony) measurement.";
 
 export const SIDE_DEFINITIONS: SideMeasurementDefinition[] = [
@@ -170,7 +206,7 @@ export const SIDE_DEFINITIONS: SideMeasurementDefinition[] = [
     reference: "Merrifield 1966: Z angle 80° ± 9° (adults).",
     description: "Inclination of the profile line (chin to most protrusive lip) against the horizontal.",
     methodology: "Angle between the posterior horizontal and the line from the most protrusive lip to the pogonion; 90° = vertical, smaller = chin behind the lips.",
-    limitations: ["Merrifield uses the Frankfort horizontal; the image horizontal is used instead.", LIM_VERTICAL, LIM_MANUAL],
+    limitations: ["Merrifield uses the Frankfort horizontal; it is used when the orbitale is placed, otherwise the manual or image horizontal.", LIM_VERTICAL, LIM_MANUAL],
     landmarks: ["pogonion", "labrale_sup", "labrale_inf"], weight: 1,
   },
   {
@@ -241,6 +277,8 @@ export interface SideIssue {
 export interface SideViewConfig {
   uncertaintySamples: number;
   seed: number;
+  /** anatomical reference axis (default: image axes) */
+  reference?: SideReference;
 }
 
 export const SIDE_DEFAULT_CONFIG: SideViewConfig = { uncertaintySamples: 40, seed: 20251106 };
@@ -259,13 +297,23 @@ export interface SideViewResult {
   assumptionCodes: SideAssumptionCode[];
   faceHeightPx: number;
   uncertainty: { samples: number; sigmaPx: number };
+  /** reference axis used (missing on results of version 1.0 = image axes) */
+  reference?: { kind: SideReference["kind"]; tiltDeg: number; orbitale?: Point };
 }
 
-export type SideAssumptionCode = "manualPlacement" | "imageVertical" | "proxies" | "separateFromFrontal";
+export type SideAssumptionCode = "manualPlacement" | "imageVertical" | "frankfortHorizontal" | "manualAxis" | "proxies" | "separateFromFrontal";
 
-export function toleranceFor(range: { min: number; max: number }): number {
+/**
+ * Dispersion unit of a profile measure (engine 2.0). Literature ranges are mostly
+ * reported as mean ± 1 SD, so half the range width is used; point targets and very
+ * narrow ranges get a unit-specific floor (3° for angles, 2 pp for percentages,
+ * 5 % of the target for ratios).
+ */
+export function toleranceFor(range: { min: number; max: number }, unit: SideMeasurementDefinition["unit"] = "ratio"): number {
+  const half = (range.max - range.min) / 2;
   const target = (range.min + range.max) / 2;
-  return Math.max(0.1 * Math.abs(target), 0.5 * (range.max - range.min));
+  const floor = unit === "degrees" ? 3 : unit === "percent" ? 2 : 0.05 * Math.abs(target);
+  return Math.max(half, floor, 1e-6);
 }
 
 /** Perpendicular distance of p from the infinite line a–b, signed by side. */
@@ -328,7 +376,7 @@ function scoreOf(values: RawValues): { score: number | null; scoredCount: number
       continue;
     }
     const dev = v < def.range.min ? v - def.range.min : v > def.range.max ? v - def.range.max : 0;
-    const index = indexFromDeviation(Math.abs(dev), toleranceFor(def.range));
+    const index = plateauIndex(v, def.range, toleranceFor(def.range, def.unit));
     per[def.id] = { deviation: dev, index, inRange: dev === 0 };
     if (def.weight > 0) {
       num += def.weight * index;
@@ -357,27 +405,35 @@ export function findIssues(P: SidePoints, facing: "left" | "right"): SideIssue[]
   return issues;
 }
 
-export function analyzeSideView(points: SidePoints, config: Partial<SideViewConfig> = {}): SideViewResult {
+export function analyzeSideView(rawPoints: SidePoints, config: Partial<SideViewConfig> = {}): SideViewResult {
   const cfg = { ...SIDE_DEFAULT_CONFIG, ...config };
+  const tiltDeg = referenceTilt(rawPoints, cfg.reference);
+  // every measurement is taken in the anatomical frame (horizontal = reference axis)
+  const points = toReferenceFrame(rawPoints, tiltDeg);
   const facing = detectFacing(points);
   const ax: 1 | -1 = facing === "left" ? -1 : 1;
   const issues = findIssues(points, facing);
   const analyzable = !issues.some((i) => i.severity === "error");
   const faceHeightPx = Math.abs(points.glabella.y - points.menton.y);
   const sigmaPx = Math.max(1.5, 0.004 * faceHeightPx);
-  const assumptionCodes: SideAssumptionCode[] = ["manualPlacement", "imageVertical", "proxies", "separateFromFrontal"];
+  const kind = cfg.reference?.kind ?? "image";
+  const axisCode: SideAssumptionCode = kind === "frankfort" ? "frankfortHorizontal" : kind === "manual" ? "manualAxis" : "imageVertical";
+  const assumptionCodes: SideAssumptionCode[] = ["manualPlacement", axisCode, "proxies", "separateFromFrontal"];
+  const reference: SideViewResult["reference"] = { kind, tiltDeg, ...(cfg.reference?.kind === "frankfort" ? { orbitale: cfg.reference.orbitale } : {}) };
 
   if (!analyzable) {
     // unsuitable placements never yield seemingly precise values
     return {
       engineVersion: SIDE_VIEW_VERSION, facing, analyzable: false,
       measurements: SIDE_DEFINITIONS.map((d) => ({ id: d.id, value: null, inRange: null, deviation: null, index: null, valueSigma: null, intermediate: {} })),
-      score: null, scoreSigma: null, scoredCount: 0, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: 0, sigmaPx },
+      score: null, scoreSigma: null, scoredCount: 0, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: 0, sigmaPx }, reference,
     };
   }
 
   const values = computeValues(points, ax);
-  const { score, scoredCount, per } = scoreOf(values);
+  const scored = scoreOf(values);
+  let score = scored.score;
+  const { scoredCount, per } = scored;
 
   // Monte-Carlo placement jitter (deterministic seed) → σ per value and for the score
   let scoreSigma: number | null = null;
@@ -390,6 +446,7 @@ export function analyzeSideView(points: SidePoints, config: Partial<SideViewConf
     for (let s = 0; s < samples; s++) {
       const jittered = {} as SidePoints;
       for (const id of SIDE_LANDMARK_ORDER) jittered[id] = { x: points[id].x + gaussian(rng) * sigmaPx, y: points[id].y + gaussian(rng) * sigmaPx };
+      // (jitter is isotropic, so jittering in the reference frame is equivalent to jittering the raw points)
       const v = computeValues(jittered, ax);
       const sc = scoreOf(v).score;
       if (sc != null) scores.push(sc);
@@ -399,17 +456,36 @@ export function analyzeSideView(points: SidePoints, config: Partial<SideViewConf
     for (const d of SIDE_DEFINITIONS) sigmas[d.id] = stddev(series[d.id] ?? []);
   }
 
-  const measurements: SideMeasurementResult[] = SIDE_DEFINITIONS.map((d) => ({
-    id: d.id,
-    value: Number.isFinite(values[d.id].value) ? values[d.id].value : null,
-    inRange: per[d.id].inRange,
-    deviation: per[d.id].deviation,
-    index: per[d.id].index,
-    valueSigma: sigmas[d.id] ?? null,
-    intermediate: values[d.id].intermediate,
-  }));
+  const measurements: SideMeasurementResult[] = SIDE_DEFINITIONS.map((d) => {
+    const v = values[d.id].value;
+    const sig = sigmas[d.id];
+    // engine 2.0: expectation of the index over the placement uncertainty
+    const index = d.range && Number.isFinite(v) && sig ? expectedIndex(v, sig, d.range, toleranceFor(d.range, d.unit)) : per[d.id].index;
+    return {
+      id: d.id,
+      value: Number.isFinite(v) ? v : null,
+      inRange: per[d.id].inRange,
+      deviation: per[d.id].deviation,
+      index,
+      valueSigma: sig ?? null,
+      intermediate: values[d.id].intermediate,
+    };
+  });
+  // the score follows the uncertainty-aware indices
+  {
+    let num = 0;
+    let den = 0;
+    for (const d of SIDE_DEFINITIONS) {
+      const m = measurements.find((x) => x.id === d.id);
+      if (d.weight > 0 && m?.index != null) {
+        num += d.weight * m.index;
+        den += d.weight;
+      }
+    }
+    if (den > 0) score = num / den;
+  }
 
-  return { engineVersion: SIDE_VIEW_VERSION, facing, analyzable: true, measurements, score, scoreSigma, scoredCount, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: samples >= 4 ? samples : 0, sigmaPx } };
+  return { engineVersion: SIDE_VIEW_VERSION, facing, analyzable: true, measurements, score, scoreSigma, scoredCount, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: samples >= 4 ? samples : 0, sigmaPx }, reference };
 }
 
 export function formatSideValue(id: SideMeasurementId, v: number | null | undefined): string {

@@ -7,10 +7,11 @@
  * boundaries (T2–T5) are therefore `null` everywhere and are never invented.
  */
 import type { AdditionalMeasurementDefinition, CategoryId, RatioDefinition, RatioId, T1Range } from "../types";
+import { dispersionOf } from "../scoring/measurement";
 
 const SOURCE = "Ultimate Facial Harmony guide (community reference, as provided)";
 
-/** Tolerance rule for the PSL ARENA harmony index — see docs/SCORING.md. */
+/** Engine 1.x tolerance rule (kept for reference and for results stored by engine 1.x) — see docs/SCORING.md. */
 export function toleranceFor(t1: T1Range): number {
   if (t1.min !== null && t1.max !== null) {
     const target = (t1.min + t1.max) / 2;
@@ -37,7 +38,8 @@ function def(d: Draft): RatioDefinition {
   return {
     ...d,
     target: targetFor(d.t1),
-    tolerance: toleranceFor(d.t1),
+    // engine 2.0: the dispersion unit s (natural between-person spread) replaces the 10 %-of-target tolerance
+    tolerance: dispersionOf(d.id, d.t1).s,
     tierBoundaries: null,
     source: SOURCE,
     weight: d.weight ?? 1,
@@ -500,6 +502,13 @@ export const ADDITIONAL_DEFINITIONS: AdditionalMeasurementDefinition[] = [
     description: "Additional visual measurement; raw values documented only.",
     methodology: "Raw distance nose tip → menton reported relative to IPD and to the lower third; no formula or target defined, no scoring.",
     limitations: ["Undefined formula and target; raw value only."], landmarks: ["pronasale", "menton", "subnasale"],
+  },
+  {
+    id: "EML", name: "Eye–Mouth Length Ratio", unit: "ratio", referenceValue: ".36–.37 (Pallett et al. 2010)", status: "measurable",
+    description: "Vertical distance from the pupil line to the mouth (stomion) over the face length from hairline to chin.",
+    methodology: "Aligned (pose-normalised) frame; pupil midpoint height to stomion height divided by trichion-to-menton height. Scored in rubric 2.0 (criterion eyeMouthLength) with the published dispersion .017.",
+    limitations: ["Preference data from white female faces only (Pallett et al. 2010).", "Depends on the estimated or confirmed hairline.", "Mouth opening moves the stomion."],
+    landmarks: ["pupil_R", "pupil_L", "stomion", "trichion", "menton"],
   },
 ];
 

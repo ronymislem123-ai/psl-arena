@@ -19,13 +19,23 @@ PSL ARENA keeps **two clearly separated scoring layers** on top of the measured 
   * the **coverage-adjusted T1 rate** = T1 count / evaluable count — explicitly labelled, never presented as the original percentage,
   * counts of unavailable, incomplete-definition, excluded and low-confidence ratios.
 
-## 2. PSL ARENA harmony index (per ratio, 0–100)
+## 2. Measure index (per ratio, 0–100) — engine 2.0
 
-A continuous, documented alternative that uses the T1 ranges only:
+A continuous index that uses the T1 ranges and the natural between-person spread:
 
-* `deviation` = distance outside the T1 range (0 inside).
-* `tolerance` per ratio = `max(10 % of the T1 midpoint, half the T1 width)`; for one-sided ranges (CBS > 80 %) `10 % of the bound`. Tolerances are stored in the database (`toleranceFor`).
-* `index = 100 · 2^(−deviation / tolerance)` — 100 inside T1, 50 one tolerance unit outside, 25 two units outside, …
+* `d` = distance outside the T1 range (0 inside).
+* `s` = **dispersion unit** of the ratio (`scoring/measurement.ts`): from published
+  coefficients of variation of the underlying distances (Fang et al. 2011 and others,
+  combined for ratios with ρ = 0.5), otherwise a documented convention (CV .07).
+* `index = 100 · exp(−½ (d/s)²)` — 100 inside T1, 61 one unit outside, 14 two units
+  outside. After the Monte-Carlo the reported index is the **expectation over the
+  value's measurement σ** (Simpson integration), so a value near a range boundary is
+  not scored as if it were exact.
+* Every ratio carries an **evidence status** (`evidenceOf`): *supported*,
+  *convention*, *contradicted* (FWHR) or *constructMismatch* (JWHR, ET, DEV CT/ET,
+  ICD/N). The last two are measured and shown but never scored (`docs/RUBRIC.md`).
+* Engine 1.x used `100 · 2^(−d/tolerance)` with tolerance = max(10 % of the target,
+  half the width); kept as `toleranceFor()` for reference.
 
 ## 3. Confidence per ratio (0–1)
 
@@ -64,8 +74,8 @@ Every ratio belongs to exactly **one** category (no double counting):
 * **Harmony index** (flat) = the same weighted mean over *all* available ratios.
 * **Proportion score** = category-weight-weighted mean of the available category indices (weights renormalised over covered categories; coverage is reported).
 * **Facial structure score** (display only) = 0.4 jawline + 0.3 midface + 0.3 structure.
-* **Symmetry score** = mean of per-metric scores `100·exp(−ln2·asymmetry/tolerance)` over bilateral landmark comparisons (eye opening, fissure length, canthal tilt, canthus height, brow height/tilt, mouth-corner height/width, nose-tip and alar offsets, chin, gonion width/height, cheek width) relative to a midline fitted from pair midpoints and midline landmarks. Symmetry confidence falls with yaw.
-* **Overall PSL-style score** = 0.8 × proportion + 0.2 × symmetry.
+* **Symmetry score** = mean of per-metric scores `100·exp(−½(a/s)²)` over 14 bilateral comparisons (eye opening, fissure length, canthal tilt, canthus height, brow height/tilt, mouth-corner height/width, nose-tip and alar offsets, chin, gonion width/height, cheek width) in the 3D-pose-normalised frame. Engine 2.0 removes the noise floor: |a| measured with noise σ (Monte-Carlo, without the safety factor) becomes √max(a² − σ², 0).
+* **Overall score (engine ≥ 2.0)** = rubric 2.0 hierarchical index of the frontal measures (`scores.rubric`, `docs/RUBRIC.md`): criteria → 7 categories → weighted power mean (p = 0.5). The ratio categories above remain as descriptive groups (battle rounds, overview). Engine 1.x: 0.8 × proportion + 0.2 × symmetry.
 
 Feature observations (section 6 of the brief) reuse these values and are **not** added again. Visual properties (skin, cheekbone definition, jawline definition, chin projection, nasal bridge) are reported as *not determinable* rather than guessed.
 
@@ -75,14 +85,22 @@ Feature observations (section 6 of the brief) reuse these values and are **not**
 
 ## 6. Uncertainty
 
-Monte-Carlo propagation: the 478 mesh points are jittered with Gaussian noise σ = 0.6 % of the face width × (2 − quality score); estimated/manual points get 3×/2× that σ. The full pipeline is re-run N times (default 40, deterministic seed) and the standard deviation of every score, category index, symmetry score and ratio value is reported (`uncertainty`, `valueSigma`, `sigma`).
+Monte-Carlo propagation (default 40 samples, deterministic seed). Engine 2.0 draws
+**correlated** landmark noise from an empirical model of 35 repeated MediaPipe
+detections (`landmarks/noise-model.ts`: 14 principal components + residual,
+mirror-augmented), scaled by the face's IPD × safety factor 1.5 × image-quality
+factor (1–2). Manual points (hairline, neck, corrected landmarks) get their own
+placement σ. Every sample re-runs the full pipeline; the SD of every score,
+category, ratio value and symmetry metric is reported, and the per-sample index of
+every frontal measure is stored (`uncertainty.measureSamples`) so the PSL rater can
+replay the samples through its own aggregation. Validation: `docs/MODEL_VALIDATION.md`.
 
 ## 7. Battle rules
 
 * Rounds: Facial Harmony, Eye Area, Midface, Nose, Lips, Jawline, Lower Third, Facial Structure, Symmetry.
 * Round margin = 1 + 1.96·√(σA² + σB²) (fallback σ = (1 − confidence)·8 when no simulation). |diff| ≤ margin ⇒ draw.
 * Verdict (overall score, same margin rule):
-  * *inconclusive* if an image is not analyzable, an overall score is missing, coverage < 50 % on either side, or confidence < 0.35 on either side;
+  * *inconclusive* if an image is not analyzable, the analyses come from different engine generations, an overall score is missing, coverage < 50 % on either side, or confidence < 0.35 on either side;
   * *draw* if |ΔOverall| ≤ margin;
   * otherwise the higher overall score wins.
 * Key differences: ratios available on both sides with the largest index deltas (≥ 5).

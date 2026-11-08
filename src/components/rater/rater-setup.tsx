@@ -18,7 +18,7 @@ import { DEFAULT_MIN_COVERAGE } from "@/engine/psl/rubric";
 import { BUILTIN_SCALE_ID, type PslScale } from "@/engine/psl/scale";
 import type { CaptureDistance } from "@/engine/types";
 import { api } from "@/lib/api";
-import { useRaterSetup } from "@/lib/battle-store";
+import { slotManual, useRaterSetup } from "@/lib/battle-store";
 import { useT } from "@/lib/i18n";
 import { rememberSessionImage } from "@/lib/session-images";
 import { useSettings } from "@/lib/settings";
@@ -91,7 +91,7 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
       const common = { scaleId, minCoverage, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const } };
       let res;
       if (mode === "upload") {
-        const input = buildAnalysisInput(slot.prep!, slot.faceIndex, { includeReconstructed: s.config.includeReconstructed, captureDistance: s.config.captureDistance, uncertaintySamples: 40, seed: 20251106 }, { trichion: slot.trichion, trichionConfirmed: slot.trichionConfirmed, neck: slot.neck });
+        const input = buildAnalysisInput(slot.prep!, slot.faceIndex, { includeReconstructed: s.config.includeReconstructed, captureDistance: s.config.captureDistance, uncertaintySamples: 40, seed: 20251106 }, slotManual(slot));
         res = await api.createRating({ ...common, newAnalysis: { profileLabel: slot.label.trim() || undefined, imageDataUrl: s.config.storeImages ? slot.prep!.image.dataUrl : undefined, storeImage: s.config.storeImages, input }, sideAnalysisId: null });
         if (res.rating.analysisId) rememberSessionImage(res.rating.analysisId, slot.prep!.image.dataUrl);
         s.reset();

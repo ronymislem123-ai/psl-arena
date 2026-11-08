@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, levelTone } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/controls";
 import { LandmarkCanvas, LAYERS, type LayerId } from "@/components/viz/landmark-canvas";
+import { CapturePanel } from "@/components/shared/capture-panel";
 import { useBattleSetup, type SetupStore, type Side } from "@/lib/battle-store";
 import { useT } from "@/lib/i18n";
 import { issueText, metricText } from "@/lib/i18n/engine-text";
@@ -14,7 +15,7 @@ import { cn, fmt } from "@/lib/utils";
 export function UploadSlot({ side, store = useBattleSetup, title: titleOverride }: { side: Side; store?: SetupStore; title?: string }) {
   const { t, lang } = useT();
   const slot = store((s) => s[side]);
-  const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, setNeck, setNeckPlacing } = store();
+  const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, setNeck, setNeckPlacing, setCorrecting, moveLandmark, setAxisAdjust, resetCorrections } = store();
   const showMeshDefault = useSettings((s) => s.showMeshByDefault);
   const [layer, setLayer] = useState<LayerId>("landmarks");
   const [showMesh, setShowMesh] = useState(showMeshDefault);
@@ -100,6 +101,7 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
   const q = preview?.quality;
   const est = prep.hairline[slot.faceIndex];
   const hasTrichion = !!preview?.landmarks.find((l) => l.id === "trichion");
+  const nCorrected = Object.keys(slot.corrections.landmarks ?? {}).length;
 
   return (
     <div className="glass rounded-2xl p-4 md:p-5 h-full flex flex-col gap-4" data-testid={`slot-${side}`} data-ready="true" data-state={q ? (q.analyzable ? "analyzable" : "unusable") : "pending"}>
@@ -148,6 +150,8 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
             neckPlacing: slot.neckPlacing,
             onTrichionChange: (p) => setTrichion(side, p),
             onNeckChange: (pts) => setNeck(side, pts),
+            landmarks: slot.correcting,
+            onLandmarkMove: (id, p) => moveLandmark(side, id, p),
           }}
         />
       )}
@@ -208,6 +212,32 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
         </div>
       </div>
 
+      {/* manual landmark / axis correction */}
+      <div className="rounded-xl border border-line bg-bg-1/50 p-3 space-y-2" data-testid={`correct-${side}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-medium uppercase tracking-wider text-fg-2">{t("upload.correct")}</div>
+          {nCorrected + (slot.corrections.axisAdjustDeg ? 1 : 0) > 0 && <Badge tone="rose">{t("upload.correctedN", { n: nCorrected })}{slot.corrections.axisAdjustDeg ? ` · ${slot.corrections.axisAdjustDeg > 0 ? "+" : ""}${slot.corrections.axisAdjustDeg.toFixed(1)}°` : ""}</Badge>}
+        </div>
+        <p className="text-xs text-fg-3">{t("upload.correctHint")}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant={slot.correcting ? "primary" : "outline"} onClick={() => setCorrecting(side, !slot.correcting)} data-testid={`correct-toggle-${side}`}>
+            {slot.correcting ? t("upload.correctOff") : t("upload.correctOn")}
+          </Button>
+          {(nCorrected > 0 || !!slot.corrections.axisAdjustDeg) && (
+            <Button size="sm" variant="ghost" onClick={() => resetCorrections(side)}>
+              {t("upload.resetCorrections")}
+            </Button>
+          )}
+        </div>
+        {slot.correcting && (
+          <label className="block text-xs text-fg-2">
+            <span className="flex justify-between"><span>{t("upload.axisAdjust")}</span><span className="font-mono num">{(slot.corrections.axisAdjustDeg ?? 0).toFixed(1)}°</span></span>
+            <input type="range" min={-15} max={15} step={0.5} value={slot.corrections.axisAdjustDeg ?? 0} onChange={(e) => setAxisAdjust(side, Number(e.target.value))} className="w-full accent-[#f0506e]" aria-label={t("upload.axisAdjust")} data-testid={`axis-${side}`} />
+            <span className="text-[11px] text-fg-3">{t("upload.axisAdjustHint")}</span>
+          </label>
+        )}
+      </div>
+
       {/* quality */}
       {q && (
         <div className="rounded-xl border border-line bg-bg-1/50 p-3 space-y-2">
@@ -243,6 +273,8 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
           )}
         </div>
       )}
+
+      {q && <CapturePanel capture={q.capture} compact />}
 
       {/* preview score — never shown for unusable images (no seemingly precise values) */}
       {preview && (

@@ -15,8 +15,8 @@ import { landmarkLabel, landmarkNote } from "@/lib/i18n/ratio-texts";
 import type { AnalysisResult, LandmarkMap, Point, RatioId, SemanticLandmark, SemanticLandmarkId } from "@/engine/types";
 import { cn } from "@/lib/utils";
 
-export type LayerId = "landmarks" | "eyes" | "brows" | "midface" | "nose" | "mouth" | "jaw" | "thirds" | "ratios" | "symmetry";
-export const LAYERS: LayerId[] = ["landmarks", "eyes", "brows", "midface", "nose", "mouth", "jaw", "thirds", "ratios", "symmetry"];
+export type LayerId = "landmarks" | "axes" | "eyes" | "brows" | "midface" | "nose" | "mouth" | "jaw" | "thirds" | "ratios" | "symmetry";
+export const LAYERS: LayerId[] = ["landmarks", "axes", "eyes", "brows", "midface", "nose", "mouth", "jaw", "thirds", "ratios", "symmetry"];
 
 export interface EditProps {
   trichion?: boolean;
@@ -24,6 +24,9 @@ export interface EditProps {
   neckPlacing?: boolean;
   onTrichionChange?: (p: Point) => void;
   onNeckChange?: (pts: { right: Point; left: Point }) => void;
+  /** engine 2.0: drag any semantic landmark to correct it */
+  landmarks?: boolean;
+  onLandmarkMove?: (id: SemanticLandmarkId, p: Point) => void;
 }
 
 interface Props {
@@ -31,7 +34,7 @@ interface Props {
   imageSrc: string | null;
   width: number;
   height: number;
-  result: Pick<AnalysisResult, "landmarks" | "mesh" | "ratios" | "symmetry">;
+  result: Pick<AnalysisResult, "landmarks" | "mesh" | "ratios" | "symmetry"> & { quality?: Pick<AnalysisResult["quality"], "pose"> };
   layer: LayerId;
   showMesh?: boolean;
   scanning?: boolean;
@@ -59,6 +62,7 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
   const { lang } = useT();
   const [hover, setHover] = useState<SemanticLandmarkId | null>(null);
   const [drag, setDrag] = useState(false);
+  const [dragId, setDragId] = useState<SemanticLandmarkId | null>(null);
   const [neckFirst, setNeckFirst] = useState<Point | null>(null);
 
   const L = useMemo(() => Object.fromEntries(result.landmarks.map((l) => [l.id, l])) as Partial<Record<SemanticLandmarkId, SemanticLandmark>>, [result.landmarks]);
@@ -67,7 +71,9 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
   const S = Math.max(width, height);
   const dot = S / 260;
   const fs = compact ? S / 38 : S / 48;
-  const roll = (result.mesh.rollDeg * Math.PI) / 180;
+  // horizontal reference = pupil line in the image (valid at any rotation, for 2D and 3D analyses),
+  // plus a manual axis adjustment when the user corrected the reference axis
+  const roll = (raw[468] && raw[473] ? Math.atan2(raw[473].y - raw[468].y, raw[473].x - raw[468].x) : (result.mesh.rollDeg * Math.PI) / 180) + ((result.mesh.axisAdjustDeg ?? 0) * Math.PI) / 180;
   const ux = Math.cos(roll);
   const uy = Math.sin(roll);
   const P = (id: SemanticLandmarkId): Point | undefined => L[id]?.raw;
@@ -273,6 +279,40 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
             {label(P("menton"), value("TFWHR"), C.mint, 0, 1.6, "l6", "middle")}
           </>
         );
+      case "axes": {
+        // anatomical reference axes: horizontal = pupil line, vertical = fitted facial midline, hairline reference,
+        // and the face direction from the head pose. They rotate with the face at any angle.
+        const pr = P("pupil_R");
+        const pl = P("pupil_L");
+        const pivot = mid(pr, pl) ?? result.mesh.pivot;
+        const mx = pr && pl ? midlineX(L as LandmarkMap) : null;
+        const pv = result.mesh.pivot;
+        const midRaw = mx == null ? pivot : { x: pv.x + (mx - pv.x) * ux, y: pv.y + (mx - pv.x) * uy };
+        const pose = result.mesh.pose3d ?? result.quality?.pose ?? { yaw: 0, pitch: 0, roll: result.mesh.rollDeg };
+        const method = result.mesh.method ?? "2d";
+        const tip = P("pronasale");
+        const yawR = (pose.yaw * Math.PI) / 180;
+        const pitchR = (pose.pitch * Math.PI) / 180;
+        const fx = Math.sin(yawR);
+        const fy = -Math.sin(pitchR);
+        const len = faceHalf * 1.6;
+        const dir = tip ? { x: tip.x + (fx * ux - fy * uy) * len, y: tip.y + (fx * uy + fy * ux) * len } : undefined;
+        const tri = P("trichion");
+        const down = (p: Point | undefined, d: number) => (p ? { x: p.x - uy * d, y: p.y + ux * d } : undefined);
+        return (
+          <g data-testid="layer-axes" data-method={method} data-roll={((roll * 180) / Math.PI).toFixed(1)}>
+            {hline(pivot, faceHalf * 1.3, C.violet, "7 4", "h")}
+            {label(pivot ? { x: pivot.x + ux * faceHalf * 1.32, y: pivot.y + uy * faceHalf * 1.32 } : undefined, "H", C.violet, 0.3, 0.35, "hl")}
+            {vline(midRaw, faceHalf * 1.9, C.cyan, "7 4", "v")}
+            {label(down(midRaw, faceHalf * 1.95), "V", C.cyan, 0, 0.9, "vl", "middle")}
+            {tri && hline(tri, faceHalf * 0.9, C.amber, "4 4", "t")}
+            {tri && label({ x: tri.x + ux * faceHalf * 0.92, y: tri.y + uy * faceHalf * 0.92 }, "trichion", C.amber, 0.3, 0.35, "tl")}
+            {tip && dir && line(tip, dir, C.mint, undefined, 2, "dir")}
+            {dir && <circle cx={dir.x} cy={dir.y} r={dot * 1.4} fill={C.mint} />}
+            {label(down(P("menton"), faceHalf * 0.15), `yaw ${pose.yaw.toFixed(1)}° · pitch ${pose.pitch.toFixed(1)}° · roll ${((roll * 180) / Math.PI).toFixed(1)}° · ${method === "3d" ? "3D pose correction" : "2D roll correction"}`, C.white, 0, 1.4, "pose", "middle")}
+          </g>
+        );
+      }
       case "symmetry": {
         const pr = P("pupil_R");
         const pl = P("pupil_L");
@@ -344,6 +384,24 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
       }
       return;
     }
+    if (edit.landmarks) {
+      let best: SemanticLandmark | null = null;
+      let bd = S * 0.035;
+      for (const l of visibleLandmarks) {
+        if (l.id === "trichion" || l.id === "neck_R" || l.id === "neck_L") continue;
+        const d = Math.hypot(p.x - l.raw.x, p.y - l.raw.y);
+        if (d < bd) {
+          bd = d;
+          best = l;
+        }
+      }
+      if (best) {
+        setDragId(best.id);
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        onSelect?.(best);
+        return;
+      }
+    }
     if (edit.trichion && tri) {
       const d = Math.hypot(p.x - tri.x, p.y - tri.y);
       if (d < S * 0.06 || !P("trichion")) {
@@ -354,11 +412,19 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
     }
   };
   const onPointerMove = (e: RPointerEvent<SVGSVGElement>) => {
+    if (dragId) {
+      const p = toSvg(e);
+      if (p) edit?.onLandmarkMove?.(dragId, p);
+      return;
+    }
     if (!drag) return;
     const p = toSvg(e);
     if (p) edit?.onTrichionChange?.(p);
   };
-  const onPointerUp = () => setDrag(false);
+  const onPointerUp = () => {
+    setDrag(false);
+    setDragId(null);
+  };
 
   const hovered = hover ? L[hover] : null;
   const selected = selectedId ? L[selectedId] : null;
@@ -381,7 +447,7 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
         ref={svgRef}
         data-testid="landmark-canvas"
         viewBox={`0 0 ${width} ${height}`}
-        className={cn("absolute inset-0 w-full h-full", edit?.trichion || edit?.neckPlacing ? "cursor-crosshair touch-none" : "")}
+        className={cn("absolute inset-0 w-full h-full", edit?.trichion || edit?.neckPlacing || edit?.landmarks ? "cursor-crosshair touch-none" : "")}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -390,8 +456,14 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
         {!imageSrc && poly(FACE_OVAL, "#ffffff2e", true, 1, "wire-oval")}
         {(showMesh || !imageSrc) && raw.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={dot * 0.45} fill={C.cyan} opacity={imageSrc ? 0.45 : 0.3} />)}
         {layerSvg}
+        {result.landmarks.filter((l) => l.corrected && l.originalRaw).map((l) => (
+          <g key={`corr-${l.id}`} data-testid="corrected-landmark">
+            <line x1={l.originalRaw!.x} y1={l.originalRaw!.y} x2={l.raw.x} y2={l.raw.y} stroke={C.rose} strokeWidth={1.2} strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />
+            <circle cx={l.originalRaw!.x} cy={l.originalRaw!.y} r={dot * 0.7} fill="none" stroke={C.rose} strokeWidth={1} vectorEffect="non-scaling-stroke" opacity={0.8} />
+          </g>
+        ))}
         {visibleLandmarks.map((l) => {
-          const hl = highlight?.includes(l.id) || selectedId === l.id;
+          const hl = highlight?.includes(l.id) || selectedId === l.id || dragId === l.id;
           const low = l.precision === "low" || l.source === "estimated";
           return (
             <g key={l.id}>

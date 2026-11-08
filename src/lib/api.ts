@@ -1,6 +1,6 @@
 "use client";
 import type { AnalysisInput } from "@/engine/types";
-import type { SidePoints } from "@/engine/side-view";
+import type { SidePoints, SideReference } from "@/engine/side-view";
 import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow, SideAnalysisRecord, SideAnalysisSummary } from "@/server/repos";
 import type { RatingRecord, RatingSummary, ScaleInput, ScaleSummary, TournamentRecord, TournamentSummary, TournamentVersionRow } from "@/server/repos-psl";
 import type { PslScale, ScaleExport } from "@/engine/psl/scale";
@@ -28,6 +28,7 @@ export const api = {
     imageWidth: number;
     imageHeight: number;
     points: SidePoints;
+    reference?: SideReference;
   }) => request<{ sideAnalysis: SideAnalysisRecord }>("/api/side-analyses", { method: "POST", body: JSON.stringify(payload) }),
   listSideAnalyses: (profileId?: string) => request<{ sideAnalyses: SideAnalysisSummary[] }>(`/api/side-analyses${profileId ? `?profileId=${profileId}` : ""}`),
   deleteSideAnalysis: (id: string) => request<{ deleted: boolean }>(`/api/side-analyses/${id}`, { method: "DELETE" }),

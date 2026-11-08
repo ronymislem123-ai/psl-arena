@@ -126,7 +126,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await expect(page.getByText("Overall assessment")).toBeVisible();
     await expect(page.getByText("Analysis quality")).toBeVisible();
     await expect(page.getByText(/does not determine a person/)).toBeVisible();
-    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(41);
+    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(40);
     await expect(page.getByTestId("scale-marker")).toBeVisible();
     await expect(page.getByTestId("rating-areas")).toBeVisible();
     await page.waitForTimeout(1500);
@@ -139,7 +139,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     expect(a.score).toBeLessThan(10);
     // the stored rating carries the scale snapshot and rubric version
     const rec = (await (await page.request.get(`/api/ratings/${a.id}`)).json()).rating;
-    expect(rec.rubricVersion).toBe("1.0.0");
+    expect(rec.rubricVersion).toBe("2.0.0");
     expect(rec.scaleSnapshot.tiers.length).toBe(21);
     expect(rec.result.criteria.filter((c: { assessable: boolean }) => c.assessable).length).toBeGreaterThan(20);
     expect(rec.result.notAssessable.some((n: { code: string }) => n.code === "requiresProfile")).toBe(true);
@@ -173,7 +173,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.getByTestId("rating-copy").click();
     const text = await page.evaluate(() => navigator.clipboard.readText());
-    expect(text).toMatch(/PSL Score: \d\.\d \/ 10/);
+    expect(text).toMatch(/PSL Score: \d\.\d+( ± \d\.\d+)? \/ 10/);
     expect(text).toMatch(/Tier: /);
     expect(text).toContain("Reasoning:");
     expect(text).toContain("Strengths:");

@@ -64,6 +64,10 @@ export function resolveBattle(A: AnalysisResult, B: AnalysisResult): BattleResul
     verdict = "inconclusive";
     verdictCode = "qualityFailed";
     reason = "At least one image failed the quality check; no verdict is possible.";
+  } else if (Number.parseInt(A.engineVersion, 10) !== Number.parseInt(B.engineVersion, 10)) {
+    verdict = "inconclusive";
+    verdictCode = "engineMismatch";
+    reason = `The analyses come from different engine generations (${A.engineVersion} vs ${B.engineVersion}) whose scores are not comparable; re-analyse the older photo.`;
   } else if (overallA == null || overallB == null) {
     verdict = "inconclusive";
     verdictCode = "noOverall";

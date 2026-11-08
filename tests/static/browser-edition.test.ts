@@ -6,6 +6,7 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import initSqlJs from "sql.js";
 import { inputFromFixture, loadFixture } from "../unit/helpers";
+import { CRITERIA } from "@/engine/psl/rubric";
 
 const db = await import("@/server/db");
 const runtime = await import("@/static/runtime");
@@ -92,7 +93,7 @@ describe("route handlers in the page", () => {
     const scales = await call<{ scales: { builtIn: boolean; tierCount: number }[] }>("/api/scales");
     expect(scales.data.scales[0]).toMatchObject({ builtIn: true, tierCount: 21 });
     const rubric = await call<{ criteria: unknown[] }>("/api/rubric");
-    expect(rubric.data.criteria).toHaveLength(41);
+    expect(rubric.data.criteria).toHaveLength(CRITERIA.length);
   });
 
   it("creates an analysis with a stored image (blob in SQLite) and rates it", async () => {

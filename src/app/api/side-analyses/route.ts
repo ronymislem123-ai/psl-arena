@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       imageWidth: body.imageWidth,
       imageHeight: body.imageHeight,
       points: body.points,
+      reference: body.reference,
     });
     return ok({ sideAnalysis: record }, { status: 201 });
   } catch (e) {

@@ -4,7 +4,7 @@ import { getLandmarker } from "./landmarker";
 
 export interface DetectedFace {
   index: number;
-  /** 478 mesh points in image pixels */
+  /** 478 mesh points in image pixels (z = relative depth in pixels, larger = further away) */
   mesh: Point[];
   box: { x: number; y: number; w: number; h: number };
   blendshapes: Record<string, number>;
@@ -17,7 +17,7 @@ export async function detectFaces(canvas: HTMLCanvasElement): Promise<DetectedFa
   const W = canvas.width;
   const H = canvas.height;
   const faces: DetectedFace[] = res.faceLandmarks.map((pts, i) => {
-    const mesh = pts.map((p) => ({ x: p.x * W, y: p.y * H }));
+    const mesh = pts.map((p) => ({ x: p.x * W, y: p.y * H, z: p.z * W }));
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of mesh) {
       if (p.x < minX) minX = p.x;

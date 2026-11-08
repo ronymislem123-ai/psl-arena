@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeFace } from "@/engine/analysis";
 import { compareRatings, progressSeries, type CompareItem } from "@/engine/psl/compare";
 import { rateFace, type RatingResult } from "@/engine/psl/rating";
+import { CRITERIA } from "@/engine/psl/rubric";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
 import { analyzeSideView } from "@/engine/side-view";
 import { inputFromFixture, loadFixture } from "./helpers";
@@ -12,7 +13,7 @@ const frontal = analyzeFace(inputFromFixture(loadFixture("ai-face")));
 const other = analyzeFace(inputFromFixture(loadFixture("obama")));
 const base = rateFace({ frontal, scale });
 const withSide = rateFace({ frontal, side: analyzeSideView(PROFILE), scale });
-const noHair = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null })), scale });
+const noHair = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null })), scale, minCoverage: 0.78 });
 const otherRating = rateFace({ frontal: other, scale });
 const item = (id: string, result: RatingResult, createdAt: string, label = id): CompareItem => ({ id, label, createdAt, result });
 
@@ -23,7 +24,7 @@ describe("compareRatings", () => {
     expect(c.comparable).toBe(true);
     expect(c.warnings).toEqual([]);
     expect(c.scoreDeltas).toEqual([0, 0]);
-    expect(c.criteria).toHaveLength(41);
+    expect(c.criteria).toHaveLength(CRITERIA.length);
     expect(c.criteria.every((r) => r.deltas.every((d) => d === 0 || d === null))).toBe(true);
     expect(c.gains).toEqual([]);
     expect(c.losses).toEqual([]);

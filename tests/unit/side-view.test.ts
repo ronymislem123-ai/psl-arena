@@ -44,11 +44,12 @@ describe("side-view database", () => {
     expect(SIDE_BY_ID.GA.range).toEqual({ min: 115, max: 130 });
   });
 
-  it("applies the app tolerance rule (10 % of the midpoint or half the width)", () => {
-    expect(toleranceFor({ min: 115, max: 130 })).toBeCloseTo(12.25, 5);
-    expect(toleranceFor({ min: 7, max: 15 })).toBe(4);
-    expect(toleranceFor({ min: 50, max: 50 })).toBe(5); // point target
-    expect(toleranceFor({ min: 0.55, max: 0.6 })).toBeCloseTo(0.0575, 5);
+  it("uses half the range (≈ 1 SD for mean ± SD norms) as dispersion unit, with unit-specific floors", () => {
+    expect(toleranceFor({ min: 115, max: 130 }, "degrees")).toBeCloseTo(7.5, 9);
+    expect(toleranceFor({ min: 7, max: 15 }, "degrees")).toBe(4);
+    expect(toleranceFor({ min: 50, max: 50 }, "percent")).toBe(2); // point target → floor
+    expect(toleranceFor({ min: 0.55, max: 0.6 }, "ratio")).toBeCloseTo(0.02875, 9); // 5 % of 0.575 > half width 0.025
+    expect(toleranceFor({ min: 2, max: 2 }, "ratio")).toBeCloseTo(0.1, 9);
   });
 
   it("formats values and ranges by unit", () => {
@@ -110,7 +111,9 @@ describe("side-view measurements (hand-computed on the synthetic profile)", () =
       } else {
         expect(m.index, m.id).not.toBeNull();
         expect(m.inRange, m.id).toBe(m.deviation === 0);
-        if (m.inRange) expect(m.index).toBe(100);
+        // reported index = expectation over the placement uncertainty: inside ≤ 100, outside < 100
+        expect(m.index!).toBeLessThanOrEqual(100);
+        if (m.inRange) expect(m.index!).toBeGreaterThan(40);
         else expect(m.index!).toBeLessThan(100);
       }
     }
@@ -184,5 +187,38 @@ describe("side-view placement check", () => {
     const tiny = analyzeSideView(transform(PROFILE, (p) => ({ x: p.x * 0.3, y: p.y * 0.3 })));
     expect(tiny.issues).toContainEqual({ code: "lowResolution", severity: "warning" });
     expect(tiny.uncertainty.sigmaPx).toBe(1.5); // floor
+  });
+});
+
+describe("anatomical reference axis (side view)", () => {
+  const rotate = (pts: Record<string, { x: number; y: number }>, deg: number, c = { x: 300, y: 300 }) => {
+    const r = (deg * Math.PI) / 180;
+    return Object.fromEntries(Object.entries(pts).map(([k, p]) => [k, { x: c.x + (p.x - c.x) * Math.cos(r) - (p.y - c.y) * Math.sin(r), y: c.y + (p.x - c.x) * Math.sin(r) + (p.y - c.y) * Math.cos(r) }]));
+  };
+  const orbitale = { x: PROFILE.tragion.x + (PROFILE.pronasale.x - PROFILE.tragion.x) * 0.7, y: PROFILE.tragion.y + 4 };
+  const values = (r: ReturnType<typeof analyzeSideView>) => Object.fromEntries(r.measurements.map((m) => [m.id, m.value]));
+  it("a manual axis matching the photo rotation restores every value", () => {
+    const base = values(analyzeSideView(PROFILE, { uncertaintySamples: 0 }));
+    for (const deg of [-14, 9]) {
+      const rotated = rotate(PROFILE, deg) as typeof PROFILE;
+      const plain = values(analyzeSideView(rotated, { uncertaintySamples: 0 }));
+      const fixed = values(analyzeSideView(rotated, { uncertaintySamples: 0, reference: { kind: "manual", tiltDeg: deg } }));
+      for (const id of Object.keys(base)) expect(fixed[id], id).toBeCloseTo(base[id]!, 6);
+      // the image-vertical variant drifts for the axis-dependent measures, the three-point angles do not
+      expect(Math.abs(plain.ZANG! - base.ZANG!)).toBeGreaterThan(3);
+      expect(plain.NLA).toBeCloseTo(base.NLA!, 6);
+    }
+  });
+  it("the Frankfort horizontal makes values independent of the photo rotation", () => {
+    const ref = analyzeSideView(PROFILE, { uncertaintySamples: 0, reference: { kind: "frankfort", orbitale } });
+    expect(ref.reference?.kind).toBe("frankfort");
+    expect(ref.assumptionCodes).toContain("frankfortHorizontal");
+    for (const deg of [-20, 12]) {
+      const rot = rotate({ ...PROFILE, orbitale }, deg);
+      const { orbitale: o, ...pts } = rot;
+      const r = analyzeSideView(pts as typeof PROFILE, { uncertaintySamples: 0, reference: { kind: "frankfort", orbitale: o } });
+      for (const m of ref.measurements) expect(r.measurements.find((x) => x.id === m.id)!.value, m.id).toBeCloseTo(m.value!, 6);
+      expect(r.reference!.tiltDeg).toBeCloseTo(ref.reference!.tiltDeg + deg, 6);
+    }
   });
 });

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Checkbox, Input, Select, Toggle } from "@/components/ui/controls";
 import { SideCanvas } from "@/components/side/side-canvas";
-import { analyzeSideView, SIDE_LANDMARK_ORDER, type SideLandmarkId, type SidePoints } from "@/engine/side-view";
+import { analyzeSideView, referenceTilt, SIDE_LANDMARK_ORDER, type SideLandmarkId, type SidePoints, type SideReference } from "@/engine/side-view";
 import type { Point } from "@/engine/types";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -55,6 +55,11 @@ export function SidePlacer() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // anatomical reference axis (image axes, soft-tissue Frankfort horizontal via the orbitale, or manual tilt)
+  const [refKind, setRefKind] = useState<SideReference["kind"]>("image");
+  const [orbitale, setOrbitale] = useState<Point | null>(null);
+  const [manualTilt, setManualTilt] = useState(0);
+  const [placingOrbitale, setPlacingOrbitale] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -127,7 +132,9 @@ export function SidePlacer() {
 
   const placedCount = SIDE_LANDMARK_ORDER.filter((id) => points[id]).length;
   const allPlaced = placedCount === TOTAL;
-  const preview = useMemo(() => (allPlaced ? analyzeSideView(points as SidePoints, { uncertaintySamples: 24 }) : null), [allPlaced, points]);
+  const reference: SideReference = refKind === "frankfort" && orbitale ? { kind: "frankfort", orbitale } : refKind === "manual" ? { kind: "manual", tiltDeg: manualTilt } : { kind: "image" };
+  const preview = useMemo(() => (allPlaced ? analyzeSideView(points as SidePoints, { uncertaintySamples: 24, reference }) : null), [allPlaced, points, reference.kind, orbitale, manualTilt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const liveTilt = points.tragion ? referenceTilt(points as Pick<SidePoints, "tragion">, reference) : 0;
   const canSave = !!img && allPlaced && !!preview?.analyzable && rights && adult && !saving;
 
   const save = async () => {
@@ -144,6 +151,7 @@ export function SidePlacer() {
         imageWidth: img.width,
         imageHeight: img.height,
         points: points as SidePoints,
+        reference,
       });
       rememberSessionImage(res.sideAnalysis.id, img.dataUrl);
       router.push(paths.sideView(res.sideAnalysis.id));
@@ -231,13 +239,60 @@ export function SidePlacer() {
                     <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void onFiles(e.target.files)} />
                   </div>
                 </div>
-                <SideCanvas src={img.dataUrl} width={img.width} height={img.height} points={points} result={preview} loupe={loupe} edit={{ current, selected, onPlace: place, onSelect: (id) => setSelected(id) }} />
+                <SideCanvas
+                  src={img.dataUrl}
+                  width={img.width}
+                  height={img.height}
+                  points={points}
+                  result={preview}
+                  loupe={loupe}
+                  reference={{ tiltDeg: liveTilt, orbitale: refKind === "frankfort" ? orbitale : null }}
+                  edit={{
+                    current: placingOrbitale ? null : current,
+                    selected,
+                    onPlace: place,
+                    onSelect: (id) => setSelected(id),
+                    extra: {
+                      active: placingOrbitale,
+                      onPlace: (p) => {
+                        setOrbitale(p);
+                        setPlacingOrbitale(false);
+                      },
+                    },
+                  }}
+                />
                 <p className="text-[11px] text-fg-3">{t("side.nudge")}</p>
               </div>
             )}
           </div>
 
           {preview && (
+            <>
+            <Card data-testid="side-reference">
+              <CardHeader title={t("side.axisTitle")} subtitle={t("side.axisSub")} />
+              <CardBody className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {(["image", "frankfort", "manual"] as const).map((k) => (
+                    <Button key={k} size="sm" variant={refKind === k ? "primary" : "outline"} onClick={() => { setRefKind(k); if (k === "frankfort" && !orbitale) setPlacingOrbitale(true); if (k !== "frankfort") setPlacingOrbitale(false); }} data-testid={`side-axis-${k}`}>
+                      {t(k === "image" ? "side.axisImage" : k === "frankfort" ? "side.axisFrankfort" : "side.axisManual")}
+                    </Button>
+                  ))}
+                </div>
+                {refKind === "frankfort" && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-fg-2">
+                    <span>{placingOrbitale ? t("side.orbitaleClick") : orbitale ? t("side.orbitaleSet") : t("side.orbitaleMissing")}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setPlacingOrbitale(true)} data-testid="side-place-orbitale">{t("side.placeOrbitale")}</Button>
+                  </div>
+                )}
+                {refKind === "manual" && (
+                  <label className="block text-sm text-fg-2">
+                    {t("side.tilt")}: <span className="font-mono text-fg-0">{manualTilt.toFixed(1)}°</span>
+                    <input type="range" min={-30} max={30} step={0.5} value={manualTilt} onChange={(e) => setManualTilt(Number(e.target.value))} className="mt-1 w-full accent-[#a78bfa]" data-testid="side-tilt" />
+                  </label>
+                )}
+                <div className="text-xs text-fg-3" data-testid="side-axis-tilt">{t("side.axisAngle", { deg: liveTilt.toFixed(1) })}</div>
+              </CardBody>
+            </Card>
             <Card data-testid="side-preview" data-state={preview.analyzable ? "analyzable" : "unusable"}>
               <CardHeader title={t("side.preview")} subtitle={preview.analyzable ? t("side.previewSub") : t("side.notUsable")} />
               <CardBody>
@@ -259,6 +314,7 @@ export function SidePlacer() {
                 )}
               </CardBody>
             </Card>
+            </>
           )}
         </div>
 

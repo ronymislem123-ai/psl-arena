@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { analyzeFace } from "@/engine/analysis";
-import type { AnalysisConfig, AnalysisResult, CaptureDistance, Point } from "@/engine/types";
+import type { AnalysisConfig, AnalysisCorrections, AnalysisResult, CaptureDistance, Point, SemanticLandmarkId } from "@/engine/types";
 import { buildAnalysisInput, prepareImage, type PreparedImage } from "@/lib/vision/pipeline";
 import { api } from "@/lib/api";
 import { rememberSessionImage } from "@/lib/session-images";
@@ -21,9 +21,18 @@ export interface SlotState {
   neckPlacing: boolean;
   preview: AnalysisResult | null;
   fileName?: string;
+  /** engine 2.0: manual landmark / reference-axis corrections */
+  corrections: AnalysisCorrections;
+  correcting: boolean;
 }
 
-const emptySlot = (): SlotState => ({ status: "empty", prep: null, faceIndex: 0, label: "", trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, preview: null });
+const noCorrections = (): AnalysisCorrections => ({ landmarks: {}, axisAdjustDeg: 0 });
+const emptySlot = (): SlotState => ({ status: "empty", prep: null, faceIndex: 0, label: "", trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, preview: null, corrections: noCorrections(), correcting: false });
+
+/** Manual adjustments of a slot in the form the input builder expects. */
+export function slotManual(slot: SlotState) {
+  return { trichion: slot.trichion, trichionConfirmed: slot.trichionConfirmed, neck: slot.neck, corrections: slot.corrections };
+}
 
 interface BattleSetup {
   a: SlotState;
@@ -41,6 +50,10 @@ interface BattleSetup {
   resetTrichion: (side: Side) => void;
   setNeck: (side: Side, pts: { right: Point; left: Point } | null) => void;
   setNeckPlacing: (side: Side, v: boolean) => void;
+  setCorrecting: (side: Side, v: boolean) => void;
+  moveLandmark: (side: Side, id: SemanticLandmarkId, p: Point) => void;
+  setAxisAdjust: (side: Side, deg: number) => void;
+  resetCorrections: (side: Side) => void;
   setConfig: (patch: Partial<BattleSetup["config"]>) => void;
   setConsent: (patch: Partial<BattleSetup["consent"]>) => void;
   initConfig: (cfg: Partial<BattleSetup["config"]>) => void;
@@ -55,7 +68,7 @@ function engineConfig(cfg: BattleSetup["config"], samples: number): AnalysisConf
 
 function buildInput(slot: SlotState, cfg: BattleSetup["config"], samples: number) {
   if (!slot.prep) throw new Error("No image");
-  return buildAnalysisInput(slot.prep, slot.faceIndex, engineConfig(cfg, samples), { trichion: slot.trichion, trichionConfirmed: slot.trichionConfirmed, neck: slot.neck });
+  return buildAnalysisInput(slot.prep, slot.faceIndex, engineConfig(cfg, samples), slotManual(slot));
 }
 
 export function createSetupStore() {
@@ -77,7 +90,7 @@ export function createSetupStore() {
         set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
         return;
       }
-      set((s) => ({ [side]: { ...s[side], status: "ready", prep, faceIndex: 0, trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, label: s[side].label || (side === "a" ? "Person 1" : "Person 2") } }));
+      set((s) => ({ [side]: { ...s[side], status: "ready", prep, faceIndex: 0, trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, corrections: noCorrections(), correcting: false, label: s[side].label || (side === "a" ? "Person 1" : "Person 2") } }));
       get().recompute(side);
     } catch (e) {
       set((s) => ({ [side]: { ...s[side], status: "error", error: e instanceof Error ? e.message : String(e), prep: null } }));
@@ -87,7 +100,7 @@ export function createSetupStore() {
   clear: (side) => set({ [side]: emptySlot() }),
   setLabel: (side, label) => set((s) => ({ [side]: { ...s[side], label } })),
   setFaceIndex: (side, i) => {
-    set((s) => ({ [side]: { ...s[side], faceIndex: i, trichion: undefined, trichionConfirmed: false, neck: null } }));
+    set((s) => ({ [side]: { ...s[side], faceIndex: i, trichion: undefined, trichionConfirmed: false, neck: null, corrections: noCorrections(), correcting: false } }));
     get().recompute(side);
   },
   setTrichion: (side, p) => {
@@ -110,6 +123,19 @@ export function createSetupStore() {
     get().recompute(side);
   },
   setNeckPlacing: (side, v) => set((s) => ({ [side]: { ...s[side], neckPlacing: v } })),
+  setCorrecting: (side, v) => set((s) => ({ [side]: { ...s[side], correcting: v, neckPlacing: v ? false : s[side].neckPlacing } })),
+  moveLandmark: (side, id, p) => {
+    set((s) => ({ [side]: { ...s[side], corrections: { ...s[side].corrections, landmarks: { ...s[side].corrections.landmarks, [id]: p } } } }));
+    get().recompute(side);
+  },
+  setAxisAdjust: (side, deg) => {
+    set((s) => ({ [side]: { ...s[side], corrections: { ...s[side].corrections, axisAdjustDeg: deg } } }));
+    get().recompute(side);
+  },
+  resetCorrections: (side) => {
+    set((s) => ({ [side]: { ...s[side], corrections: noCorrections() } }));
+    get().recompute(side);
+  },
   setConfig: (patch) => {
     set((s) => ({ config: { ...s.config, ...patch } }));
     get().recompute("a");

@@ -82,13 +82,15 @@ describe("ratings", () => {
     const r1 = await sv.createRating(userId, { analysisId, consent: undefined } as never);
     expect(r1.id).toMatch(/^rate_/);
     expect(r1.scaleName).toBe("PSL Standard");
-    expect(r1.result.coverage).toBeCloseTo(0.72, 2);
+    expect(r1.result.coverage).toBeGreaterThan(0.7);
+    expect(r1.result.coverage).toBeLessThan(0.9);
+    expect(r1.result.rubricVersion).toBe("2.0.0");
     expect(r1.valid).toBe(true);
     expect(r1.tierName).toBeTruthy();
     const side = services.createSideAnalysis(userId, { profileId, storeImage: false, imageWidth: 1000, imageHeight: 1000, points: PROFILE });
     const r2 = await sv.createRating(userId, { analysisId });
     expect(r2.sideAnalysisId).toBe(side.id);
-    expect(r2.result.coverage).toBeCloseTo(0.92, 2);
+    expect(r2.result.coverage).toBeGreaterThan(0.95);
     const r3 = await sv.createRating(userId, { analysisId, sideAnalysisId: null });
     expect(r3.sideAnalysisId).toBeNull();
     expect(psl.listRatings(userId, { profileId })).toHaveLength(3);

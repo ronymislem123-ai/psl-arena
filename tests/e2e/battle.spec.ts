@@ -266,7 +266,7 @@ test.describe("PSL ARENA end-to-end", () => {
     expect(r.ok()).toBeTruthy();
     const body = await r.json();
     expect(body.ratios).toHaveLength(42);
-    expect(body.additional).toHaveLength(7);
+    expect(body.additional).toHaveLength(8);
     const login = await request.post("/api/auth/login", { data: { email: ACCOUNT.email, password: ACCOUNT.password } });
     expect(login.ok()).toBeTruthy();
     const s = await request.get("/api/stats");

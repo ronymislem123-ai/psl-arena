@@ -1,5 +1,7 @@
 # Rating validation — what was tested, what the numbers are, what was not tested
 
+> **Note (2026-11-08):** this page documents the rubric 1.0.0 consistency experiments. The engine 2.0 / rubric 2.0 validation against engine 1.x (222 cases: test–retest, controlled deformations, different faces, compensation, pose and symmetry, parameter sensitivity) is in `docs/MODEL_VALIDATION.md`.
+
 Date: 2026-11-06. All experiments ran through the real product path (browser detection with MediaPipe → engine → rubric 1.0.0 → standard scale) using `tests/e2e/validation.spec.ts`; the raw numbers are written to `test-results/validation.json` on every run. Inputs: the two public-domain test portraits of the project (`portrait-a.jpg`, `portrait-b.jpg`) and derived variants of portrait A (horizontally mirrored, downscaled to 60 %, cropped tighter so that part of the hairline is lost).
 
 ## 1. Functional tests (passed)

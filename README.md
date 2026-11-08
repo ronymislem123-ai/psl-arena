@@ -2,7 +2,7 @@
 
 **AI facial-harmony analysis and head-to-head “mog battles” — measured, transparent, local-first.**
 
-PSL ARENA detects 478 facial landmarks in the browser, measures the 42 core facial-harmony ratios (plus 7 additional measurements) from a community reference guide, scores them with the original T1 system and a documented, coverage-adjusted harmony index, propagates measurement uncertainty, and lets two profiles face off in a cinematic battle where a winner is only declared outside the uncertainty margin.
+PSL ARENA detects 478 facial landmarks in the browser, measures the 42 core facial-harmony ratios (plus 8 additional measurements) from a community reference guide after 3D head-pose normalisation, scores them with the original T1 system and the hierarchical, non-compensatory rubric 2.0 (dispersion-unit indices, 7 evidence-ordered categories, measures with contradicted or mismatched references shown but not scored), propagates correlated landmark noise to every score, and lets two profiles face off in a cinematic battle where a winner is only declared outside the uncertainty margin.
 
 > Reference ranges come from a community guide and are **not** validated beauty standards. The app measures geometric proportions only; it never infers ethnicity, religion, health, sexual orientation or any other sensitive attribute, and is intended for consenting adults.
 
@@ -39,7 +39,7 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 
 | Module | What it does |
 | --- | --- |
-| **AI PSL Rater** (`/rater`) | Rates a frontal photo (or a saved analysis, plus the profile's latest side view) with a versioned rubric of 41 criteria in 7 areas, maps the result to a 0–10 PSL score and a tier on the selected scale, and reports it in the mandatory format (score, tier, reasoning, strengths, lower-rated criteria, overall assessment, analysis quality, disclaimer). Coverage-aware: criteria that cannot be measured are listed as not assessable; below the minimum coverage the score is provisional. See `docs/RUBRIC.md`. |
+| **AI PSL Rater** (`/rater`) | Rates a frontal photo (or a saved analysis, plus the profile's latest side view) with the versioned rubric 2.0 (40 criteria in 7 categories, non-compensatory aggregation, Monte-Carlo σ, five-level reliability), maps the result to a 0–10 PSL score and a tier on the selected scale, and reports it in the mandatory format (score, tier, reasoning, strengths, lower-rated criteria, overall assessment, analysis quality, disclaimer). Coverage-aware: criteria that cannot be measured are listed as not assessable; below the minimum coverage the score is provisional. See `docs/RUBRIC.md`. |
 | **Custom PSL Scale Builder** (`/scales`) | Create, edit, duplicate, import/export and compare PSL scales: tiers with ranges, colours, groups, percentile claims, descriptions, notes and encrypted reference images; live validation (no gaps/overlaps, unrounded assignment, inclusive top bound) and five preview views. Ships with the 21-tier standard scale (sub1 … Adam). See `docs/SCALES.md`. |
 | **PSL Tournament Mode** (`/tournaments`) | Compares rated profiles with the same rubric: twelve independent category winners (multiple wins and shared wins allowed), a weighted overall winner with documented tie-breakers, knockout (byes, seeded, manual tie decisions), group stage + finals, ranking and category formats, interactive bracket, duel tables, results page with statistics, versions and locking. See `docs/TOURNAMENT.md`. |
 
@@ -55,7 +55,7 @@ Ratings and tournaments store snapshots of the scale (and of each participant's 
 | Image check | Resolution, sharpness (Laplacian variance), brightness, contrast, yaw/pitch/roll, expression neutrality (blendshapes), parted lips, framing, multiple faces, hairline detection, selfie-perspective flag. Unusable images are blocked. |
 | Semantic landmarks | 50+ anthropometric points (canthi, pupils, alar base, cheilia, stomion, nasion, glabella, menton, chin corners, constructed gonions, zygion stand-ins, frontotemporale, estimated/adjustable hairline, optional manual neck points) — each with source, precision and confidence. |
 | 42 core ratios | Measured in a roll-normalised frame; each with T1 range, status (`defined` / `reconstructed` / `incomplete`), methodology, limitations and sensitivity flags. Incomplete definitions are never measured or scored. See `docs/RATIOS.md`. |
-| Scoring | Original T1 system (+10 inside T1; T2–T5 undefined in the material, so never invented) **plus** the PSL ARENA harmony index (0–100, tolerance-based), category indices, proportion/structure/symmetry/overall scores, coverage and confidence. See `docs/SCORING.md`. |
+| Scoring | Original T1 system (+10 inside T1; T2–T5 undefined in the material, so never invented) **plus** dispersion-unit measure indices and the rubric 2.0 hierarchy (overall = weighted power mean of 7 categories), coverage, confidence, analysis reliability, manual landmark/axis correction and the closed-loop ideal example. See `docs/SCORING.md`, `docs/RUBRIC.md`, `docs/MODEL_VALIDATION.md`. |
 | Uncertainty | Monte-Carlo landmark jitter (deterministic seed) → σ for every score and ratio. |
 | Battle | 9 rounds (harmony, 7 categories, symmetry) + overall. Round and final decisions use a margin derived from both sides' uncertainty; low coverage/confidence ⇒ *inconclusive*; small differences ⇒ *draw*. |
 | Side view | Profile module for lateral photos: 16 guided manual landmarks (3× loupe, dragging, arrow-key nudging), 16 measurements (gonial, cervicomental, mentocervical, nasofrontal, nasofacial, nasomental, nasolabial, mentolabial angles, facial convexity, Holdaway H, Merrifield Z, lower-face height, lip–chin ratio, Goode projection, dorsal profile, chin meridian) with sourced reference ranges, placement check, Monte-Carlo placement sensitivity and a separate profile harmony index. See `docs/SIDE_VIEW.md`. |
@@ -119,7 +119,8 @@ Serve the app over HTTPS when it is reachable from other machines: the session c
 ## Documentation
 
 - `docs/ARCHITECTURE.md` — system architecture, pipeline, modules
-- `docs/RATIOS.md` — the 42 ratios + 7 additional measurements, landmark mapping, statuses and conventions
+- `docs/RATIOS.md` — the 42 ratios + 8 additional measurements, landmark mapping, statuses, evidence and conventions
+- `docs/SYSTEM_AUDIT.md`, `docs/MODEL_VALIDATION.md`, `docs/REENGINEERING_REPORT.md` — audit, validation and the (German) re-engineering report
 - `docs/SCORING.md` — tiers, harmony index, weights, dependency handling, uncertainty, battle rules
 - `docs/SIDE_VIEW.md` — the side-view (profile) module: landmarks, measurements, sources, checks
 - `docs/RUBRIC.md` — the PSL rating rubric: criteria, weights, calibration, coverage rules, provider interface

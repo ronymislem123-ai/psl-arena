@@ -1,4 +1,5 @@
 "use client";
+import { parseExif, type ExifInfo } from "@/engine/capture/exif";
 
 export interface LoadedImage {
   canvas: HTMLCanvasElement;
@@ -8,6 +9,12 @@ export interface LoadedImage {
   dataUrl: string;
   originalName: string;
   mime: string;
+  /** size of the file before downscaling */
+  sourceWidth: number;
+  sourceHeight: number;
+  /** focal length / software tags (JPEG only; GPS and device data are never read) */
+  exif: ExifInfo | null;
+  sourceMime: string;
 }
 
 export const MAX_EDGE = 1600;
@@ -15,6 +22,13 @@ export const MAX_EDGE = 1600;
 export async function loadImageFile(file: File | Blob, originalName = "image"): Promise<LoadedImage> {
   if (!/^image\/(jpeg|png|webp|heic|heif|bmp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(originalName)) {
     throw new Error("Unsupported file type. Please use a JPEG, PNG or WebP image.");
+  }
+  let exif: ExifInfo | null = null;
+  try {
+    const head = await file.slice(0, 256 * 1024).arrayBuffer();
+    exif = parseExif(head);
+  } catch {
+    exif = null;
   }
   let bitmap: ImageBitmap | HTMLImageElement;
   try {
@@ -48,7 +62,7 @@ export async function loadImageFile(file: File | Blob, originalName = "image"): 
   ctx.drawImage(bitmap, 0, 0, w, h);
   if ("close" in bitmap) bitmap.close();
   const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-  return { canvas, width: w, height: h, dataUrl, originalName, mime: "image/jpeg" };
+  return { canvas, width: w, height: h, dataUrl, originalName, mime: "image/jpeg", sourceWidth: srcW, sourceHeight: srcH, exif, sourceMime: file.type || "" };
 }
 
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {

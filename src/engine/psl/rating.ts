@@ -1,12 +1,18 @@
 /**
- * PSL rating engine: turns a frontal analysis (plus an optional side-view
- * analysis and optional visual assessments) into criterion scores, area scores,
- * an overall PSL score, coverage/validity and a tier on the selected scale.
+ * PSL rating engine (rubric 2.0): turns a frontal analysis (plus an optional
+ * side-view analysis and optional visual assessments) into criterion, category
+ * and overall scores with coverage, validity, Monte-Carlo uncertainty and a tier
+ * on the selected scale. The aggregation itself lives in scoring/hierarchy.ts and
+ * is shared with the frontal analysis.
  */
 import type { AnalysisResult, QualityLevel } from "../types";
-import type { SideViewResult } from "../side-view";
+import { SIDE_BY_ID, toleranceFor, type SideViewResult } from "../side-view";
+import { createRng, gaussian, stddev } from "../geometry";
+import { plateauIndex } from "../scoring/measurement";
+import { aggregateHierarchy, frontalMeasures, type MeasureMap } from "../scoring/hierarchy";
 import { assignTier, type PslScaleSnapshot } from "./scale";
-import { AREA_META, CALIBRATION_ANCHORS, calibrate, calibrationSlope, CRITERIA, DEFAULT_MIN_COVERAGE, DERIVED_TOLERANCE, RUBRIC_AREAS, RUBRIC_VERSION, totalWeight, type CriterionDefinition, type CriterionId, type RubricArea } from "./rubric";
+import { analysisReliability, type ReliabilityLevel } from "../quality/reliability";
+import { AREA_META, CALIBRATION_ANCHORS, calibrate, calibrationSlope, CATEGORY_WEIGHTS, CRITERIA, DEFAULT_MIN_COVERAGE, DESCRIPTIVE_RATIOS, RUBRIC_AREAS, RUBRIC_VERSION, uncalibrate, AGGREGATION_P, type CriterionId, type RubricArea } from "./rubric";
 
 export interface VisualAssessment {
   /** 0–10 on the PSL-like criterion scale */
@@ -39,11 +45,13 @@ export interface CriterionScore {
   weight: number;
   assessable: boolean;
   notAssessableCode?: NotAssessableCode;
-  /** 0–100 before calibration (null for visual-model scores) */
+  /** 0–100 before calibration */
   index: number | null;
   /** 0–10 */
   score: number | null;
   confidence: number;
+  /** rubric 2.0: mean landmark reliability of the used measures (0–1) */
+  reliability?: number;
   source: CriterionSource;
   /** which engine inputs contributed */
   usedInputs: string[];
@@ -53,12 +61,18 @@ export interface CriterionScore {
 export interface AreaScore {
   id: RubricArea;
   name: string;
+  /** 0–10 */
   score: number | null;
+  /** 0–100 */
   index: number | null;
   weight: number;
   assessableWeight: number;
   coverage: number;
   confidence: number;
+  /** rubric 2.0: σ of the category score in PSL points (Monte-Carlo) */
+  sigma?: number | null;
+  /** rubric 2.0: fully compensatory (arithmetic) category index, for transparency */
+  arithmeticIndex?: number | null;
 }
 
 export interface RatingResult {
@@ -73,191 +87,158 @@ export interface RatingResult {
   areas: AreaScore[];
   /** 0–10 (null when invalid or no assessable criterion) */
   score: number | null;
-  /** approximate σ in PSL points propagated from the frontal uncertainty */
+  /** σ in PSL points (rubric 2.0: Monte-Carlo through the full aggregation) */
   scoreSigma: number | null;
-  /** 0–1 share of the rubric weight that was assessable */
+  /** decimals justified by scoreSigma (one significant digit of σ, max 2) */
+  displayDecimals?: number;
+  /** 0–1 share of the rubric that was assessable */
   coverage: number;
   /** coverage ≥ minCoverage and frontal quality usable */
   valid: boolean;
   /** score computed from < minCoverage → shown as provisional */
   provisional: boolean;
   tier: { id: string; name: string; short: string; group: string | null; min: number; max: number; color: string; description: string; percentile: string | null } | null;
+  /** probability that the true score lies in another tier (rubric 2.0, from the MC samples) */
+  tierUncertainty?: number | null;
   confidence: number;
   strengths: { id: CriterionId; score: number }[];
   lowerRated: { id: CriterionId; score: number }[];
   notAssessable: { id: CriterionId; code: NotAssessableCode }[];
   quality: { frontalLevel: QualityLevel; frontalAnalyzable: boolean; frontalIssues: number; sideIssues: number; sideUsed: boolean; visualUsed: boolean; hairline: boolean };
   inputs: { frontalCreatedAt: string; sideFacing: "left" | "right" | null; visualProvider: string | null };
-  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "lowConfidence")[];
+  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "lowConfidence" | "legacyEngine")[];
+  /** rubric 2.0 aggregation details */
+  aggregation?: {
+    method: "weighted-power-mean";
+    p: number;
+    overallIndex: number | null;
+    arithmeticIndex: number | null;
+    /** arithmeticIndex − overallIndex: how much the non-compensatory aggregation lowered the score */
+    compensationPenalty: number | null;
+    mcSamples: number;
+  };
+  /** five-level reliability of the frontal analysis (engine 2.0, quality/reliability.ts) */
+  reliability?: ReliabilityLevel;
+  /** measures that are shown but deliberately not scored */
+  descriptive?: { id: string; value: number | null; reason: string }[];
 }
 
-const PROFILE_ONLY_METHODS = new Set(["profile"]);
+const SIDE_RELIABILITY = 1; // manually placed profile points: reliability not separately quantified
 
-function indexHalving(abs: number, tol: number): number {
-  if (abs <= 0) return 100;
-  return 100 * Math.pow(2, -abs / Math.max(tol, 1e-9));
-}
-
-/** Confidence-weighted mean of indices; null when nothing is available. */
-function weightedMean(items: { index: number; confidence: number }[]): { index: number; confidence: number } | null {
-  if (!items.length) return null;
-  let num = 0;
-  let den = 0;
-  let conf = 0;
-  for (const it of items) {
-    const w = Math.max(it.confidence, 0.05);
-    num += w * it.index;
-    den += w;
-    conf += it.confidence;
+function sideMeasures(side: SideViewResult | null | undefined, into: MeasureMap) {
+  if (!side?.analyzable) return;
+  const conf = side.issues.some((i) => i.severity === "warning") ? 0.7 : 0.85;
+  for (const m of side.measurements) {
+    if (m.index == null) continue;
+    into.set(`p:${m.id}`, { index: m.index, confidence: conf, reliability: SIDE_RELIABILITY, weight: SIDE_BY_ID[m.id]?.weight ?? 1, source: "profile" });
   }
-  return { index: num / den, confidence: conf / items.length };
+}
+
+function visualMeasures(visual: VisualAssessmentSet | null | undefined, into: MeasureMap) {
+  if (!visual) return;
+  for (const def of CRITERIA) {
+    if (def.method !== "visual") continue;
+    const v = visual.assessments[def.id];
+    if (!v) continue;
+    into.set(`v:${def.id}`, { index: uncalibrate(Math.max(0, Math.min(10, v.score))), confidence: v.confidence, reliability: 1, weight: 1, source: "visual" });
+  }
+}
+
+/** Decimals that the uncertainty justifies: one significant digit of σ, at most 2. */
+export function pslDecimals(sigma: number | null | undefined): number {
+  if (sigma == null || !Number.isFinite(sigma) || sigma <= 0) return 1;
+  return Math.max(0, Math.min(2, -Math.floor(Math.log10(sigma))));
 }
 
 export function rateFace(input: RatingInput): RatingResult {
   const { frontal, side, visual, scale } = input;
   const minCoverage = input.minCoverage ?? DEFAULT_MIN_COVERAGE;
   const createdAt = new Date().toISOString();
-  const ratioById = new Map(frontal.ratios.map((r) => [r.id, r]));
-  const symById = new Map(frontal.symmetry.metrics.map((m) => [m.id, m]));
-  const addById = new Map(frontal.additional.map((a) => [a.id, a]));
-  const sideById = new Map((side?.analyzable ? side.measurements : []).map((m) => [m.id, m]));
   const frontalUsable = frontal.quality.analyzable;
+  const legacyEngine = Number.parseInt(frontal.engineVersion, 10) < 2;
 
-  const scoreCriterion = (def: CriterionDefinition, areaIndices: Map<RubricArea, number>): CriterionScore => {
+  const measures = frontalMeasures(frontal.ratios, frontal.symmetry, frontal.additional);
+  sideMeasures(side, measures);
+  visualMeasures(visual, measures);
+  const h = aggregateHierarchy(measures);
+
+  const criteria: CriterionScore[] = CRITERIA.map((def, i) => {
+    const a = h.criteria[i];
     const base = { id: def.id, area: def.area, weight: def.weight };
-    if (def.method === "visual") {
-      const v = visual?.assessments[def.id];
-      if (!v) return { ...base, assessable: false, notAssessableCode: "requiresVisualProvider", index: null, score: null, confidence: 0, source: "visual-model", usedInputs: [], missingInputs: ["visual"] };
-      return { ...base, assessable: true, index: null, score: Math.max(0, Math.min(10, v.score)), confidence: v.confidence, source: "visual-model", usedInputs: [`visual:${visual!.providerId}`], missingInputs: [] };
+    if (!frontalUsable) return { ...base, assessable: false, notAssessableCode: "frontalUnusable", index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
+    if (a.index == null) {
+      const code: NotAssessableCode =
+        def.method === "visual" ? "requiresVisualProvider" : def.method === "profile" || (def.inputs.side?.length && !side?.analyzable && !(def.inputs.ratios ?? []).some((r) => measures.has(`r:${r}`))) ? "requiresProfile" : "inputsUnavailable";
+      return { ...base, assessable: false, notAssessableCode: code, index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
     }
-    if (def.inputs.derived === "areaBalance") {
-      const vals = Array.from(areaIndices.values());
-      if (vals.length < 3) return { ...base, assessable: false, notAssessableCode: "notEnoughAreas", index: null, score: null, confidence: 0, source: "derived", usedInputs: [], missingInputs: ["areas"] };
-      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-      const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
-      const index = indexHalving(sd, DERIVED_TOLERANCE.areaBalanceIndexSd);
-      return { ...base, assessable: true, index, score: calibrate(index), confidence: 0.8, source: "derived", usedInputs: Array.from(areaIndices.keys()).map((k) => `area:${k}`), missingInputs: [] };
-    }
-    if (def.inputs.derived === "verticalBalance") {
-      const thirds = (["FT_U", "FT_M", "FT_L"] as const).map((id) => ratioById.get(id)).filter((r) => r && r.availability === "available" && r.value != null);
-      if (thirds.length < 3) return { ...base, assessable: false, notAssessableCode: "inputsUnavailable", index: null, score: null, confidence: 0, source: "derived", usedInputs: [], missingInputs: ["FT_U", "FT_M", "FT_L"] };
-      const dev = Math.max(...thirds.map((r) => Math.abs(r!.value! - 100 / 3)));
-      const index = indexHalving(dev, DERIVED_TOLERANCE.verticalBalancePp);
-      const conf = thirds.reduce((s, r) => s + r!.confidence, 0) / 3;
-      return { ...base, assessable: true, index, score: calibrate(index), confidence: conf, source: "derived", usedInputs: ["FT_U", "FT_M", "FT_L"], missingInputs: [] };
-    }
-    const items: { index: number; confidence: number }[] = [];
-    const used: string[] = [];
-    const missing: string[] = [];
-    let fromFrontal = false;
-    let fromSide = false;
-    for (const id of def.inputs.ratios ?? []) {
-      const r = ratioById.get(id);
-      if (r && r.availability === "available" && r.index != null) {
-        items.push({ index: r.index, confidence: r.confidence });
-        used.push(id);
-        fromFrontal = true;
-      } else missing.push(id);
-    }
-    for (const id of def.inputs.symmetry ?? []) {
-      const m = symById.get(id);
-      if (m) {
-        items.push({ index: m.score, confidence: frontal.symmetry.confidence });
-        used.push(`sym:${id}`);
-        fromFrontal = true;
-      } else missing.push(`sym:${id}`);
-    }
-    for (const id of def.inputs.additional ?? []) {
-      const a = addById.get(id);
-      if (a && a.availability === "available" && a.value != null && id === "FIFTHS") {
-        items.push({ index: indexHalving(a.value, DERIVED_TOLERANCE.fifthsPp), confidence: a.confidence });
-        used.push(id);
-        fromFrontal = true;
-      } else missing.push(id);
-    }
-    for (const id of def.inputs.side ?? []) {
-      const m = sideById.get(id);
-      if (m && m.index != null) {
-        items.push({ index: m.index, confidence: side?.issues.some((i) => i.severity === "warning") ? 0.7 : 0.85 });
-        used.push(`side:${id}`);
-        fromSide = true;
-      } else missing.push(`side:${id}`);
-    }
-    const agg = weightedMean(items);
-    if (!agg) {
-      const code: NotAssessableCode = PROFILE_ONLY_METHODS.has(def.method) || (def.inputs.side && !def.inputs.ratios?.length) ? "requiresProfile" : def.inputs.side && !side ? "requiresProfile" : "inputsUnavailable";
-      return { ...base, assessable: false, notAssessableCode: code, index: null, score: null, confidence: 0, source: def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: missing };
-    }
-    const source: CriterionSource = fromFrontal && fromSide ? "mixed" : fromSide ? "profile" : "frontal";
-    return { ...base, assessable: true, index: agg.index, score: calibrate(agg.index), confidence: agg.confidence, source, usedInputs: used, missingInputs: missing };
-  };
-
-  // pass 1: everything except the area-balance meta criterion
-  const prelim = new Map<CriterionId, CriterionScore>();
-  for (const def of CRITERIA) if (def.inputs.derived !== "areaBalance") prelim.set(def.id, scoreCriterion(def, new Map()));
-  const areaIndexFor = (area: RubricArea): number | null => {
-    let num = 0;
-    let den = 0;
-    for (const c of prelim.values()) {
-      if (c.area !== area || !c.assessable || c.score == null) continue;
-      num += c.weight * c.score;
-      den += c.weight;
-    }
-    return den > 0 ? num / den : null;
-  };
-  const areaScoreMap = new Map<RubricArea, number>();
-  for (const area of RUBRIC_AREAS) {
-    if (area === "harmony") continue;
-    const v = areaIndexFor(area);
-    if (v != null) areaScoreMap.set(area, v * 10); // PSL 0–10 → 0–100 for the spread measure
-  }
-  const criteria: CriterionScore[] = CRITERIA.map((def) => (def.inputs.derived === "areaBalance" ? scoreCriterion(def, areaScoreMap) : prelim.get(def.id)!));
-
-  // frontal unusable ⇒ nothing is assessable (no seemingly precise values)
-  if (!frontalUsable) for (const c of criteria) Object.assign(c, { assessable: false, notAssessableCode: "frontalUnusable", index: null, score: null, confidence: 0 });
-
-  const areas: AreaScore[] = RUBRIC_AREAS.map((area) => {
-    const members = criteria.filter((c) => c.area === area);
-    const weight = members.reduce((s, c) => s + c.weight, 0);
-    let num = 0;
-    let den = 0;
-    let conf = 0;
-    let n = 0;
-    for (const c of members) {
-      if (!c.assessable || c.score == null) continue;
-      num += c.weight * c.score;
-      den += c.weight;
-      conf += c.confidence;
-      n++;
-    }
-    const score = den > 0 ? num / den : null;
-    return { id: area, name: AREA_META[area].name, score, index: score == null ? null : score * 10, weight, assessableWeight: den, coverage: weight > 0 ? den / weight : 0, confidence: n ? conf / n : 0 };
+    const source: CriterionSource = a.fromVisual ? "visual-model" : a.fromFrontal && a.fromProfile ? "mixed" : a.fromProfile ? "profile" : "frontal";
+    const usedInputs = a.used.map((k) => (k.startsWith("r:") || k.startsWith("a:") ? k.slice(2) : k.startsWith("s:") ? `sym:${k.slice(2)}` : k.startsWith("p:") ? `side:${k.slice(2)}` : `visual:${visual?.providerId ?? "?"}`));
+    return { ...base, assessable: true, index: a.index, score: calibrate(a.index), confidence: a.confidence, reliability: a.reliability, source, usedInputs, missingInputs: a.missing };
   });
 
-  const total = totalWeight();
-  let num = 0;
-  let den = 0;
-  let confSum = 0;
-  for (const c of criteria) {
-    if (!c.assessable || c.score == null) continue;
-    num += c.weight * c.score;
-    den += c.weight;
-    confSum += c.weight * c.confidence;
+  // Monte-Carlo: replay the frontal landmark-noise samples (and the profile σ) through the same aggregation
+  const samples = frontalUsable ? frontal.uncertainty?.measureSamples : undefined;
+  const n = samples ? Math.max(0, ...Object.values(samples).map((a) => a.length)) : 0;
+  const pslSamples: number[] = [];
+  const catSamples: Record<string, number[]> = {};
+  if (samples && n > 1) {
+    const rng = createRng(frontal.config.seed ^ 0x5eed);
+    for (let s = 0; s < n; s++) {
+      const mm: MeasureMap = new Map(measures);
+      for (const [k, arr] of Object.entries(samples)) {
+        const base = measures.get(k);
+        if (!base) continue;
+        const v = arr[s];
+        if (v == null) mm.delete(k);
+        else mm.set(k, { ...base, index: v });
+      }
+      if (side?.analyzable) {
+        for (const m of side.measurements) {
+          const def = SIDE_BY_ID[m.id];
+          const key = `p:${m.id}`;
+          const base = mm.get(key);
+          if (!base || !def?.range || m.value == null || !(m.valueSigma! > 0)) continue;
+          mm.set(key, { ...base, index: plateauIndex(m.value + m.valueSigma! * gaussian(rng), def.range, toleranceFor(def.range, def.unit)) });
+        }
+      }
+      const hs = aggregateHierarchy(mm);
+      if (hs.overall != null) pslSamples.push(calibrate(hs.overall));
+      for (const c of hs.categories) if (c.index != null) (catSamples[c.id] ??= []).push(calibrate(c.index));
+    }
   }
-  const coverage = den / total;
-  const rawScore = den > 0 ? num / den : null;
-  const valid = frontalUsable && rawScore != null && coverage >= minCoverage;
-  const provisional = frontalUsable && rawScore != null && coverage < minCoverage;
-  const score = frontalUsable ? rawScore : null;
-  const confidence = den > 0 ? confSum / den : 0;
 
-  // σ: frontal overall sigma (index units) through the local calibration slope, scaled by the frontal weight share
+  const areas: AreaScore[] = RUBRIC_AREAS.map((area) => {
+    const c = h.categories.find((x) => x.id === area)!;
+    const index = frontalUsable ? c.index : null;
+    const weight = CATEGORY_WEIGHTS[area] ?? 0;
+    return {
+      id: area,
+      name: AREA_META[area].name,
+      score: index == null ? null : calibrate(index),
+      index,
+      weight,
+      assessableWeight: weight * c.coverage,
+      coverage: c.coverage,
+      confidence: c.confidence,
+      sigma: catSamples[area]?.length > 1 ? stddev(catSamples[area]) : null,
+      arithmeticIndex: frontalUsable ? c.arithmetic : null,
+    };
+  });
+
+  const coverage = frontalUsable ? h.coverage : 0;
+  const overallIndex = frontalUsable ? h.overall : null;
+  const score = overallIndex == null ? null : calibrate(overallIndex);
+  const valid = frontalUsable && score != null && coverage >= minCoverage;
+  const provisional = frontalUsable && score != null && coverage < minCoverage;
+  const confidence = frontalUsable ? h.confidence : 0;
+
   let scoreSigma: number | null = null;
-  if (score != null && frontal.uncertainty) {
-    const frontalWeight = criteria.filter((c) => c.assessable && (c.source === "frontal" || c.source === "mixed")).reduce((s, c) => s + c.weight, 0);
-    const share = den > 0 ? frontalWeight / den : 0;
-    const meanIndex = criteria.filter((c) => c.assessable && c.index != null).reduce((s, c, _, arr) => s + c.index! / arr.length, 0);
-    scoreSigma = frontal.uncertainty.overallSigma * calibrationSlope(meanIndex) * share;
+  if (score != null) {
+    if (pslSamples.length > 1) scoreSigma = stddev(pslSamples);
+    else if (frontal.uncertainty) {
+      // engine 1.x analyses without stored samples: overall σ through the local calibration slope
+      scoreSigma = frontal.uncertainty.overallSigma * calibrationSlope(overallIndex!);
+    }
   }
 
   const assessed = criteria.filter((c) => c.assessable && c.score != null).sort((a, b) => b.score! - a.score!);
@@ -267,6 +248,7 @@ export function rateFace(input: RatingInput): RatingResult {
 
   const tierRow = score != null ? assignTier(scale, score) : null;
   const tier = tierRow ? { id: tierRow.id, name: tierRow.name, short: tierRow.short, group: tierRow.group, min: tierRow.min, max: tierRow.max, color: tierRow.color, description: tierRow.description, percentile: tierRow.percentile } : null;
+  const tierUncertainty = tierRow && pslSamples.length > 1 ? pslSamples.filter((v) => assignTier(scale, v)?.id !== tierRow.id).length / pslSamples.length : null;
 
   const warningCodes: RatingResult["warningCodes"] = [];
   if (!frontalUsable) warningCodes.push("frontalUnusable");
@@ -274,6 +256,7 @@ export function rateFace(input: RatingInput): RatingResult {
   if (!side?.analyzable) warningCodes.push("noProfile");
   if (!visual) warningCodes.push("noVisualProvider");
   if (confidence > 0 && confidence < 0.5) warningCodes.push("lowConfidence");
+  if (legacyEngine) warningCodes.push("legacyEngine");
 
   return {
     rubricVersion: RUBRIC_VERSION,
@@ -287,10 +270,12 @@ export function rateFace(input: RatingInput): RatingResult {
     areas,
     score,
     scoreSigma,
+    displayDecimals: pslDecimals(scoreSigma),
     coverage,
     valid,
     provisional,
     tier,
+    tierUncertainty,
     confidence,
     strengths,
     lowerRated,
@@ -306,6 +291,9 @@ export function rateFace(input: RatingInput): RatingResult {
     },
     inputs: { frontalCreatedAt: frontal.createdAt, sideFacing: side?.facing ?? null, visualProvider: visual?.providerId ?? null },
     warningCodes,
+    aggregation: { method: "weighted-power-mean", p: AGGREGATION_P, overallIndex, arithmeticIndex: frontalUsable ? h.overallArithmetic : null, compensationPenalty: frontalUsable ? h.compensationPenalty : null, mcSamples: pslSamples.length },
+    reliability: analysisReliability(frontal).level,
+    descriptive: DESCRIPTIVE_RATIOS.map((d) => ({ id: d.id, value: frontal.ratios.find((r) => r.id === d.id)?.value ?? null, reason: d.reason })),
   };
 }
 
@@ -315,6 +303,7 @@ export function ratingSummary(r: RatingResult) {
   return { assessable, notAssessable: r.criteria.length - assessable, total: r.criteria.length, areasAssessed: r.areas.filter((a) => a.score != null).length };
 }
 
-export function formatPsl(v: number | null | undefined): string {
-  return v == null || !Number.isFinite(v) ? "—" : v.toFixed(1);
+/** PSL value with the precision its uncertainty justifies (default 1 decimal). */
+export function formatPsl(v: number | null | undefined, decimals = 1): string {
+  return v == null || !Number.isFinite(v) ? "—" : v.toFixed(decimals);
 }

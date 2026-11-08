@@ -3,12 +3,12 @@ import { ADDITIONAL_DEFINITIONS, RATIO_DEFINITIONS, toleranceFor } from "@/engin
 import { FORMULAS } from "@/engine/ratios/formulas";
 
 describe("ratio database", () => {
-  it("contains exactly the 42 core ratios numbered 1..42 and 7 additional measurements", () => {
+  it("contains exactly the 42 core ratios numbered 1..42 and 8 additional measurements", () => {
     expect(RATIO_DEFINITIONS).toHaveLength(42);
     expect(new Set(RATIO_DEFINITIONS.map((d) => d.number)).size).toBe(42);
     expect(Math.min(...RATIO_DEFINITIONS.map((d) => d.number))).toBe(1);
     expect(Math.max(...RATIO_DEFINITIONS.map((d) => d.number))).toBe(42);
-    expect(ADDITIONAL_DEFINITIONS).toHaveLength(7);
+    expect(ADDITIONAL_DEFINITIONS).toHaveLength(8);
   });
   it("flags the incompletely defined measurements and never invents outer tiers", () => {
     const incomplete = RATIO_DEFINITIONS.filter((d) => d.status === "incomplete").map((d) => d.id).sort();

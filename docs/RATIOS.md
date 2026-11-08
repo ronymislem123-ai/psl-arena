@@ -91,7 +91,15 @@ Every definition also stores: unit, formula text, methodology, landmark inputs, 
 * **Brow tilt** uses the mesh brow contour ends; tails hidden by hair/grooming reduce accuracy.
 * **Hairline-dependent ratios** (23, 32, 35, 37–39) depend on the trichion estimate; confirm or drag it in the review step.
 
-## The 7 additional measurements (outside the core score)
+## Evidence status and unscored ratios (engine 2.0)
+
+Every ratio carries an evidence status (`evidenceOf` in `src/engine/scoring/measurement.ts`). FWHR (*contradicted* by a meta-analysis) and JWHR, ET, DEV CT/ET, ICD/N (*constructMismatch*: no real or AI test face reaches the range with this landmark construction) are measured and displayed but excluded from every score — see `docs/RUBRIC.md` and `docs/MODEL_VALIDATION.md`. The scoring of the remaining ratios uses dispersion units instead of the tolerance rule (`docs/SCORING.md` §2).
+
+## The 8 additional measurements (outside the 42-ratio set)
+
+* **EML — eye–mouth length ratio (engine 2.0).** Vertical distance pupil line → stomion over trichion → menton in the pose-normalised frame. Pallett et al. (2010) found .36–.37 preferred (s = .017, white female faces only). Scored in rubric 2.0 (criterion *eyeMouthLength*).
+
+
 
 | Measurement | Handling |
 | --- | --- |

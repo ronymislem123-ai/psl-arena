@@ -26,7 +26,7 @@ describe("side-view texts", () => {
     }
     for (const lang of ["en", "de"] as const) {
       expect(Object.keys(SIDE_ISSUE_TEXTS[lang]).sort()).toEqual(["anteriorOrder", "gonionLevel", "lowResolution", "neckOrder", "tragionLevel", "verticalOrder"]);
-      expect(Object.keys(SIDE_ASSUMPTION_TEXTS[lang]).sort()).toEqual(["imageVertical", "manualPlacement", "proxies", "separateFromFrontal"]);
+      expect(Object.keys(SIDE_ASSUMPTION_TEXTS[lang]).sort()).toEqual(["frankfortHorizontal", "imageVertical", "manualAxis", "manualPlacement", "proxies", "separateFromFrontal"]);
     }
   });
 });

@@ -10,7 +10,12 @@ import { Progress } from "@/components/ui/progress";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { PageHeader } from "@/components/layout/app-shell";
 import { LandmarkCanvas, LAYERS, type LayerId } from "@/components/viz/landmark-canvas";
+import { CapturePanel } from "@/components/shared/capture-panel";
 import { ADDITIONAL_BY_ID, RATIO_BY_ID, RATIO_DEFINITIONS } from "@/engine/ratios/database";
+import { CATEGORY_WEIGHTS, RUBRIC_AREAS } from "@/engine/psl/rubric";
+import { ReliabilityPanel } from "@/components/analysis/reliability-panel";
+import { IdealExampleButton } from "@/components/ideal/ideal-example";
+import { areaDescription, areaName } from "@/lib/i18n/psl-texts";
 import { formatT1, formatValue } from "@/engine/explain";
 import { additionalNote, featureGroupLabel, featureLabel, featureNote, featureSummary, issueText, landmarkDisplayLabel, localizedExplanation, metricText, sourceText, symmetryMetricLabel, symmetryNote, unavailableText, warningTexts } from "@/lib/i18n/engine-text";
 import { additionalText, categoryText, landmarkNote, ratioText } from "@/lib/i18n/ratio-texts";
@@ -38,10 +43,12 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
             <Badge tone={levelTone(result.quality.level)}>{t("common.quality")}: {t(`quality.${result.quality.level}`)}</Badge>
+            {result.corrections && <Badge tone="rose" data-testid="corrected-badge">{t("analysis.corrected", { n: result.corrections.landmarks.length })}{result.corrections.axisAdjustDeg ? ` · ${result.corrections.axisAdjustDeg > 0 ? "+" : ""}${result.corrections.axisAdjustDeg.toFixed(1)}°` : ""}</Badge>}
             <Badge tone="cyan">{t("common.coverage")}: {result.coverage.evaluable}/{result.coverage.total}</Badge>
             <Badge tone="accent">{t("common.confidence")}: {fmt.pct(result.scores.confidence)}</Badge>
             <Link href={paths.profile(profileId)} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
             <Link href={`/compare?mode=analyses&analyses=${analysisId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("compareAnalyses.title")} →</Link>
+            {result.quality.analyzable && <IdealExampleButton compare={result} />}
           </span>
         }
         action={
@@ -122,7 +129,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
               <div className="flex-1 w-full space-y-3">
                 <div className="font-display text-xl font-semibold">{scoreLabel(s.overall, t)}</div>
                 <div className="text-xs text-fg-3">
-                  {t("analysis.overallFormula")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
+                  {s.rubric ? t("analysis.overallFormula2", { p: s.rubric.p, penalty: (s.rubric.compensationPenalty ?? 0).toFixed(1) }) : t("analysis.overallFormula")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -142,6 +149,23 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
             </div>
           </CardBody>
         </Card>
+        {s.rubric && (
+          <Card>
+            <CardHeader title={t("analysis.rubricCategories")} subtitle={t("analysis.rubricCategoriesSub", { coverage: Math.round(s.rubric.coverage * 100) })} />
+            <CardBody className="space-y-2.5" data-testid="rubric-categories">
+              {RUBRIC_AREAS.map((a) => {
+                const v = s.rubric!.categories[a] ?? null;
+                return (
+                  <div key={a} className="grid grid-cols-[140px_1fr_auto] items-center gap-3" title={areaDescription(a, lang)}>
+                    <div className="text-sm">{areaName(a, lang)} <span className="text-[10px] text-fg-3">{CATEGORY_WEIGHTS[a]} %</span></div>
+                    <Progress value={v} tone={scoreTone(v)} />
+                    <div className="text-right font-mono text-xs num w-24 text-fg-2">{fmt.score(v)}{result.uncertainty?.rubricSigma?.[a] != null && <span className="text-fg-3"> ±{result.uncertainty.rubricSigma[a].toFixed(1)}</span>}</div>
+                  </div>
+                );
+              })}
+            </CardBody>
+          </Card>
+        )}
         <Card>
           <CardHeader title={t("analysis.overview")} subtitle={t("analysis.categoryIndices")} />
           <CardBody className="space-y-2.5">
@@ -488,6 +512,8 @@ function Quality({ result, analysisId }: { result: AnalysisResult; analysisId: s
   const u = result.uncertainty;
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      <ReliabilityPanel result={result} className="lg:col-span-2" />
+      {q.capture && <CapturePanel capture={q.capture} className="lg:col-span-2" />}
       <Card>
         <CardHeader title={t("analysis.quality")} action={<Badge tone={levelTone(q.level)}>{t(`quality.${q.level}`)} · {fmt.pct(q.score)}</Badge>} />
         <CardBody className="space-y-4">

@@ -16,7 +16,7 @@ import { DEFAULT_CATEGORIES, DEFAULT_TOURNAMENT_CONFIG } from "@/engine/tourname
 import type { TournamentCategory, TournamentConfig, TournamentFormat } from "@/engine/tournament/types";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { categoryName, criterionName } from "@/lib/i18n/psl-texts";
+import { categoryName, criterionName, areaName } from "@/lib/i18n/psl-texts";
 import { fmt } from "@/lib/utils";
 import type { RatingSummary, ScaleSummary, TournamentRecord } from "@/server/repos-psl";
 import { paths } from "@/lib/paths";
@@ -178,7 +178,7 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
 
         <div className="space-y-5">
           <Card>
-            <CardHeader title={`${t("tournaments.categories")} & ${t("tournaments.weights")}`} subtitle={t("tournaments.categoryWeightHint")} action={<Button size="sm" variant="ghost" onClick={() => setCfg({ categories: DEFAULT_CATEGORIES.map((c) => ({ ...c, criteria: [...c.criteria] })), decisiveCategoryId: "harmony" })}>{t("tournaments.resetCategories")}</Button>} />
+            <CardHeader title={`${t("tournaments.categories")} & ${t("tournaments.weights")}`} subtitle={t("tournaments.categoryWeightHint")} action={<Button size="sm" variant="ghost" onClick={() => setCfg({ categories: DEFAULT_CATEGORIES.map((c) => ({ ...c, criteria: [...c.criteria] })), decisiveCategoryId: "overallFace" })}>{t("tournaments.resetCategories")}</Button>} />
             <CardBody className="space-y-2">
               <p className="text-xs text-fg-3">{t("tournaments.weightSum", { sum: weightSum })}</p>
               <ul className="divide-y divide-line" data-testid="categories">
@@ -186,7 +186,7 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
                   <li key={c.id} className="flex items-center gap-2 py-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{categoryName(c.id, c.name, lang)}</div>
-                      <div className="text-[11px] text-fg-3 truncate">{c.overall ? t("tournaments.overallFace") : c.criteria.map((x) => criterionName(x.id, lang)).join(", ")}</div>
+                      <div className="text-[11px] text-fg-3 truncate">{c.overall ? t("tournaments.overallFace") : c.area ? `${t("tournaments.rubricCategory")}: ${areaName(c.area, lang)}` : c.criteria.map((x) => criterionName(x.id, lang)).join(", ")}</div>
                     </div>
                     <Input type="number" min={0} max={1000} value={c.weight} onChange={(e) => patchCategory(c.id, { weight: Number(e.target.value) })} className="h-8 w-20 font-mono" aria-label={t("tournaments.weights")} />
                     <span className="text-xs text-fg-3 w-8">{weightSum > 0 ? `${Math.round((Math.max(0, c.weight) / weightSum) * 100)} %` : "—"}</span>

@@ -19,6 +19,8 @@ export interface SideEditProps {
   selected: SideLandmarkId | null;
   onPlace: (id: SideLandmarkId, p: Point) => void;
   onSelect: (id: SideLandmarkId | null) => void;
+  /** optional extra point (soft-tissue orbitale for the Frankfort horizontal) placed by the next click while active */
+  extra?: { active: boolean; onPlace: (p: Point) => void };
 }
 
 interface Props {
@@ -31,13 +33,15 @@ interface Props {
   edit?: SideEditProps;
   loupe?: boolean;
   className?: string;
+  /** reference axis for the live preview (defaults to the axis stored in `result`) */
+  reference?: { tiltDeg: number; orbitale?: Point | null } | null;
 }
 
 const C = { accent: "#4f7cff", cyan: "#22d3ee", violet: "#a78bfa", mint: "#34d399", amber: "#f5b547", rose: "#f0506e", white: "#eef0f3", dim: "#ffffff66" };
 const LOUPE_CSS = 168;
 const LOUPE_ZOOM = 3;
 
-export function SideCanvas({ src, width, height, points, result, highlight, edit, loupe = true, className }: Props) {
+export function SideCanvas({ src, width, height, points, result, highlight, edit, loupe = true, className, reference }: Props) {
   const { lang } = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<Point | null>(null);
@@ -103,7 +107,10 @@ export function SideCanvas({ src, width, height, points, result, highlight, edit
     pressRef.current = null;
     if (!press || Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) return;
     const p = toSvg(e);
-    if (p && edit.current) edit.onPlace(edit.current, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+    if (!p) return;
+    const q = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+    if (edit.extra?.active) edit.extra.onPlace(q);
+    else if (edit.current) edit.onPlace(edit.current, q);
   };
 
   const onPointDown = (id: SideLandmarkId) => (e: RPointerEvent<SVGCircleElement>) => {
@@ -162,10 +169,21 @@ export function SideCanvas({ src, width, height, points, result, highlight, edit
         {text}
       </text>
     ) : null;
-  const tick = (y: number | undefined, x: number | undefined, color: string, key: string, half = faceH * 0.12) => (y != null && x != null ? line({ x: x - half, y }, { x: x + half, y }, color, undefined, 1.4, key) : null);
 
   const P = points;
-  const ax = result ? (result.facing === "left" ? -1 : 1) : P.pronasale && P.tragion ? (P.pronasale.x < P.tragion.x ? -1 : 1) : 1;
+  // anatomical reference frame: h = horizontal (tilt + = clockwise on screen), vd = "down"
+  const tiltDeg = reference?.tiltDeg ?? result?.reference?.tiltDeg ?? 0;
+  const orbitale = reference ? (reference.orbitale ?? undefined) : result?.reference?.orbitale;
+  const tr = (tiltDeg * Math.PI) / 180;
+  const h = { x: Math.cos(tr), y: Math.sin(tr) };
+  const vd = { x: -Math.sin(tr), y: Math.cos(tr) };
+  const along = (o: Point, d: Point, t: number): Point => ({ x: o.x + d.x * t, y: o.y + d.y * t });
+  const dot2 = (a: Point, b: Point) => a.x * b.x + a.y * b.y;
+  const sub = (a: Point, b: Point) => ({ x: a.x - b.x, y: a.y - b.y });
+  /** projection of q onto the reference vertical through o */
+  const onVertical = (q: Point | undefined, o: Point | undefined) => (q && o ? along(o, vd, dot2(sub(q, o), vd)) : undefined);
+  const hTick = (q: Point | undefined, color: string, key: string, half = faceH * 0.12) => (q ? line(along(q, h, -half), along(q, h, half), color, undefined, 1.4, key) : null);
+  const ax = result ? (result.facing === "left" ? -1 : 1) : P.pronasale && P.tragion ? (dot2(sub(P.pronasale, P.tragion), h) < 0 ? -1 : 1) : 1;
   const foot = (p: Point | undefined, a: Point | undefined, b: Point | undefined): Point | undefined => {
     if (!p || !a || !b) return undefined;
     const dx = b.x - a.x;
@@ -204,17 +222,19 @@ export function SideCanvas({ src, width, height, points, result, highlight, edit
         return [extended(P.glabella, P.pogonion, C.cyan, "a"), extended(P.nasion, P.pronasale, C.cyan, "b"), x && P.pogonion && P.pronasale ? arc(x, P.pogonion, P.pronasale, C.amber, "c", faceH * 0.12) : null, label(P.pronasale, v, C.amber, ax * 0.6, -0.6, "l", ax > 0 ? "start" : "end")];
       }
       case "ZANG": {
-        const lip = P.labrale_sup && P.labrale_inf ? (ax * P.labrale_sup.x >= ax * P.labrale_inf.x ? P.labrale_sup : P.labrale_inf) : undefined;
-        const back = lip ? { x: lip.x - ax * faceH * 0.3, y: lip.y } : undefined;
+        const lip = P.labrale_sup && P.labrale_inf ? (ax * dot2(P.labrale_sup, h) >= ax * dot2(P.labrale_inf, h) ? P.labrale_sup : P.labrale_inf) : undefined;
+        const back = lip ? along(lip, h, -ax * faceH * 0.3) : undefined;
         return [extended(lip, P.pogonion, C.cyan, "a", undefined), line(lip, back, C.dim, "4 4", 1.2, "h"), lip && back ? arc(lip, back, P.pogonion, C.amber, "c", faceH * 0.1) : null, label(lip, v, C.amber, -ax * 1.2, 1.4, "l", ax > 0 ? "end" : "start")];
       }
       case "LFH": {
-        const x = P.pronasale ? P.pronasale.x + ax * faceH * 0.12 : undefined;
-        return [tick(P.glabella?.y, x, C.cyan, "t1"), tick(P.subnasale?.y, x, C.amber, "t2"), tick(P.menton?.y, x, C.cyan, "t3"), x != null && P.glabella && P.menton ? line({ x, y: P.glabella.y }, { x, y: P.menton.y }, C.cyan, undefined, 1.4, "v") : null, x != null && P.subnasale && P.menton ? label({ x, y: (P.subnasale.y + P.menton.y) / 2 }, v, C.amber, ax * 0.4, 0.3, "l", ax > 0 ? "start" : "end") : null];
+        const o = P.pronasale ? along(P.pronasale, h, ax * faceH * 0.12) : undefined;
+        const g = onVertical(P.glabella, o), sn = onVertical(P.subnasale, o), me = onVertical(P.menton, o);
+        return [hTick(g, C.cyan, "t1"), hTick(sn, C.amber, "t2"), hTick(me, C.cyan, "t3"), line(g, me, C.cyan, undefined, 1.4, "v"), sn && me ? label({ x: (sn.x + me.x) / 2, y: (sn.y + me.y) / 2 }, v, C.amber, ax * 0.4, 0.3, "l", ax > 0 ? "start" : "end") : null];
       }
       case "LCR": {
-        const x = P.pronasale ? P.pronasale.x + ax * faceH * 0.12 : undefined;
-        return [tick(P.subnasale?.y, x, C.cyan, "t1"), tick(P.stomion?.y, x, C.amber, "t2"), tick(P.menton?.y, x, C.cyan, "t3"), x != null && P.subnasale && P.menton ? line({ x, y: P.subnasale.y }, { x, y: P.menton.y }, C.cyan, undefined, 1.4, "v") : null, x != null && P.stomion && P.menton ? label({ x, y: (P.stomion.y + P.menton.y) / 2 }, v, C.amber, ax * 0.4, 0.3, "l", ax > 0 ? "start" : "end") : null];
+        const o = P.pronasale ? along(P.pronasale, h, ax * faceH * 0.12) : undefined;
+        const sn = onVertical(P.subnasale, o), st = onVertical(P.stomion, o), me = onVertical(P.menton, o);
+        return [hTick(sn, C.cyan, "t1"), hTick(st, C.amber, "t2"), hTick(me, C.cyan, "t3"), line(sn, me, C.cyan, undefined, 1.4, "v"), st && me ? label({ x: (st.x + me.x) / 2, y: (st.y + me.y) / 2 }, v, C.amber, ax * 0.4, 0.3, "l", ax > 0 ? "start" : "end") : null];
       }
       case "GOODE": {
         const f = foot(P.pronasale, P.nasion, P.alar_crease);
@@ -224,8 +244,11 @@ export function SideCanvas({ src, width, height, points, result, highlight, edit
         const f = foot(P.rhinion, P.nasion, P.pronasale);
         return [line(P.nasion, P.pronasale, C.cyan, "4 4", 1.4, "n"), line(P.rhinion, f, C.amber, undefined, 1.6, "p"), label(P.rhinion, v, C.amber, -ax * 0.6, -0.4, "l", ax > 0 ? "end" : "start")];
       }
-      case "CHIN_MERIDIAN":
-        return [P.nasion && P.glabella && P.menton ? line({ x: P.nasion.x, y: P.glabella.y }, { x: P.nasion.x, y: P.menton.y + faceH * 0.05 }, C.cyan, "6 4", 1.4, "v") : null, P.nasion && P.pogonion ? line({ x: P.nasion.x, y: P.pogonion.y }, P.pogonion, C.amber, undefined, 1.6, "h") : null, label(P.pogonion, v, C.amber, ax * 0.6, 0.3, "l", ax > 0 ? "start" : "end")];
+      case "CHIN_MERIDIAN": {
+        const top = onVertical(P.glabella, P.nasion);
+        const bottom = P.menton && P.nasion ? along(onVertical(P.menton, P.nasion)!, vd, faceH * 0.05) : undefined;
+        return [line(top, bottom, C.cyan, "6 4", 1.4, "v"), line(onVertical(P.pogonion, P.nasion), P.pogonion, C.amber, undefined, 1.6, "h"), label(P.pogonion, v, C.amber, ax * 0.6, 0.3, "l", ax > 0 ? "start" : "end")];
+      }
       default:
         return null;
     }
@@ -282,6 +305,14 @@ export function SideCanvas({ src, width, height, points, result, highlight, edit
         {!src && silhouette.length > 1 && <polyline points={silhouette.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={C.dim} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />}
         {!src && P.gonion && P.tragion && line(P.gonion, P.tragion, C.dim, "3 3", 1, "gt")}
         {!src && P.gonion && P.menton && line(P.gonion, P.menton, C.dim, "3 3", 1, "gm")}
+        {P.tragion && (tiltDeg !== 0 || orbitale || reference) && (
+          <g data-testid="side-reference-axis" data-tilt={tiltDeg.toFixed(1)} opacity={0.85}>
+            {line(along(P.tragion, h, -faceH * 0.25), along(P.tragion, h, faceH * 1.25 * ax), C.violet, "8 5", 1.3, "ah")}
+            {P.nasion && line(along(P.nasion, vd, -faceH * 0.35), along(P.nasion, vd, faceH * 1.25), C.violet, "8 5", 1, "av")}
+            {label(along(P.tragion, h, faceH * 1.1 * ax), orbitale ? "FH" : "H", C.violet, 0, -0.5, "al", "middle")}
+          </g>
+        )}
+        {orbitale && <circle cx={orbitale.x} cy={orbitale.y} r={dot * 1.2} fill={C.violet} stroke="#07080a" strokeWidth={0.8} vectorEffect="non-scaling-stroke" data-testid="side-point-orbitale" />}
         {construction}
         {pointsSvg(1)}
         {edit && hover && !drag && edit.current && <circle cx={hover.x} cy={hover.y} r={dot * 1.4} fill="none" stroke={C.accent} strokeWidth={1} vectorEffect="non-scaling-stroke" opacity={0.6} />}

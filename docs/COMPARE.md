@@ -2,7 +2,7 @@
 
 ## Comparison (`/compare`)
 
-Two to four stored PSL ratings are shown side by side: score and tier, scale (name and version), rubric and engine versions, coverage, confidence, validity, frontal image quality, profile-view usage; then the seven area scores and all 41 criteria with the delta of every column against the first (reference) column, the spread across columns, and the five largest gains/losses of the last column versus the reference (criteria assessable in every rating only).
+Two to four stored PSL ratings are shown side by side: score and tier, scale (name and version), rubric and engine versions, coverage, confidence, validity, frontal image quality, profile-view usage; then the seven area scores and all criteria of the rubric (40 in rubric 2.0) with the delta of every column against the first (reference) column, the spread across columns, and the five largest gains/losses of the last column versus the reference (criteria assessable in every rating only).
 
 The comparison engine (`src/engine/psl/compare.ts`) is pure and flags what makes ratings less comparable instead of hiding it:
 

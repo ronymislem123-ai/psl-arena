@@ -30,6 +30,15 @@ const ISSUE_DE: Record<NonNullable<QualityIssue["key"]>, (p: Record<string, numb
   "pitch.warning": (p) => `Kopf nach oben/unten geneigt (${p.deg}°); vertikale Proportionen verlieren Präzision.`,
   "roll.error": () => "Der Kopf ist in der Bildebene zu stark gedreht.",
   "roll.warning": () => "Eine starke Kopfneigung wurde rechnerisch korrigiert; Restfehler möglich.",
+  "roll.info": (p) => `Der Kopf ist in der Bildebene um ${p.deg}° gedreht; das wurde exakt korrigiert.`,
+  "exposure.bright": (p) => `${p.pct} % des Gesichts sind weiß ausgefressen; Konturen gehen dort verloren.`,
+  "exposure.dark": (p) => `${p.pct} % des Gesichts sind schwarz abgesoffen; Konturen gehen dort verloren.`,
+  "lighting.sided": () => "Starkes Seitenlicht: Konturpunkte auf der Schattenseite (Wange, Kiefer) sind weniger zuverlässig.",
+  compression: () => "Sichtbare JPEG-Kompressionsblöcke verringern die Präzision feiner Landmarks.",
+  "editing.tag": (p) => `Die Datei wurde von einer Bearbeitungssoftware gespeichert (${p.software}). Beauty-Filter können Proportionen verändern; das lässt sich nicht erkennen.`,
+  smoothing: () => "Auffällig glatte Hauttextur (möglicher Filter). Weichzeichnen allein verändert die Geometrie kaum, verformende Filter schon; diese sind nicht erkennbar.",
+  "perspective.close": (p) => `Nahaufnahme (etwa ${p.cm} cm): Zentrale Merkmale wie die Nase wirken im Verhältnis zur Gesichtsbreite um etwa ${p.pct} % größer; perspektivempfindliche Verhältnisse haben verringerte Konfidenz.`,
+  "perspective.info": (p) => `Geschätzter Kameraabstand etwa ${p.cm} cm (aus EXIF-Brennweite und Irisgröße; ±26 %).`,
   eyesClosed: () => "Die Augen scheinen geschlossen; Augenmessungen sind unmöglich.",
   "mouthOpen.error": () => "Der Mund ist weit geöffnet; Messungen des unteren Drittels und der Lippen sind ungültig.",
   "mouthOpen.parted": () => "Die Lippen sind geöffnet; Lippenhöhen und Messungen des unteren Drittels sind weniger zuverlässig.",
@@ -275,6 +284,8 @@ export function warningTexts(r: AnalysisResult, lang: Lang): string[] {
         return `${p.n} auswertbare Verhältnis(se) haben geringe Konfidenz.`;
       case "noHairline":
         return "Haaransatz nicht verfügbar: Drittel, TFWHR, LFF und FWHF werden nicht ausgewertet.";
+      case "corrected":
+        return `Manuell korrigiert: ${p.n} Landmark(s)${p.axis ? `, Referenzachse ${p.axis > 0 ? "+" : ""}${Number(p.axis).toFixed(1).replace(".", ",")}°` : ""}. Die Ergebnisse hängen von der manuellen Platzierung ab.`;
       case "smile":
         return "Lächeln erkannt: Mund-, Lippen-, Augenöffnungs- und Untergesichtsmessungen haben reduzierte Konfidenz.";
     }
@@ -293,13 +304,15 @@ export function additionalNote(m: AdditionalMeasurementResult, lang: Lang): stri
     case "fingerRule":
       return `Die Stirnhöhe beträgt das ${n2(v.foreheadOverMiddleThird ?? 0)}-Fache des mittleren Drittels und das ${n2(v.foreheadOverIpd ?? 0)}-Fache der IPD. Die „Drei-Finger-Regel“ ist eine nicht-metrische Faustregel und wird nicht bewertet.`;
     case "fifths":
-      return `Fünftel (links→rechts): ${[v.outer1, v.eye1, v.intercanthal, v.eye2, v.outer2].map((x) => `${n1(x ?? 0)} %`).join(" · ")}. Mittlere Abweichung von 20 % = ${n1(v.meanDeviation ?? 0)} Prozentpunkte. Informativ, nicht Teil des 42-Verhältnis-Scores.`;
+      return `Fünftel (links→rechts): ${[v.outer1, v.eye1, v.intercanthal, v.eye2, v.outer2].map((x) => `${n1(x ?? 0)} %`).join(" · ")}. Mittlere Abweichung von 20 % = ${n1(v.meanDeviation ?? 0)} Prozentpunkte. In Rubrik 2.0 bewertet (Gesichtsfünftel), nicht Teil der 42 Verhältnisse.`;
     case "byzBig":
       return `Rohwert bizygomatisch ÷ bigonial = ${n2(v.ratio ?? m.value ?? 0)} (älteres Atlas-Ziel 1,35). Widerspricht BIG ${Number.isFinite(v.big) ? `${n1(v.big)} %` : ""} (85–92 % ⇒ 1,09–1,18); nur zur Referenz, nicht bewertet.`;
     case "noEarLandmarks":
       return "Keine Ohr-Landmarks im Gesichtsmodell und kein definierter Zielbereich.";
     case "noseChin":
       return `Nasenspitze → Menton = ${n2(v.noseTipToMentonOverIpd ?? 0)}× IPD (${n2(v.noseTipToMentonOverLowerThird ?? 0)}× unteres Drittel). Nur Rohwert – keine Formel und kein Ziel definiert.`;
+    case "eyeMouthLength":
+      return `Pupillenlinie → Mund = ${n1((v.ratio ?? m.value ?? 0) * 100)} % von Haaransatz → Kinn (bevorzugt 0,36–0,37 bei Pallett et al. 2010, Gesichter weißer Frauen).`;
     case "hairlineMissing":
       return "Haaransatz nicht verfügbar.";
     case "landmarksMissing":
@@ -318,6 +331,8 @@ export function verdictReason(b: BattleResult, lang: Lang): string {
   switch (b.verdictCode) {
     case "qualityFailed":
       return "Mindestens ein Bild hat die Qualitätsprüfung nicht bestanden; kein Urteil möglich.";
+    case "engineMismatch":
+      return "Die Analysen stammen aus verschiedenen Engine-Generationen, deren Scores nicht vergleichbar sind; das ältere Foto bitte neu analysieren.";
     case "noOverall":
       return "Für mindestens eine Person konnte kein Gesamtscore berechnet werden.";
     case "lowCoverage":

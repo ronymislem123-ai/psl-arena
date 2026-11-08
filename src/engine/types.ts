@@ -15,6 +15,8 @@
 export interface Point {
   x: number;
   y: number;
+  /** Relative depth (pixels, same scale as x, larger = further from the camera) when the landmark model provides it. */
+  z?: number;
 }
 
 export interface Point3 extends Point {
@@ -129,6 +131,9 @@ export interface SemanticLandmark {
   note?: string;
   /** Language-neutral note code (UI translates). */
   noteCode?: LandmarkNoteCode;
+  /** engine 2.0: moved by the user (manual correction); the automatic position is kept in originalRaw */
+  corrected?: boolean;
+  originalRaw?: Point;
 }
 
 export type LandmarkNoteCode =
@@ -157,6 +162,25 @@ export interface AlignedMesh {
   rollDeg: number;
   /** Centre of rotation (inter-pupillary midpoint, raw pixels). */
   pivot: Point;
+  /**
+   * "3d": pose-normalised with the landmark depth (rigid fit to the canonical face,
+   * rotated back to frontal, weak-perspective approximation); "2d": in-plane roll
+   * correction only (no depth available). Missing on results of engine 1.x (= "2d").
+   */
+  method?: "3d" | "2d";
+  /** Head rotation found by the 3D fit (degrees; yaw + = face turned to image right, pitch + = chin up, roll + = clockwise). */
+  pose3d?: HeadPose;
+  /** Manual adjustment of the horizontal reference axis included in the alignment (degrees). */
+  axisAdjustDeg?: number;
+  /** Row-major 3×3 rotation (template → detected) and the fit centroid, to map further points. */
+  rotation?: number[];
+  centroid?: { x: number; y: number; z: number };
+  /** 2D shift that keeps the pupil midpoint at its raw position. */
+  offset?: { x: number; y: number };
+  /** Residual in-plane rotation applied after the 3D correction so the pupil line is horizontal. */
+  levelDeg?: number;
+  /** RMS residual of the rigid fit in IPD units (shape mismatch + landmark noise). */
+  residualIpd?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +238,8 @@ export type AdditionalMeasurementId =
   | "FIFTHS"
   | "BYZ_BIG"
   | "EAR_ANGLE"
-  | "NOSE_CHIN";
+  | "NOSE_CHIN"
+  | "EML";
 
 /** Scoring categories used for category indices and battle rounds. */
 export type CategoryId =
@@ -336,9 +361,11 @@ export interface RatioResult {
   intermediate: Record<string, number>;
   /** Standard deviation of the value under landmark jitter (Monte Carlo). */
   valueSigma?: number;
+  /** engine 2.0: measured and shown, but not scored (reference contradicted by evidence or not matching the measurement construction) */
+  excludedFromScore?: boolean;
 }
 
-export type AdditionalNoteCode = "requiresProfile" | "requiresProfileSeeGS" | "fingerRule" | "fifths" | "byzBig" | "noEarLandmarks" | "noseChin" | "hairlineMissing" | "landmarksMissing";
+export type AdditionalNoteCode = "requiresProfile" | "requiresProfileSeeGS" | "fingerRule" | "fifths" | "byzBig" | "noEarLandmarks" | "noseChin" | "eyeMouthLength" | "hairlineMissing" | "landmarksMissing";
 
 export interface AdditionalMeasurementResult {
   id: AdditionalMeasurementId;
@@ -403,9 +430,16 @@ export interface OriginalScoring {
 export interface SymmetryMetric {
   id: string;
   label: string;
-  /** raw asymmetry in `unit` */
+  /** asymmetry in `unit` (engine 2.0: noise-floor corrected when σ is known) */
   value: number;
+  /** signed asymmetry before taking the absolute value (R − L convention of the metric) */
+  signed?: number;
+  /** absolute asymmetry before the noise-floor correction */
+  rawValue?: number;
+  /** σ of the signed asymmetry under landmark noise (Monte-Carlo) */
+  sigma?: number;
   unit: "deg" | "ipd" | "percent";
+  /** dispersion unit of the Gaussian fall-off (engine 1.x: halving constant) */
   tolerance: number;
   score: number; // 0..100
   landmarks: SemanticLandmarkId[];
@@ -474,6 +508,14 @@ export interface UncertaintyReport {
   harmonySigma: number;
   symmetrySigma: number;
   categorySigma: Record<CategoryId, number>;
+  /** σ of each rubric 2.0 category index (frontal measures) */
+  rubricSigma?: Record<string, number>;
+  /**
+   * Per-sample indices of every frontal measure (keys r:/s:/a:, rounded to 0.1;
+   * null = unavailable in that sample) so that the PSL rater can propagate the
+   * correlated landmark noise through its own aggregation (engine ≥ 2.0).
+   */
+  measureSamples?: Record<string, (number | null)[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -504,6 +546,15 @@ export type QualityIssueKey =
   | "yaw.error"
   | "yaw.warning"
   | "yaw.info"
+  | "roll.info"
+  | "exposure.bright"
+  | "exposure.dark"
+  | "lighting.sided"
+  | "compression"
+  | "editing.tag"
+  | "smoothing"
+  | "perspective.close"
+  | "perspective.info"
   | "pitch.error"
   | "pitch.warning"
   | "roll.error"
@@ -538,7 +589,7 @@ export interface QualityIssue {
     | "eyes-closed"
     | "hairline-not-found"
     | "selfie-perspective"
-    | "face-cut-off";
+    | "face-cut-off" | "lighting" | "compression" | "editing";
   severity: "info" | "warning" | "error";
   message: string;
 }
@@ -578,6 +629,46 @@ export interface RawQualityMetrics {
   /** Face bounding box in pixels. */
   faceBox: { x: number; y: number; w: number; h: number };
   faceCount: number;
+  // --- capture analysis (engine 2.0; optional so older inputs stay valid) ---
+  /** Size of the uploaded file before the app downscaled it (long edge ≤ 1600 px). */
+  sourceWidth?: number;
+  sourceHeight?: number;
+  /** 35 mm-equivalent focal length from EXIF (null/absent = unknown). */
+  focalLength35mm?: number | null;
+  /** EXIF "Software" tag (editing hint), if present. */
+  editingSoftware?: string | null;
+  /** Share of face-region pixels that are clipped dark (≤ 4) / bright (≥ 251). */
+  clipDark?: number;
+  clipBright?: number;
+  /** |L − R| / mean of the mean luminance of the two cheek patches (side lighting). */
+  lightingAsymmetry?: number;
+  /** JPEG 8×8 block-boundary gradient ratio on the face at full resolution (null when the image was downscaled or is not a JPEG). */
+  blockiness?: number | null;
+  /** Fine skin texture (cheek/forehead high-pass energy) relative to the eye region (low = very smooth skin; heuristic). */
+  skinTexture?: number | null;
+  /** Standard deviation of the luminance along the image border (plain backdrop ⇒ low). */
+  backgroundSpread?: number | null;
+}
+
+export type CaptureBasis = "measured" | "derived" | "inferred" | "undeterminable";
+export type CaptureItemId = "view" | "tilt" | "elevation" | "framing" | "distance" | "selfie" | "mirror" | "photographer" | "setting" | "editing" | "smoothing" | "compression" | "exposure" | "lighting" | "occlusion";
+
+export interface CaptureItem {
+  id: CaptureItemId;
+  /** language-neutral code rendered by the UI */
+  value: string;
+  basis: CaptureBasis;
+  /** 0–1: how sure the classification is (1 for measured facts) */
+  confidence: number;
+  params?: Record<string, number | string>;
+}
+
+export interface CaptureReport {
+  items: CaptureItem[];
+  /** camera-to-face distance estimated from the EXIF focal length and the iris diameter (11.7 mm) */
+  distanceCm: { estimate: number; low: number; high: number } | null;
+  /** estimated apparent enlargement of central features (nose) relative to the face width from perspective (0.3 = +30 %) */
+  perspectiveInflation: number | null;
 }
 
 export interface QualityReport {
@@ -588,7 +679,13 @@ export interface QualityReport {
   issues: QualityIssue[];
   pose: HeadPose;
   expression: ExpressionReport;
+  /** effective capture distance (the user's setting, or "selfie"/"standard" from the distance estimate when the setting is "unknown") */
   captureDistance: CaptureDistance;
+  /** capture conditions (engine 2.0) */
+  capture?: CaptureReport;
+  /** side-lighting asymmetry and clipped share of the face (copied from the raw metrics for the confidence model) */
+  lightingAsymmetry?: number;
+  clipFraction?: number;
   faceCount: number;
   faceWidthPx: number;
   /** Whether the analysis may proceed at all. */
@@ -621,12 +718,23 @@ export interface AnalysisInput {
   /** Estimated / manual extra points (raw pixel coords). */
   trichion?: { point: Point; source: "estimated" | "manual"; confidence: number } | null;
   neck?: { right: Point; left: Point; source: "manual" } | null;
+  /**
+   * engine 2.0: manual corrections — semantic landmarks moved by the user (raw
+   * image pixels) and an adjustment of the horizontal reference axis (degrees,
+   * positive = counter-clockwise in the image). Every measure is recomputed.
+   */
+  corrections?: AnalysisCorrections | null;
   /** Blendshape coefficients keyed by name (ARKit-style). */
   blendshapes: Record<string, number>;
   /** 4x4 facial transformation matrix (column-major, 16 numbers) if available. */
   transformMatrix?: number[] | null;
   rawQuality: RawQualityMetrics;
   config: AnalysisConfig;
+}
+
+export interface AnalysisCorrections {
+  landmarks?: Partial<Record<SemanticLandmarkId, Point>>;
+  axisAdjustDeg?: number;
 }
 
 export interface AnalysisResult {
@@ -651,15 +759,29 @@ export interface AnalysisResult {
     /** Composite of jawline, midface and structure categories (display only). */
     structure: number | null;
     symmetry: number | null;
-    /** 0.8 × proportion + 0.2 × symmetry */
+    /**
+     * Engine ≥ 2.0: rubric 2.0 hierarchical index (frontal measures only; see
+     * scores.rubric). Engine 1.x: 0.8 × proportion + 0.2 × symmetry.
+     */
     overall: number | null;
+    /** rubric 2.0 breakdown of `overall` (engine ≥ 2.0) */
+    rubric?: {
+      version: string;
+      categories: Record<string, number | null>;
+      overallArithmetic: number | null;
+      compensationPenalty: number | null;
+      coverage: number;
+      p: number;
+    };
     /** Mean confidence of available ratios (0..1). */
     confidence: number;
   };
   uncertainty: UncertaintyReport | null;
+  /** engine 2.0: manual corrections applied to this analysis (flag for comparisons) */
+  corrections?: { landmarks: SemanticLandmarkId[]; axisAdjustDeg: number } | null;
   warnings: string[];
   /** Language-neutral warnings (UI translates). */
-  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "smile"; params?: Record<string, number> }[];
+  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "smile" | "corrected"; params?: Record<string, number> }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -707,7 +829,7 @@ export interface BattleResult {
   verdict: Verdict;
   verdictReason: string;
   /** Language-neutral verdict reason (UI translates). */
-  verdictCode?: "qualityFailed" | "noOverall" | "lowCoverage" | "lowConfidence" | "draw" | "winner";
+  verdictCode?: "qualityFailed" | "engineMismatch" | "noOverall" | "lowCoverage" | "lowConfidence" | "draw" | "winner";
   verdictParams?: Record<string, number>;
   coverageA: number;
   coverageB: number;

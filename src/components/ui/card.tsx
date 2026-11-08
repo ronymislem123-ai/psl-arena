@@ -24,8 +24,12 @@ export function CardHeader({ title, subtitle, action, className, icon }: { title
   );
 }
 
-export function CardBody({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("px-5 pb-5", className)}>{children}</div>;
+export function CardBody({ className, children, ...props }: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
+  return (
+    <div className={cn("px-5 pb-5", className)} {...props}>
+      {children}
+    </div>
+  );
 }
 
 export function SectionTitle({ children, className, kicker }: { children: ReactNode; className?: string; kicker?: ReactNode }) {

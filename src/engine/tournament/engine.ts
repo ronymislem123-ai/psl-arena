@@ -15,6 +15,12 @@ export function categoryScore(p: ParticipantData, cat: TournamentCategory, minCo
     if (p.rating.score == null) return { ...base, score: null, assessable: false, coverage: 0, reasonCode: "invalidRating" };
     return { ...base, score: p.rating.score, assessable: true, coverage: p.rating.coverage };
   }
+  if (cat.area) {
+    const a = p.rating.areas.find((x) => x.id === cat.area);
+    if (!a || a.score == null) return { ...base, score: null, assessable: false, coverage: a?.coverage ?? 0, reasonCode: a && a.coverage === 0 && p.rating.criteria.some((c) => c.area === cat.area && c.notAssessableCode === "requiresProfile") ? "requiresProfile" : "inputsUnavailable" };
+    if (a.coverage < minCoverage) return { ...base, score: null, assessable: false, coverage: a.coverage, reasonCode: "inputsUnavailable" };
+    return { ...base, score: a.score, assessable: true, coverage: a.coverage };
+  }
   if (!cat.criteria.length) return { ...base, score: null, assessable: false, coverage: 0, reasonCode: "noCriteria" };
   const byId = new Map(p.rating.criteria.map((c) => [c.id, c]));
   let num = 0;

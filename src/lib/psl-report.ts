@@ -14,7 +14,10 @@ export function reportLines(r: RatingResult, label: string, lang: Lang, t: T) {
     : t("rater.result.reasoningText", { n: r.criteria.filter((c) => c.assessable).length, coverage: pct(r.coverage), score: formatPsl(r.score), scale: r.scale.name, rubric: `${t("rater.result.rubric")} ${r.rubricVersion}`, tier: r.tier?.name ?? "—", range: r.tier ? formatTierRange(r.tier) : "—", areas });
   const strengths = r.strengths.length ? r.strengths.map((s) => t("rater.result.strengthLine", { name: criterionName(s.id, lang), score: formatPsl(s.score), source: t(`rater.result.source.${r.criteria.find((c) => c.id === s.id)?.source ?? "frontal"}`) })) : [t("rater.result.noneAbove")];
   const lower = r.lowerRated.length ? r.lowerRated.map((s) => t("rater.result.lowerLine", { name: criterionName(s.id, lang), score: formatPsl(s.score), source: t(`rater.result.source.${r.criteria.find((c) => c.id === s.id)?.source ?? "frontal"}`) })) : [t("rater.result.noneBelow")];
-  const overall = t("rater.result.overallText", { provisional: r.provisional ? t("rater.result.provisionalText", { min: pct(r.minCoverage) }) : "" }).trim();
+  const provisional = r.provisional ? t("rater.result.provisionalText", { min: pct(r.minCoverage) }) : "";
+  const overall = (r.aggregation
+    ? t("rater.result.overallText", { p: r.aggregation.p, penalty: (r.aggregation.compensationPenalty ?? 0).toFixed(1), provisional })
+    : t("rater.result.overallTextV1", { provisional })).trim();
   const quality = t("rater.result.qualityLine", { level: t(`quality.${r.quality.frontalLevel}`), issues: r.quality.frontalIssues, side: r.quality.sideUsed ? t("rater.result.used") : t("rater.result.notUsed"), visual: r.quality.visualUsed ? t("rater.result.used") : t("rater.result.notUsed"), hairline: r.quality.hairline ? t("rater.result.present") : t("rater.result.missing") });
   const assessable = r.criteria.filter((c) => c.assessable).map((c) => criterionName(c.id, lang));
   const notAssessable = r.notAssessable.map((n) => `${criterionName(n.id, lang)} (${t(`rater.result.reason.${n.code}`)})`);
@@ -27,7 +30,8 @@ export function buildReportText(r: RatingResult, label: string, lang: Lang, t: T
   const lines: string[] = [];
   lines.push(`${label} — ${t("rater.result.title")} (${t("rater.result.rubric")} ${r.rubricVersion}, ${t("rater.result.scaleUsed")}: ${r.scale.name} v${r.scale.version})`);
   lines.push("");
-  lines.push(`PSL Score: ${r.score == null ? "—" : `${formatPsl(r.score)} / ${r.scale.rangeMax}`}${r.provisional ? ` (${t("rater.result.provisional")})` : ""}`);
+  const d = r.displayDecimals ?? 1;
+  lines.push(`PSL Score: ${r.score == null ? "—" : `${formatPsl(r.score, d)}${r.scoreSigma != null ? ` ± ${r.scoreSigma.toFixed(Math.max(d, 1))}` : ""} / ${r.scale.rangeMax}`}${r.provisional ? ` (${t("rater.result.provisional")})` : ""}`);
   lines.push(`Tier: ${r.tier ? `${r.tier.name} (${formatTierRange(r.tier)})` : "—"}`);
   lines.push("");
   lines.push(`${t("rater.result.reasoning")}:`);

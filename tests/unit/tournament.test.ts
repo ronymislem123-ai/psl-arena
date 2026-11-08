@@ -34,7 +34,10 @@ describe("categories and weights", () => {
     expect(DEFAULT_CATEGORIES.map((c) => c.name)).toContain("Best Profile");
     const w = normalizeWeights(DEFAULT_CATEGORIES);
     expect([...w.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
-    expect(w.get("harmony")).toBeCloseTo(0.25, 9);
+    // rubric 2.0: by default only the overall face counts, so no criterion is weighted twice
+    expect(w.get("overallFace")).toBeCloseTo(1, 9);
+    expect(w.get("harmony")).toBe(0);
+    expect(DEFAULT_CATEGORIES.filter((c) => c.area).map((c) => c.area)).toEqual(["eye", "symmetry", "proportions", "nose", "bone"]);
     // sums under or over 100 % are normalised the same way
     const under = normalizeWeights([{ id: "a", name: "a", criteria: [], weight: 30 }, { id: "b", name: "b", criteria: [], weight: 30 }]);
     expect(under.get("a")).toBeCloseTo(0.5, 9);
@@ -115,9 +118,10 @@ describe("category winners and overall ranking", () => {
     // tie-breaker 1: identical criteria (same weighted score) but a different overall face score
     const lowerFace: RatingResult = { ...R.ai, score: R.ai.score! - 0.8 };
     const pair = [P("x", R.ai), P("y", lowerFace)];
-    const ps = allCategoryScores(pair, cfg({ categories: DEFAULT_CATEGORIES.map((x) => ({ ...x, weight: x.id === "overallFace" ? 0 : x.weight })) }));
-    const po = weightedOverall(pair, ps, c);
-    const tb1 = compareParticipants("x", "y", pair, ps, po, c);
+    const noOverall = cfg({ categories: DEFAULT_CATEGORIES.map((x) => ({ ...x, weight: x.id === "overallFace" ? 0 : 1 })) });
+    const ps = allCategoryScores(pair, noOverall);
+    const po = weightedOverall(pair, ps, noOverall);
+    const tb1 = compareParticipants("x", "y", pair, ps, po, noOverall);
     expect(tb1.decidedBy).toBe("tb1_overallFace");
     expect(tb1.winner).toBe("x");
     // tie-breaker 3: identical scores, better data completeness wins

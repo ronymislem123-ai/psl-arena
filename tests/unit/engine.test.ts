@@ -36,7 +36,7 @@ describe("engine on real landmark fixtures", () => {
       expect(res.symmetry.score).not.toBeNull();
       expect(res.uncertainty!.overallSigma).toBeGreaterThan(0);
       expect(res.features.length).toBeGreaterThan(30);
-      expect(res.additional).toHaveLength(7);
+      expect(res.additional).toHaveLength(8);
     });
   }
 

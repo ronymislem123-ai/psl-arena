@@ -1,5 +1,5 @@
 "use client";
-import type { AnalysisConfig, AnalysisInput, Point } from "@/engine/types";
+import type { AnalysisConfig, AnalysisCorrections, AnalysisInput, Point } from "@/engine/types";
 import { detectFaces, type DetectedFace } from "./detect";
 import { estimateHairline, type HairlineEstimate } from "./hairline";
 import { loadImageFile, type LoadedImage } from "./image";
@@ -22,6 +22,8 @@ export interface ManualAdjustments {
   trichion?: Point | null; // user-confirmed/adjusted hairline (raw pixels)
   trichionConfirmed?: boolean;
   neck?: { right: Point; left: Point } | null;
+  /** engine 2.0: user-moved landmarks and reference-axis adjustment */
+  corrections?: AnalysisCorrections | null;
 }
 
 export function buildAnalysisInput(prep: PreparedImage, faceIndex: number, config: AnalysisConfig, manual: ManualAdjustments = {}): AnalysisInput {
@@ -38,9 +40,10 @@ export function buildAnalysisInput(prep: PreparedImage, faceIndex: number, confi
     mesh: face.mesh,
     trichion,
     neck: manual.neck ? { ...manual.neck, source: "manual" } : null,
+    corrections: manual.corrections && (Object.keys(manual.corrections.landmarks ?? {}).length || manual.corrections.axisAdjustDeg) ? manual.corrections : null,
     blendshapes: face.blendshapes,
     transformMatrix: face.matrix,
-    rawQuality: computeRawQuality(prep.image.canvas, face, prep.faces.length),
+    rawQuality: computeRawQuality(prep.image.canvas, face, prep.faces.length, prep.image),
     config,
   };
 }

@@ -28,7 +28,35 @@ export function midlineX(map: LandmarkMap): number | null {
   return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null;
 }
 
-const metricScore = (value: number, tol: number) => 100 * Math.exp((-Math.LN2 * value) / tol);
+/**
+ * Engine 2.0: Gaussian fall-off in units of the metric's dispersion unit (the
+ * former halving constant), the same form as every other measure. Small
+ * asymmetries are near-invisible in perception studies, so the curve is flat near
+ * zero instead of the former cusp (which penalised measurement noise most).
+ */
+export const metricScore = (value: number, tol: number) => 100 * Math.exp(-0.5 * (value / tol) ** 2);
+
+/**
+ * Removes the noise floor from an absolute asymmetry: |v| measured with noise σ
+ * has E[v²] = v_true² + σ², so v_true ≈ √max(v² − σ², 0). Without this, landmark
+ * noise alone makes a perfectly symmetric face look asymmetric.
+ */
+export function debiasAsymmetry(value: number, sigma: number): number {
+  return Math.sqrt(Math.max(value * value - sigma * sigma, 0));
+}
+
+/** Applies the noise-floor correction with per-metric σ from the Monte-Carlo run. */
+export function debiasSymmetry(sym: SymmetryResult, sigma: Record<string, number>): SymmetryResult {
+  if (!sym.metrics.length) return sym;
+  const metrics = sym.metrics.map((m) => {
+    const sg = sigma[m.id];
+    if (!(sg > 0)) return m;
+    const raw = m.rawValue ?? m.value;
+    const value = debiasAsymmetry(raw, sg);
+    return { ...m, rawValue: raw, sigma: sg, value, score: metricScore(value, m.tolerance) };
+  });
+  return { ...sym, metrics, score: metrics.reduce((s, m) => s + m.score, 0) / metrics.length };
+}
 
 export function computeSymmetry(map: LandmarkMap, quality: QualityReport): SymmetryResult {
   const pr = map.pupil_R;
@@ -44,7 +72,7 @@ export function computeSymmetry(map: LandmarkMap, quality: QualityReport): Symme
   const push = (id: string, label: string, value: number | null, unit: SymmetryMetric["unit"], tol: number, lms: SemanticLandmarkId[]) => {
     if (value === null || !Number.isFinite(value)) return;
     const v = Math.abs(value);
-    metrics.push({ id, label, value: v, unit, tolerance: tol, score: metricScore(v, tol), landmarks: lms });
+    metrics.push({ id, label, value: v, signed: value, unit, tolerance: tol, score: metricScore(v, tol), landmarks: lms });
   };
 
   // eye height / fissure

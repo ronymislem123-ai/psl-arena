@@ -118,7 +118,7 @@ describe("compareTournamentVersions", () => {
     expect(d.participants.unchanged).toBe(2);
     expect(d.config.formatChanged).toEqual(["ranking", "category"]);
     expect(d.config.categoriesRemoved).toEqual(["Best Profile"]);
-    expect(d.config.weightChanges).toEqual([{ id: "eyeArea", name: "Best Eye Area", a: 15, b: 50 }]);
+    expect(d.config.weightChanges).toEqual([{ id: "eyeArea", name: "Best Eye Area", a: 0, b: 50 }]);
     expect(d.results).not.toBeNull();
     expect(d.results!.categories.length).toBe(12);
     expect(d.results!.ranking.find((r) => r.name === "Charlie")!.a).toBeNull();

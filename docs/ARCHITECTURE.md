@@ -27,10 +27,14 @@
 | `types.ts` | All shared types (landmarks, ratio definitions/results, scores, quality, battle). |
 | `geometry.ts` | Vector maths, line fitting/intersection, PRNG. |
 | `landmarks/mesh-map.ts` | Mesh index map, roll normalisation (`alignMesh`), semantic landmark construction (`buildLandmarks`), gonion construction, zygion selection. |
-| `ratios/database.ts` | The 42 ratio definitions + 7 additional measurements (metadata only, serialisable). |
+| `ratios/database.ts` | The 42 ratio definitions + 8 additional measurements (metadata only, serialisable). |
 | `ratios/formulas.ts` | One pure formula per ratio (returns value + intermediates). |
 | `ratios/evaluate.ts` | Availability, confidence propagation, tier, harmony index per ratio. |
-| `ratios/additional.ts` | The 7 additional measurements (raw values / unavailability reasons). |
+| `ratios/additional.ts` | The 8 additional measurements (raw values / unavailability reasons). |
+| `landmarks/pose.ts`, `noise-model.ts` | 3D pose normalisation (Horn fit to the canonical face); empirical correlated landmark-noise model. |
+| `scoring/measurement.ts`, `scoring/hierarchy.ts` | Dispersion units, measure index, evidence status; rubric 2.0 aggregation shared by analysis and rater. |
+| `quality/reliability.ts`, `capture/` | Five-level analysis reliability and per-measure detection quality; capture classification (EXIF, iris distance). |
+| `synth/` | Mesh deformations for validation; the ideal-example optimiser and stored geometry. |
 | `scoring/tiers.ts` | Original T1–T5 system; harmony index function. |
 | `scoring/aggregate.ts` | Category indices, harmony/proportion/structure/overall, coverage, original scoring. |
 | `scoring/symmetry.ts` | Bilateral symmetry metrics against a fitted midline. |

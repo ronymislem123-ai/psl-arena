@@ -36,7 +36,7 @@ export function computeAdditional(map: LandmarkMap, ratios: RatioResult[], quali
     out.push({
       id: "FIFTHS", value: dev, values: { outer1: seg[0], eye1: seg[1], intercanthal: seg[2], eye2: seg[3], outer2: seg[4], meanDeviation: dev },
       availability: "available", confidence: baseConf * 0.85, noteCode: "fifths",
-      note: `Fifths (left→right): ${seg.map((v) => v.toFixed(1) + " %").join(" · ")}. Mean deviation from 20 % = ${dev.toFixed(1)} pp. Informational, not part of the 42-ratio score.`,
+      note: `Fifths (left→right): ${seg.map((v) => v.toFixed(1) + " %").join(" · ")}. Mean deviation from 20 % = ${dev.toFixed(1)} pp. Scored in rubric 2.0 (facial fifths), not part of the 42-ratio set.`,
     });
   } else {
     out.push({ id: "FIFTHS", value: null, availability: "unavailable", confidence: 0, noteCode: "landmarksMissing", note: "Required landmarks missing." });
@@ -68,6 +68,21 @@ export function computeAdditional(map: LandmarkMap, ratios: RatioResult[], quali
     });
   } else {
     out.push({ id: "NOSE_CHIN", value: null, availability: "unavailable", confidence: 0, noteCode: "landmarksMissing", note: "Required landmarks missing." });
+  }
+
+  // Pallett et al. 2010 length ratio: vertical pupil line → mouth over hairline → chin
+  const st = g("stomion");
+  if (tr && me && pr && pl && st) {
+    const eyeY = (pr.y + pl.y) / 2;
+    const len = vdist(tr, me);
+    const v = Math.abs(st.y - eyeY) / len;
+    out.push({
+      id: "EML", value: v, values: { ratio: v, eyeToMouthOverIpd: ipd ? Math.abs(st.y - eyeY) / ipd : NaN },
+      availability: "available", confidence: baseConf * Math.min(map.trichion?.confidence ?? 0.5, map.menton?.confidence ?? 0.8), noteCode: "eyeMouthLength",
+      note: `Pupil line → mouth = ${(v * 100).toFixed(1)} % of hairline → chin (preferred .36–.37 in Pallett et al. 2010, white female faces).`,
+    });
+  } else {
+    out.push({ id: "EML", value: null, availability: "unavailable", confidence: 0, noteCode: tr ? "landmarksMissing" : "hairlineMissing", note: tr ? "Required landmarks missing." : "Hairline not available." });
   }
   return out;
 }

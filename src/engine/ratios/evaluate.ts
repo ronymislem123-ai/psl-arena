@@ -2,9 +2,13 @@ import { clamp } from "../geometry";
 import type { AnalysisConfig, LandmarkMap, QualityReport, RatioDefinition, RatioResult } from "../types";
 import { RATIO_DEFINITIONS } from "./database";
 import { FORMULAS } from "./formulas";
-import { assignTier, indexFromDeviation } from "../scoring/tiers";
+import { assignTier } from "../scoring/tiers";
+import { evidenceOf, isUnscored, plateauIndex } from "../scoring/measurement";
 
 export const UNCERTAIN_THRESHOLD = 0.5;
+
+/** Landmarks on the soft-tissue face contour. */
+export const CONTOUR_LANDMARKS = new Set<string>(["zygion_R", "zygion_L", "gonion_R", "gonion_L", "chin_corner_R", "chin_corner_L", "frontotemporale_R", "frontotemporale_L", "ramus_upper_R", "ramus_upper_L", "mandible_body_R", "mandible_body_L"]);
 
 const STATUS_FACTOR: Record<RatioDefinition["status"], number> = { defined: 1, reconstructed: 0.85, incomplete: 0 };
 
@@ -34,9 +38,17 @@ export function ratioConfidence(def: RatioDefinition, map: LandmarkMap, quality:
     if (region === "brows") conf *= 1 - 0.4 * clamp(Math.max(e.browRaise, e.browDown), 0, 1);
     if (region === "jaw") conf *= 1 - 0.5 * clamp(e.jawOpen, 0, 1);
   }
-  // capture distance / perspective
+  // capture distance / perspective (effective distance: the user's setting or the EXIF/iris estimate)
   if (def.sensitivity.depth) {
-    conf *= config.captureDistance === "selfie" ? 0.8 : config.captureDistance === "unknown" ? 0.95 : 1;
+    const cd = quality.captureDistance ?? config.captureDistance;
+    const infl = quality.capture?.perspectiveInflation;
+    conf *= infl != null ? 1 - clamp((infl - 0.05) / 0.5, 0, 0.4) : cd === "selfie" ? 0.8 : cd === "unknown" ? 0.95 : 1;
+  }
+  // contour landmarks (cheek, jaw, chin, temples) lose precision under side lighting and clipping
+  if (def.landmarks.some((id) => CONTOUR_LANDMARKS.has(id))) {
+    const asym = quality.lightingAsymmetry ?? 0;
+    const clip = quality.clipFraction ?? 0;
+    conf *= (1 - clamp((asym - 0.15) / 0.6, 0, 0.25)) * (1 - clamp((clip - 0.03) / 0.2, 0, 0.25));
   }
   return clamp(conf, 0, 1);
 }
@@ -93,12 +105,13 @@ export function evaluateRatios(map: LandmarkMap, quality: QualityReport, config:
       uncertain: confidence < UNCERTAIN_THRESHOLD,
       inT1: tier.inT1,
       deviation: tier.deviation,
-      normalizedDeviation: absDev / def.tolerance,
+      normalizedDeviation: absDev / def.tolerance, // in dispersion units s
       tier: tier.tier,
       tierPoints: tier.points,
       tierNote: tier.note,
       tierCode: tier.inT1 ? "inT1" : tier.tier ? "verifiedTier" : "outsideUndetermined",
-      index: indexFromDeviation(absDev, def.tolerance),
+      index: plateauIndex(m.value, def.t1, def.tolerance),
+      ...(isUnscored(evidenceOf(def.id).status) ? { excludedFromScore: true } : {}),
     };
   });
 }

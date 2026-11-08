@@ -1,0 +1,1132 @@
+{
+ "iterations": [
+  {
+   "iteration": 0,
+   "detected": true,
+   "residualMean": 0.04735488403069692,
+   "residualMax": 0.15932715099912803,
+   "inRange": 14,
+   "total": 32,
+   "misfit": 14.801037503991044,
+   "worst": [
+    [
+     10,
+     0.15932715099912803
+    ],
+    [
+     288,
+     0.15677260969773724
+    ],
+    [
+     58,
+     0.15201968184278258
+    ],
+    [
+     397,
+     0.14260584087511044
+    ],
+    [
+     172,
+     0.1371701023038475
+    ],
+    [
+     132,
+     0.13147730376363462
+    ],
+    [
+     361,
+     0.13136613494854285
+    ],
+    [
+     365,
+     0.1188089231228751
+    ],
+    [
+     338,
+     0.11742547122058039
+    ],
+    [
+     336,
+     0.11605288192913753
+    ],
+    [
+     109,
+     0.11202520587842876
+    ],
+    [
+     367,
+     0.11140259267863971
+    ]
+   ]
+  },
+  {
+   "iteration": 1,
+   "detected": true,
+   "residualMean": 0.043983013806026705,
+   "residualMax": 0.16210026650406875,
+   "inRange": 12,
+   "total": 32,
+   "misfit": 39.033335315113426,
+   "worst": [
+    [
+     10,
+     0.16210026650406875
+    ],
+    [
+     288,
+     0.13564586923681257
+    ],
+    [
+     58,
+     0.1312129982328546
+    ],
+    [
+     338,
+     0.11773474816520152
+    ],
+    [
+     361,
+     0.11724571435362345
+    ],
+    [
+     109,
+     0.1169111269198749
+    ],
+    [
+     132,
+     0.11588369293673662
+    ],
+    [
+     397,
+     0.11576025207718234
+    ],
+    [
+     172,
+     0.11377596790360048
+    ],
+    [
+     345,
+     0.10494706425803896
+    ],
+    [
+     119,
+     0.10388634729594631
+    ],
+    [
+     336,
+     0.10287232121693578
+    ]
+   ]
+  },
+  {
+   "iteration": 2,
+   "detected": true,
+   "residualMean": 0.040614651400538423,
+   "residualMax": 0.14616808741405124,
+   "inRange": 12,
+   "total": 32,
+   "misfit": 8.46994864735753,
+   "worst": [
+    [
+     10,
+     0.14616808741405124
+    ],
+    [
+     345,
+     0.12213286929403541
+    ],
+    [
+     58,
+     0.11203926981821354
+    ],
+    [
+     119,
+     0.11122219980420586
+    ],
+    [
+     340,
+     0.10778154824260577
+    ],
+    [
+     336,
+     0.10686805081350133
+    ],
+    [
+     338,
+     0.10469475037276667
+    ],
+    [
+     120,
+     0.10162060931868128
+    ],
+    [
+     132,
+     0.10021629723449774
+    ],
+    [
+     288,
+     0.10021368796218998
+    ],
+    [
+     109,
+     0.10005947622634846
+    ],
+    [
+     285,
+     0.09722626876957903
+    ]
+   ]
+  },
+  {
+   "iteration": 3,
+   "detected": true,
+   "residualMean": 0.04010707273072532,
+   "residualMax": 0.13878533657528067,
+   "inRange": 15,
+   "total": 32,
+   "misfit": 8.790841114226563,
+   "worst": [
+    [
+     10,
+     0.13878533657528067
+    ],
+    [
+     345,
+     0.11571096464124779
+    ],
+    [
+     336,
+     0.11329297160867893
+    ],
+    [
+     259,
+     0.10752959257753947
+    ],
+    [
+     340,
+     0.10683464215511197
+    ],
+    [
+     119,
+     0.10604262066443784
+    ],
+    [
+     58,
+     0.1055187696426154
+    ],
+    [
+     260,
+     0.10159785821308923
+    ],
+    [
+     285,
+     0.1008903438536375
+    ],
+    [
+     132,
+     0.0979330754097159
+    ],
+    [
+     338,
+     0.09712994520525024
+    ],
+    [
+     120,
+     0.09612254398008624
+    ]
+   ]
+  },
+  {
+   "iteration": 4,
+   "detected": true,
+   "residualMean": 0.0420826345576557,
+   "residualMax": 0.1313676161415966,
+   "inRange": 14,
+   "total": 32,
+   "misfit": 6.762428764919551,
+   "worst": [
+    [
+     345,
+     0.1313676161415966
+    ],
+    [
+     10,
+     0.1311214237989866
+    ],
+    [
+     58,
+     0.12955506764436867
+    ],
+    [
+     132,
+     0.12532570189480272
+    ],
+    [
+     336,
+     0.12114255281806997
+    ],
+    [
+     340,
+     0.11814738952065848
+    ],
+    [
+     93,
+     0.11231270618723795
+    ],
+    [
+     372,
+     0.11051359261720625
+    ],
+    [
+     259,
+     0.10863184976131011
+    ],
+    [
+     285,
+     0.10741837807127887
+    ],
+    [
+     119,
+     0.10483244225230004
+    ],
+    [
+     260,
+     0.10455037886005712
+    ]
+   ]
+  },
+  {
+   "iteration": 5,
+   "detected": true,
+   "residualMean": 0.04071394930420114,
+   "residualMax": 0.12726810937123273,
+   "inRange": 15,
+   "total": 32,
+   "misfit": 8.48985062159551,
+   "worst": [
+    [
+     336,
+     0.12726810937123273
+    ],
+    [
+     9,
+     0.12060189054308196
+    ],
+    [
+     345,
+     0.11945251364627678
+    ],
+    [
+     132,
+     0.11580048298587073
+    ],
+    [
+     58,
+     0.11452345429493552
+    ],
+    [
+     10,
+     0.11406267683155687
+    ],
+    [
+     285,
+     0.11316980908285001
+    ],
+    [
+     259,
+     0.1123767149707161
+    ],
+    [
+     361,
+     0.11029042674849687
+    ],
+    [
+     340,
+     0.10775438676862822
+    ],
+    [
+     288,
+     0.10690523370584719
+    ],
+    [
+     260,
+     0.10643786758353638
+    ]
+   ]
+  }
+ ],
+ "best": 4,
+ "geometric": [
+  {
+   "key": "r:CT",
+   "id": "CT",
+   "kind": "ratio",
+   "range": {
+    "min": 5,
+    "max": 8
+   },
+   "value": 5.440441161086432,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:ESR",
+   "id": "ESR",
+   "kind": "ratio",
+   "range": {
+    "min": 45,
+    "max": 47.9
+   },
+   "value": 45.38021978021978,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:ICD",
+   "id": "ICD",
+   "kind": "ratio",
+   "range": {
+    "min": 0.93,
+    "max": 1.05
+   },
+   "value": 1.0324677959194453,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:OCD",
+   "id": "OCD",
+   "kind": "ratio",
+   "range": {
+    "min": 62,
+    "max": 68
+   },
+   "value": 62.54505494505493,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:EAR",
+   "id": "EAR",
+   "kind": "ratio",
+   "range": {
+    "min": 3,
+    "max": 3.6
+   },
+   "value": 3.51521066480316,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:PFL_BYZGO",
+   "id": "PFL_BYZGO",
+   "kind": "ratio",
+   "range": {
+    "min": 19.5,
+    "max": 21.5
+   },
+   "value": 20.686593657114077,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:EBL",
+   "id": "EBL",
+   "kind": "ratio",
+   "range": {
+    "min": 69,
+    "max": 79
+   },
+   "value": 70.48875590289295,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:MF",
+   "id": "MF",
+   "kind": "ratio",
+   "range": {
+    "min": 0.95,
+    "max": 1.03
+   },
+   "value": 0.95666220017717,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:FT_M",
+   "id": "FT_M",
+   "kind": "ratio",
+   "range": {
+    "min": 31,
+    "max": 33
+   },
+   "value": 31.28815988875938,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:FT_L",
+   "id": "FT_L",
+   "kind": "ratio",
+   "range": {
+    "min": 34,
+    "max": 37
+   },
+   "value": 36.669083959201,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:TFWHR",
+   "id": "TFWHR",
+   "kind": "ratio",
+   "range": {
+    "min": 1.33,
+    "max": 1.38
+   },
+   "value": 1.3769983791439038,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:LFF",
+   "id": "LFF",
+   "kind": "ratio",
+   "range": {
+    "min": 63,
+    "max": 67
+   },
+   "value": 63.02984015289623,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:DEV_BIT_BIG",
+   "id": "DEV_BIT_BIG",
+   "kind": "ratio",
+   "range": {
+    "min": 0,
+    "max": 3
+   },
+   "value": 2.532152410417453,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:EME",
+   "id": "EME",
+   "kind": "ratio",
+   "range": {
+    "min": 47,
+    "max": 48
+   },
+   "value": 48.05608874539156,
+   "z": 0.022435498156625044,
+   "inRange": false
+  },
+  {
+   "key": "r:L3P",
+   "id": "L3P",
+   "kind": "ratio",
+   "range": {
+    "min": 31,
+    "max": 33
+   },
+   "value": 32.35151096328963,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:BIG",
+   "id": "BIG",
+   "kind": "ratio",
+   "range": {
+    "min": 85,
+    "max": 92
+   },
+   "value": 90.98872671046166,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:GS",
+   "id": "GS",
+   "kind": "ratio",
+   "range": {
+    "min": 138,
+    "max": 143
+   },
+   "value": 142.3304926254578,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:M_C",
+   "id": "M_C",
+   "kind": "ratio",
+   "range": {
+    "min": 0.95,
+    "max": 1.05
+   },
+   "value": 1.0353764893747697,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:CBS",
+   "id": "CBS",
+   "kind": "ratio",
+   "range": {
+    "min": 80,
+    "max": null
+   },
+   "value": 90.62021315202873,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:N_BYZGO",
+   "id": "N_BYZGO",
+   "kind": "ratio",
+   "range": {
+    "min": 24,
+    "max": 26
+   },
+   "value": 24.720879120879125,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:N_H",
+   "id": "N_H",
+   "kind": "ratio",
+   "range": {
+    "min": 1.4,
+    "max": 1.59
+   },
+   "value": 1.468342544544391,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:M_IPD",
+   "id": "M_IPD",
+   "kind": "ratio",
+   "range": {
+    "min": 80,
+    "max": 88
+   },
+   "value": 81.64471135218909,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:M_N",
+   "id": "M_N",
+   "kind": "ratio",
+   "range": {
+    "min": 1.38,
+    "max": 1.52
+   },
+   "value": 1.4987553342816502,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:M_BIG",
+   "id": "M_BIG",
+   "kind": "ratio",
+   "range": {
+    "min": 40,
+    "max": 45
+   },
+   "value": 40.71993398528291,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:LL_UL",
+   "id": "LL_UL",
+   "kind": "ratio",
+   "range": {
+    "min": 1.4,
+    "max": 1.9
+   },
+   "value": 1.4735673106449618,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:LIP_WHR",
+   "id": "LIP_WHR",
+   "kind": "ratio",
+   "range": {
+    "min": 3,
+    "max": 3.5
+   },
+   "value": 3.0647055761226505,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:C_P",
+   "id": "C_P",
+   "kind": "ratio",
+   "range": {
+    "min": 2.1,
+    "max": 2.5
+   },
+   "value": 2.4482263478437205,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:FT_U",
+   "id": "FT_U",
+   "kind": "ratio",
+   "range": {
+    "min": 30,
+    "max": 32
+   },
+   "value": 32.04275615203962,
+   "z": 0.01623298539821838,
+   "inRange": false
+  },
+  {
+   "key": "r:FWHF",
+   "id": "FWHF",
+   "kind": "ratio",
+   "range": {
+    "min": 44,
+    "max": 50
+   },
+   "value": 44.12282328466191,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:BIT",
+   "id": "BIT",
+   "kind": "ratio",
+   "range": {
+    "min": 85,
+    "max": 95
+   },
+   "value": 93.52087912087912,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "a:EML",
+   "id": "EML",
+   "kind": "additional",
+   "range": {
+    "min": 0.36,
+    "max": 0.37
+   },
+   "value": 0.3696138148141191,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "a:FIFTHS",
+   "id": "FIFTHS",
+   "kind": "additional",
+   "range": {
+    "min": null,
+    "max": 0
+   },
+   "value": 1.018021978021973,
+   "z": 0.33934065934065766,
+   "inRange": false
+  }
+ ],
+ "redetected": [
+  {
+   "key": "r:CT",
+   "id": "CT",
+   "kind": "ratio",
+   "range": {
+    "min": 5,
+    "max": 8
+   },
+   "value": 3.9174463545180433,
+   "z": -0.3608512151606522,
+   "inRange": false
+  },
+  {
+   "key": "r:ESR",
+   "id": "ESR",
+   "kind": "ratio",
+   "range": {
+    "min": 45,
+    "max": 47.9
+   },
+   "value": 44.83624615827488,
+   "z": -0.07443356442050811,
+   "inRange": false
+  },
+  {
+   "key": "r:ICD",
+   "id": "ICD",
+   "kind": "ratio",
+   "range": {
+    "min": 0.93,
+    "max": 1.05
+   },
+   "value": 0.8898451228474933,
+   "z": -0.5078398840499563,
+   "inRange": false
+  },
+  {
+   "key": "r:OCD",
+   "id": "OCD",
+   "kind": "ratio",
+   "range": {
+    "min": 62,
+    "max": 68
+   },
+   "value": 65.04410179850574,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:EAR",
+   "id": "EAR",
+   "kind": "ratio",
+   "range": {
+    "min": 3,
+    "max": 3.6
+   },
+   "value": 3.5133604695639997,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:PFL_BYZGO",
+   "id": "PFL_BYZGO",
+   "kind": "ratio",
+   "range": {
+    "min": 19.5,
+    "max": 21.5
+   },
+   "value": 22.545012309495718,
+   "z": 0.8273789038003048,
+   "inRange": false
+  },
+  {
+   "key": "r:EBL",
+   "id": "EBL",
+   "kind": "ratio",
+   "range": {
+    "min": 69,
+    "max": 79
+   },
+   "value": 64.34546246649207,
+   "z": -0.898559369403076,
+   "inRange": false
+  },
+  {
+   "key": "r:MF",
+   "id": "MF",
+   "kind": "ratio",
+   "range": {
+    "min": 0.95,
+    "max": 1.03
+   },
+   "value": 0.9759957353961716,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:FT_M",
+   "id": "FT_M",
+   "kind": "ratio",
+   "range": {
+    "min": 31,
+    "max": 33
+   },
+   "value": 33.84364919760474,
+   "z": 0.48747122443396534,
+   "inRange": false
+  },
+  {
+   "key": "r:FT_L",
+   "id": "FT_L",
+   "kind": "ratio",
+   "range": {
+    "min": 34,
+    "max": 37
+   },
+   "value": 37.56541705999901,
+   "z": 0.2592281001800067,
+   "inRange": false
+  },
+  {
+   "key": "r:TFWHR",
+   "id": "TFWHR",
+   "kind": "ratio",
+   "range": {
+    "min": 1.33,
+    "max": 1.38
+   },
+   "value": 1.3498450674620712,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:LFF",
+   "id": "LFF",
+   "kind": "ratio",
+   "range": {
+    "min": 63,
+    "max": 67
+   },
+   "value": 62.39233597356788,
+   "z": -0.19600153376313126,
+   "inRange": false
+  },
+  {
+   "key": "r:DEV_BIT_BIG",
+   "id": "DEV_BIT_BIG",
+   "kind": "ratio",
+   "range": {
+    "min": 0,
+    "max": 3
+   },
+   "value": 0.12215470784776983,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:EME",
+   "id": "EME",
+   "kind": "ratio",
+   "range": {
+    "min": 47,
+    "max": 48
+   },
+   "value": 48.78617765518971,
+   "z": 0.3144710620758843,
+   "inRange": false
+  },
+  {
+   "key": "r:L3P",
+   "id": "L3P",
+   "kind": "ratio",
+   "range": {
+    "min": 31,
+    "max": 33
+   },
+   "value": 33.900071329044664,
+   "z": 0.269409992979036,
+   "inRange": false
+  },
+  {
+   "key": "r:BIG",
+   "id": "BIG",
+   "kind": "ratio",
+   "range": {
+    "min": 85,
+    "max": 92
+   },
+   "value": 90.08110505441714,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:GS",
+   "id": "GS",
+   "kind": "ratio",
+   "range": {
+    "min": 138,
+    "max": 143
+   },
+   "value": 146.72137836816523,
+   "z": 0.6202297280275388,
+   "inRange": false
+  },
+  {
+   "key": "r:M_C",
+   "id": "M_C",
+   "kind": "ratio",
+   "range": {
+    "min": 0.95,
+    "max": 1.05
+   },
+   "value": 1.0412594718660546,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:CBS",
+   "id": "CBS",
+   "kind": "ratio",
+   "range": {
+    "min": 80,
+    "max": null
+   },
+   "value": 73.45035820045598,
+   "z": -1.1370905901986146,
+   "inRange": false
+  },
+  {
+   "key": "r:N_BYZGO",
+   "id": "N_BYZGO",
+   "kind": "ratio",
+   "range": {
+    "min": 24,
+    "max": 26
+   },
+   "value": 24.48993855322604,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:N_H",
+   "id": "N_H",
+   "kind": "ratio",
+   "range": {
+    "min": 1.4,
+    "max": 1.59
+   },
+   "value": 1.3684188697707933,
+   "z": -0.28422327602296066,
+   "inRange": false
+  },
+  {
+   "key": "r:M_IPD",
+   "id": "M_IPD",
+   "kind": "ratio",
+   "range": {
+    "min": 80,
+    "max": 88
+   },
+   "value": 80.80763944489458,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:M_N",
+   "id": "M_N",
+   "kind": "ratio",
+   "range": {
+    "min": 1.38,
+    "max": 1.52
+   },
+   "value": 1.4794284623238252,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:M_BIG",
+   "id": "M_BIG",
+   "kind": "ratio",
+   "range": {
+    "min": 40,
+    "max": 45
+   },
+   "value": 40.22054582291956,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:LL_UL",
+   "id": "LL_UL",
+   "kind": "ratio",
+   "range": {
+    "min": 1.4,
+    "max": 1.9
+   },
+   "value": 1.7926189756150115,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "r:LIP_WHR",
+   "id": "LIP_WHR",
+   "kind": "ratio",
+   "range": {
+    "min": 3,
+    "max": 3.5
+   },
+   "value": 2.9422486556883656,
+   "z": -0.16899728283446977,
+   "inRange": false
+  },
+  {
+   "key": "r:C_P",
+   "id": "C_P",
+   "kind": "ratio",
+   "range": {
+    "min": 2.1,
+    "max": 2.5
+   },
+   "value": 2.089643488406924,
+   "z": -0.04162868849918989,
+   "inRange": false
+  },
+  {
+   "key": "r:FT_U",
+   "id": "FT_U",
+   "kind": "ratio",
+   "range": {
+    "min": 30,
+    "max": 32
+   },
+   "value": 28.59093374239625,
+   "z": -0.5349721828008983,
+   "inRange": false
+  },
+  {
+   "key": "r:FWHF",
+   "id": "FWHF",
+   "kind": "ratio",
+   "range": {
+    "min": 44,
+    "max": 50
+   },
+   "value": 38.59333088630847,
+   "z": -1.3545781774679932,
+   "inRange": false
+  },
+  {
+   "key": "r:BIT",
+   "id": "BIT",
+   "kind": "ratio",
+   "range": {
+    "min": 85,
+    "max": 95
+   },
+   "value": 90.2032597622649,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "a:EML",
+   "id": "EML",
+   "kind": "additional",
+   "range": {
+    "min": 0.36,
+    "max": 0.37
+   },
+   "value": 0.36623655940122773,
+   "z": 0,
+   "inRange": true
+  },
+  {
+   "key": "a:FIFTHS",
+   "id": "FIFTHS",
+   "kind": "additional",
+   "range": {
+    "min": null,
+    "max": 0
+   },
+   "value": 2.0175480066766753,
+   "z": 0.6725160022255584,
+   "inRange": false
+  }
+ ],
+ "overall": 86.61668768606832
+}

@@ -3,6 +3,7 @@
  * the browser (lib/vision/quality.ts); this module turns raw numbers into levels,
  * scores and user-facing issues.
  */
+import { classifyCapture } from "../capture/classify";
 import { clamp } from "../geometry";
 import type {
   AnalysisInput,
@@ -86,13 +87,17 @@ export function expressionFromBlendshapes(bs: Record<string, number>): Expressio
   return { smile, jawOpen, blink, browRaise, browDown, pucker, squint, neutrality, level };
 }
 
-export function assessQuality(input: AnalysisInput, map: LandmarkMap, rollDeg: number): QualityReport {
+export function assessQuality(input: AnalysisInput, map: LandmarkMap, rollDeg: number, pose3d?: HeadPose | null): QualityReport {
   const rq = input.rawQuality;
   const metrics: QualityMetric[] = [];
   const issues: QualityIssue[] = [];
 
-  const posed = eulerFromMatrix(input.transformMatrix) ?? poseFromLandmarks(map, rollDeg);
+  // 3D rigid fit when depth is available; otherwise the landmarker's matrix or a landmark heuristic
+  const posed = pose3d ?? eulerFromMatrix(input.transformMatrix) ?? poseFromLandmarks(map, rollDeg);
   const pose: HeadPose = { yaw: posed.yaw, pitch: posed.pitch, roll: rollDeg };
+  const capture = classifyCapture(rq, pose, input.mesh, clamp(Math.max(input.blendshapes.eyeBlinkLeft ?? 0, input.blendshapes.eyeBlinkRight ?? 0), 0, 1), !!input.trichion);
+  // the user's capture-distance setting wins; "unknown" is resolved from the distance estimate when one exists
+  const captureDistance = input.config.captureDistance !== "unknown" || !capture.distanceCm ? input.config.captureDistance : capture.distanceCm.estimate < 60 ? "selfie" : "standard";
 
   // resolution
   const res = scoreHigher(rq.faceWidthPx, { unusable: 60, poor: 110, acceptable: 180, good: 300 });
@@ -133,10 +138,10 @@ export function assessQuality(input: AnalysisInput, map: LandmarkMap, rollDeg: n
   if (pitch.level === "unusable") issues.push({ key: "pitch.error", params: { deg: Math.round(Math.abs(pose.pitch)) }, code: "pitch", severity: "error", message: `The head is tilted up/down by ${Math.abs(pose.pitch).toFixed(0)}°; vertical proportions are distorted.` });
   else if (pitch.level === "poor") issues.push({ key: "pitch.warning", params: { deg: Math.round(Math.abs(pose.pitch)) }, code: "pitch", severity: "warning", message: `Head tilted up/down (${Math.abs(pose.pitch).toFixed(0)}°); vertical proportions lose precision.` });
 
-  const roll = scoreLower(pose.roll, { good: 10, acceptable: 20, poor: 35, unusable: 60 });
-  metrics.push({ id: "roll", label: "Head roll", value: Math.round(pose.roll * 10) / 10, unit: "°", score: roll.score, level: roll.level, hint: "corrected automatically; ≤ 10° ideal" });
-  if (roll.level === "unusable") issues.push({ key: "roll.error", code: "roll", severity: "error", message: "The head is rotated too far in the image plane." });
-  else if (roll.level === "poor") issues.push({ key: "roll.warning", code: "roll", severity: "warning", message: "Strong head roll was corrected numerically; residual errors possible." });
+  // Roll is an in-plane rotation: it is removed exactly (any angle, also upside down), so it never limits usability.
+  const rollAbs = Math.abs(((((pose.roll % 360) + 540) % 360) - 180));
+  metrics.push({ id: "roll", label: "Head roll", value: Math.round(pose.roll * 10) / 10, unit: "°", score: 1, level: "good", hint: "corrected automatically at any angle" });
+  if (rollAbs > 10) issues.push({ key: "roll.info", params: { deg: Math.round(rollAbs) }, code: "roll", severity: "info", message: `The head is rotated ${Math.round(rollAbs)}° in the image plane; this was corrected exactly.` });
 
   // expression
   const expression = expressionFromBlendshapes(input.blendshapes);
@@ -168,7 +173,22 @@ export function assessQuality(input: AnalysisInput, map: LandmarkMap, rollDeg: n
   }
   if (rq.faceCount > 1) issues.push({ key: "multipleFaces", params: { n: rq.faceCount }, code: "multiple-faces", severity: "info", message: `${rq.faceCount} faces detected; the selected face is analysed.` });
   if (!input.trichion) issues.push({ key: "hairlineNotFound", code: "hairline-not-found", severity: "warning", message: "The hairline could not be estimated. Place it manually to enable hairline-based ratios (thirds, TFWHR, LFF, FWHF)." });
-  if (input.config.captureDistance === "selfie") issues.push({ key: "selfie", code: "selfie-perspective", severity: "info", message: "Close-range (selfie) perspective enlarges the nose and narrows the face; depth-sensitive ratios carry reduced confidence." });
+  if (captureDistance === "selfie" && !capture.distanceCm) issues.push({ key: "selfie", code: "selfie-perspective", severity: "info", message: "Close-range (selfie) perspective enlarges the nose and narrows the face; depth-sensitive ratios carry reduced confidence." });
+
+  // capture conditions: they lower the reliability of affected measurements, never the face score
+  const d = capture.distanceCm;
+  if (d && capture.perspectiveInflation != null) {
+    const params = { cm: Math.round(d.estimate), pct: Math.round(capture.perspectiveInflation * 100) };
+    if (d.estimate < 60) issues.push({ key: "perspective.close", params, code: "selfie-perspective", severity: "warning", message: `Close range (about ${params.cm} cm): central features such as the nose appear about ${params.pct} % larger relative to the face width; perspective-sensitive ratios carry reduced confidence.` });
+    else issues.push({ key: "perspective.info", params, code: "selfie-perspective", severity: "info", message: `Estimated camera distance about ${params.cm} cm (from the EXIF focal length and the iris size; ±26 %).` });
+  }
+  if ((rq.clipBright ?? 0) > 0.05) issues.push({ key: "exposure.bright", params: { pct: Math.round((rq.clipBright ?? 0) * 100) }, code: "too-bright", severity: "warning", message: `${Math.round((rq.clipBright ?? 0) * 100)} % of the face is clipped white; contours in those areas are lost.` });
+  if ((rq.clipDark ?? 0) > 0.08) issues.push({ key: "exposure.dark", params: { pct: Math.round((rq.clipDark ?? 0) * 100) }, code: "too-dark", severity: "warning", message: `${Math.round((rq.clipDark ?? 0) * 100)} % of the face is clipped black; contours in those areas are lost.` });
+  if ((rq.lightingAsymmetry ?? 0) > 0.25) issues.push({ key: "lighting.sided", params: { pct: Math.round((rq.lightingAsymmetry ?? 0) * 100) }, code: "lighting", severity: "warning", message: "Strong side lighting: contour points on the shadow side (cheek, jaw) are less reliable." });
+  if (rq.blockiness != null && rq.blockiness > 1.3) issues.push({ key: "compression", code: "compression", severity: "warning", message: "Visible JPEG compression blocks reduce the precision of fine landmarks." });
+  const editing = capture.items.find((i) => i.id === "editing");
+  if (editing?.value === "editorTag") issues.push({ key: "editing.tag", params: { software: String(editing.params?.software ?? "") }, code: "editing", severity: "info", message: `The file was saved by editing software (${editing.params?.software}). Beauty filters can change proportions; this cannot be detected.` });
+  if (capture.items.find((i) => i.id === "smoothing")?.value === "suspected") issues.push({ key: "smoothing", code: "editing", severity: "info", message: "Unusually smooth skin texture (possible filter). Smoothing alone barely affects geometry, but reshaping filters would; they cannot be detected." });
 
   const weights: Record<string, number> = { resolution: 0.2, sharpness: 0.2, brightness: 0.1, contrast: 0.1, yaw: 0.15, pitch: 0.1, roll: 0.0, expression: 0.15 };
   let score = metrics.reduce((s, m) => s + (weights[m.id] ?? 0) * m.score, 0) / Object.values(weights).reduce((a, b) => a + b, 0);
@@ -183,7 +203,10 @@ export function assessQuality(input: AnalysisInput, map: LandmarkMap, rollDeg: n
     issues,
     pose,
     expression,
-    captureDistance: input.config.captureDistance,
+    captureDistance,
+    capture,
+    lightingAsymmetry: rq.lightingAsymmetry,
+    clipFraction: (rq.clipBright ?? 0) + (rq.clipDark ?? 0),
     faceCount: rq.faceCount,
     faceWidthPx: rq.faceWidthPx,
     analyzable: !hasError,

@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { SIDE_LANDMARK_ORDER } from "@/engine/side-view";
-import { CRITERIA } from "@/engine/psl/rubric";
+import { CRITERIA, RUBRIC_AREAS } from "@/engine/psl/rubric";
 import { SCALE_EXPORT_FORMAT } from "@/engine/psl/scale";
 
-export const pointSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
+export const pointSchema = z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite().optional() });
 
 export const analysisConfigSchema = z.object({
   includeReconstructed: z.boolean().default(true),
@@ -19,6 +19,13 @@ export const analysisInputSchema = z.object({
     .nullable()
     .optional(),
   neck: z.object({ right: pointSchema, left: pointSchema, source: z.literal("manual") }).nullable().optional(),
+  corrections: z
+    .object({
+      landmarks: z.record(z.string().regex(/^[a-z_A-Z]{2,32}$/), pointSchema).optional(),
+      axisAdjustDeg: z.number().min(-15).max(15).optional(),
+    })
+    .nullable()
+    .optional(),
   blendshapes: z.record(z.string(), z.number()),
   transformMatrix: z.array(z.number()).length(16).nullable().optional(),
   rawQuality: z.object({
@@ -31,6 +38,17 @@ export const analysisInputSchema = z.object({
     contrast: z.number().min(0),
     faceBox: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }),
     faceCount: z.number().int().min(1),
+    // capture analysis (engine 2.0)
+    sourceWidth: z.number().positive().optional(),
+    sourceHeight: z.number().positive().optional(),
+    focalLength35mm: z.number().positive().max(2000).nullable().optional(),
+    editingSoftware: z.string().max(120).nullable().optional(),
+    clipDark: z.number().min(0).max(1).optional(),
+    clipBright: z.number().min(0).max(1).optional(),
+    lightingAsymmetry: z.number().min(0).max(10).optional(),
+    blockiness: z.number().min(0).max(100).nullable().optional(),
+    skinTexture: z.number().min(0).max(1000).nullable().optional(),
+    backgroundSpread: z.number().min(0).max(255).nullable().optional(),
   }),
   config: analysisConfigSchema,
 });
@@ -56,6 +74,13 @@ export const createSideAnalysisSchema = z.object({
   imageWidth: z.number().int().positive().max(20_000),
   imageHeight: z.number().int().positive().max(20_000),
   points: sidePointsSchema,
+  reference: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("image") }),
+      z.object({ kind: z.literal("frankfort"), orbitale: pointSchema }),
+      z.object({ kind: z.literal("manual"), tiltDeg: z.number().min(-45).max(45) }),
+    ])
+    .optional(),
 });
 
 export const createBattleSchema = z.object({
@@ -162,6 +187,7 @@ export const tournamentCategorySchema = z.object({
   name: z.string().trim().min(1).max(60),
   criteria: z.array(z.object({ id: z.enum(criterionIds), weight: z.number().positive().max(100) })).max(40),
   overall: z.boolean().optional(),
+  area: z.enum(RUBRIC_AREAS as [string, ...string[]]).optional(),
   weight: z.number().min(0).max(1000),
   builtIn: z.boolean().optional(),
 });

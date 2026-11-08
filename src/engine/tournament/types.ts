@@ -1,4 +1,4 @@
-import type { CriterionId } from "../psl/rubric";
+import type { RubricArea, CriterionId } from "../psl/rubric";
 import type { RatingResult } from "../psl/rating";
 
 export type TournamentFormat = "knockout" | "group" | "ranking" | "category";
@@ -13,6 +13,8 @@ export interface TournamentCategory {
   criteria: { id: CriterionId; weight: number }[];
   /** the category is the rubric's overall PSL score */
   overall?: boolean;
+  /** rubric 2.0: the category is a rubric category score (non-compensatory aggregate of its criteria) */
+  area?: RubricArea;
   /** share in the weighted overall tournament score (any scale; normalised) */
   weight: number;
   builtIn?: boolean;

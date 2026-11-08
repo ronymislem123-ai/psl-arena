@@ -57,6 +57,11 @@ test("browser edition: rating, persistence, history, tournament, compare, backup
   await page.reload();
   await expect(page.getByTestId("rating-score")).toBeVisible();
   await expect(page.locator('img[src^="blob:"]').first()).toBeVisible();
+  // ideal example: rendering, MediaPipe re-detection and re-measurement work under the base path
+  await page.getByTestId("ideal-open").click();
+  await expect(page.getByTestId("ideal-table")).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByTestId("ideal-redetected-count")).toContainText("/");
+  await page.keyboard.press("Escape");
 
   const bravo = await rateUpload(page, "portrait-b.jpg", "Bravo", false);
   await page.goto("history/");

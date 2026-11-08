@@ -194,13 +194,17 @@ export const SIDE_ISSUE_TEXTS: Record<Lang, Record<SideIssueCode, string>> = {
 export const SIDE_ASSUMPTION_TEXTS: Record<Lang, Record<SideAssumptionCode, string>> = {
   en: {
     manualPlacement: "Landmarks were placed manually; precision depends on the placement (the σ values show the sensitivity).",
-    imageVertical: "The image vertical is used as the true vertical (natural head position assumed) for the Z angle, the height ratios and the chin meridian.",
+    imageVertical: "The image vertical is used as the true vertical (natural head position assumed) for the Z angle, the height ratios and the chin meridian. Place the orbitale or rotate the reference axis if the head is tilted.",
+    frankfortHorizontal: "The soft-tissue Frankfort horizontal (tragion → orbitale) is the horizontal reference for the Z angle, the height ratios and the chin meridian; it lies a few degrees from the bony Frankfort plane.",
+    manualAxis: "The reference axis was rotated manually; the Z angle, the height ratios and the chin meridian are measured against it.",
     proxies: "The posterior ramus is approximated by the gonion–tragion line and the columella by the pronasale–subnasale line.",
     separateFromFrontal: "The gonial angle uses the range of the provided guide; all other ranges are published literature norms. Nothing here enters the 42-ratio frontal score.",
   },
   de: {
     manualPlacement: "Die Landmarks wurden manuell gesetzt; die Präzision hängt von der Platzierung ab (die σ-Werte zeigen die Empfindlichkeit).",
-    imageVertical: "Die Bildvertikale gilt als wahre Vertikale (natürliche Kopfhaltung vorausgesetzt) für Z-Winkel, Höhenverhältnisse und Kinnmeridian.",
+    imageVertical: "Die Bildvertikale gilt als wahre Vertikale (natürliche Kopfhaltung vorausgesetzt) für Z-Winkel, Höhenverhältnisse und Kinnmeridian. Bei geneigtem Kopf Orbitale setzen oder die Referenzachse drehen.",
+    frankfortHorizontal: "Die Weichteil-Frankfurter-Horizontale (Tragion → Orbitale) ist die horizontale Referenz für Z-Winkel, Höhenverhältnisse und Kinnmeridian; sie weicht um wenige Grad von der knöchernen Frankfurter Ebene ab.",
+    manualAxis: "Die Referenzachse wurde manuell gedreht; Z-Winkel, Höhenverhältnisse und Kinnmeridian werden daran gemessen.",
     proxies: "Der aufsteigende Ast wird durch die Linie Gonion–Tragion, der Nasensteg durch Pronasale–Subnasale angenähert.",
     separateFromFrontal: "Der Kieferwinkel nutzt den Bereich des bereitgestellten Leitfadens; alle anderen Bereiche sind publizierte Literaturnormen. Nichts davon fließt in den 42-Verhältnis-Frontalscore ein.",
   },

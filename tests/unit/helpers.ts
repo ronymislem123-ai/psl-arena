@@ -7,7 +7,7 @@ export interface Fixture {
   name: string;
   width: number;
   height: number;
-  mesh: [number, number][];
+  mesh: ([number, number] | [number, number, number])[];
   blendshapes: Record<string, number>;
   matrix: number[];
 }
@@ -25,7 +25,7 @@ export function faceBox(mesh: Point[]) {
 }
 
 export function inputFromFixture(f: Fixture, overrides: Partial<AnalysisInput> = {}, rawOverrides: Partial<RawQualityMetrics> = {}): AnalysisInput {
-  const mesh = f.mesh.map(([x, y]) => ({ x, y }));
+  const mesh = f.mesh.map((p) => (p.length === 3 ? { x: p[0], y: p[1], z: p[2] } : { x: p[0], y: p[1] }));
   const box = faceBox(mesh);
   const rawQuality: RawQualityMetrics = {
     imageWidth: f.width,

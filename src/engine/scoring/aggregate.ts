@@ -8,7 +8,7 @@ function weightedIndex(results: RatioResult[]): { index: number | null; confiden
   let confSum = 0;
   const ids: RatioResult["id"][] = [];
   for (const r of results) {
-    if (r.availability !== "available" || r.index === null) continue;
+    if (r.availability !== "available" || r.index === null || r.excludedFromScore) continue;
     const w = RATIO_BY_ID[r.id].weight * Math.max(r.confidence, 0.05);
     num += w * r.index;
     den += w;

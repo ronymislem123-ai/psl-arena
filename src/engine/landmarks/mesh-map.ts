@@ -15,6 +15,7 @@ import {
   rotateAround,
   toDeg,
 } from "../geometry";
+import { hasDepth, normaliseHeadPose } from "./pose";
 import type {
   AlignedMesh,
   AnalysisInput,
@@ -104,21 +105,122 @@ export function landmarkConfidence(precision: LandmarkPrecision, source: Landmar
 }
 
 /**
- * Roll-normalise the mesh: rotate about the inter-pupillary midpoint so that the
- * line between the image-left and image-right pupils becomes horizontal.
+ * Brings the mesh into the measurement frame.
+ *
+ * With depth (MediaPipe z): rigid 3D fit to the canonical face and rotation back to
+ * a frontal view, which removes roll exactly and yaw/pitch foreshortening
+ * approximately (see landmarks/pose.ts). Without depth: rotation about the
+ * inter-pupillary midpoint so that the pupil line is horizontal.
+ *
+ * The pupil order comes from the mesh topology (468 = subject's right), never
+ * from image x, so faces rotated by any angle — including upside down or lying
+ * on the side — are handled.
  */
-export function alignMesh(mesh: Point[]): AlignedMesh {
+export function alignMesh(mesh: Point[], axisAdjustDeg = 0): AlignedMesh {
   if (mesh.length < MESH_POINT_COUNT) {
     throw new Error(`Expected ${MESH_POINT_COUNT} mesh points, received ${mesh.length}`);
   }
   const pr = mesh[468];
   const pl = mesh[473];
-  const left = pr.x <= pl.x ? pr : pl;
-  const right = pr.x <= pl.x ? pl : pr;
-  const rollDeg = toDeg(Math.atan2(right.y - left.y, right.x - left.x));
   const pivot = midpoint(pr, pl);
-  const aligned = mesh.map((p) => rotateAround(p, pivot, -rollDeg));
-  return { raw: mesh, aligned, rollDeg, pivot };
+  if (hasDepth(mesh)) {
+    const n = normaliseHeadPose(mesh);
+    // keep the pupil midpoint at its raw position so aligned and raw coordinates stay comparable
+    const fp = midpoint(n.frontal[468], n.frontal[473]);
+    const offset = { x: pivot.x - fp.x, y: pivot.y - fp.y };
+    // the interpupillary line stays the horizontal reference (standard in frontal analysis):
+    // a small residual in-plane rotation after the 3D correction levels the pupils
+    // (+ an optional manual adjustment of that axis)
+    const levelDeg = toDeg(Math.atan2(n.frontal[473].y - n.frontal[468].y, n.frontal[473].x - n.frontal[468].x)) + axisAdjustDeg;
+    return {
+      raw: mesh,
+      aligned: n.frontal.map((p) => rotateAround({ x: p.x + offset.x, y: p.y + offset.y }, pivot, -levelDeg)),
+      levelDeg,
+      rollDeg: n.pose.roll,
+      pivot,
+      method: "3d",
+      pose3d: { yaw: n.pose.yaw, pitch: n.pose.pitch, roll: n.pose.roll },
+      rotation: [...n.fit.R],
+      centroid: { ...n.fit.cDetected },
+      offset,
+      residualIpd: n.residualIpd,
+      ...(axisAdjustDeg ? { axisAdjustDeg } : {}),
+    };
+  }
+  const rollDeg = toDeg(Math.atan2(pl.y - pr.y, pl.x - pr.x));
+  const level = rollDeg + axisAdjustDeg;
+  const aligned = mesh.map((p) => rotateAround(p, pivot, -level));
+  return { raw: mesh, aligned, rollDeg, pivot, method: "2d", ...(axisAdjustDeg ? { levelDeg: level, axisAdjustDeg } : {}) };
+}
+
+/**
+ * Maps between raw image pixels and the measurement frame for points that are not
+ * mesh vertices (hairline, neck, constructed points). 3D: raw → aligned uses the
+ * depth of the nearest mesh points and the inverse head rotation; aligned → raw
+ * (only used for drawing) is a least-squares affine fit over the mesh.
+ */
+export function frameMapper(am: AlignedMesh): { toAligned: (p: Point) => Point; toRaw: (p: Point) => Point } {
+  if (am.method === "3d" && am.rotation && am.centroid && am.offset && hasDepth(am.raw)) {
+    const raw3 = am.raw;
+    const R = am.rotation;
+    const c = am.centroid;
+    const o = am.offset;
+    const toAligned = (p: Point): Point => {
+      let z = p.z;
+      if (z === undefined) {
+        const near = raw3.map((m, i) => ({ i, d: Math.hypot(m.x - p.x, m.y - p.y) })).sort((a, b) => a.d - b.d).slice(0, 6);
+        let wz = 0;
+        let W = 0;
+        for (const q of near) {
+          const w = 1 / (q.d + 1e-3);
+          wz += w * raw3[q.i].z;
+          W += w;
+        }
+        z = wz / W;
+      }
+      const v = { x: p.x - c.x, y: p.y - c.y, z: z - c.z };
+      // Rᵀ·v (R is row-major), shifted like the mesh, then the same pupil levelling
+      const f = { x: c.x + R[0] * v.x + R[3] * v.y + R[6] * v.z + o.x, y: c.y + R[1] * v.x + R[4] * v.y + R[7] * v.z + o.y };
+      return rotateAround(f, am.pivot, -(am.levelDeg ?? 0));
+    };
+    const aff = affineFit(am.aligned, am.raw);
+    return { toAligned, toRaw: (p: Point) => ({ x: aff.x[0] * p.x + aff.x[1] * p.y + aff.x[2], y: aff.y[0] * p.x + aff.y[1] * p.y + aff.y[2] }) };
+  }
+  const level = am.levelDeg ?? am.rollDeg;
+  return {
+    toAligned: (p: Point) => rotateAround(p, am.pivot, -level),
+    toRaw: (p: Point) => rotateAround(p, am.pivot, level),
+  };
+}
+
+/** Least-squares affine map from → to: returns coefficient rows [a, b, c] with x' = a·x + b·y + c. */
+function affineFit(from: Point[], to: Point[]): { x: number[]; y: number[] } {
+  let sxx = 0, sxy = 0, syy = 0, sx = 0, sy = 0;
+  const bx = [0, 0, 0];
+  const by = [0, 0, 0];
+  const n = from.length;
+  for (let i = 0; i < n; i++) {
+    const { x, y } = from[i];
+    sxx += x * x; sxy += x * y; syy += y * y; sx += x; sy += y;
+    bx[0] += x * to[i].x; bx[1] += y * to[i].x; bx[2] += to[i].x;
+    by[0] += x * to[i].y; by[1] += y * to[i].y; by[2] += to[i].y;
+  }
+  const M = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, n]];
+  const solve = (b: number[]) => {
+    const m = M.map((r, i) => [...r, b[i]]);
+    for (let col = 0; col < 3; col++) {
+      let piv = col;
+      for (let r = col + 1; r < 3; r++) if (Math.abs(m[r][col]) > Math.abs(m[piv][col])) piv = r;
+      [m[col], m[piv]] = [m[piv], m[col]];
+      for (let r = 0; r < 3; r++) {
+        if (r === col) continue;
+        const f = m[r][col] / m[col][col];
+        for (let k = col; k < 4; k++) m[r][k] -= f * m[col][k];
+      }
+    }
+    return [m[0][3] / m[0][0], m[1][3] / m[1][1], m[2][3] / m[2][2]];
+  };
+  return { x: solve(bx), y: solve(by) };
 }
 
 interface Build {
@@ -130,6 +232,7 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   const map: LandmarkMap = {};
   const A = am.aligned;
   const R = am.raw;
+  const frame = frameMapper(am);
 
   const add = (
     id: SemanticLandmarkId,
@@ -208,7 +311,7 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   const pivotX = midpoint(A[468], A[473]).x;
   const browLineY = (A[52].y + A[282].y) / 2;
   const browLineAligned = { x: pivotX, y: browLineY };
-  add("brow_line", "Brow line (lower brow edge, midline)", "brow", "mid", "medium", "derived", browLineAligned, rotateAround(browLineAligned, am.pivot, am.rollDeg), {
+  add("brow_line", "Brow line (lower brow edge, midline)", "brow", "mid", "medium", "derived", browLineAligned, frame.toRaw(browLineAligned), {
     meshIndices: [52, 282],
     note: "Horizontal line through the lower edge of both brows at mid-brow; used as the upper bound of FWHR.",
     noteCode: "browLine",
@@ -279,7 +382,7 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
       note = "Contour lines did not intersect near the jaw angle; fell back to the contour corner point.";
       noteCode = "gonionFallback";
     }
-    const rawPt = rotateAround(pt, am.pivot, am.rollDeg);
+    const rawPt = frame.toRaw(pt);
     const sideCap = side === "right" ? "right" : "left";
     add(side === "right" ? "gonion_R" : "gonion_L", `Gonion (${sideCap}, frontal construction)`, "jaw", side, "low", "derived", pt, rawPt, {
       meshIndices: [...ramus, ...body],
@@ -295,7 +398,7 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   // trichion (hairline) — estimated or manual
   if (input.trichion) {
     const rawPt = input.trichion.point;
-    const al = rotateAround(rawPt, am.pivot, -am.rollDeg);
+    const al = frame.toAligned(rawPt);
     add("trichion", "Trichion (hairline)", "forehead", "mid", "low", input.trichion.source, al, rawPt, {
       note:
         input.trichion.source === "manual"
@@ -307,10 +410,19 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
 
   // neck (manual only)
   if (input.neck) {
-    const r = rotateAround(input.neck.right, am.pivot, -am.rollDeg);
-    const l = rotateAround(input.neck.left, am.pivot, -am.rollDeg);
+    const r = frame.toAligned(input.neck.right);
+    const l = frame.toAligned(input.neck.left);
     add("neck_R", "Neck edge (right)", "neck", "right", "low", "manual", r, input.neck.right, { note: "Placed manually.", noteCode: "neckManual" });
     add("neck_L", "Neck edge (left)", "neck", "left", "low", "manual", l, input.neck.left, { note: "Placed manually.", noteCode: "neckManual" });
+  }
+
+  // manual corrections: the user's position replaces the automatic one; every
+  // measure that uses the landmark is recomputed from it (derived points are not)
+  for (const [id, p] of Object.entries(input.corrections?.landmarks ?? {}) as [SemanticLandmarkId, Point][]) {
+    const cur = map[id];
+    if (!cur || !p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const pt = { x: p.x, y: p.y };
+    map[id] = { ...cur, raw: pt, aligned: frame.toAligned(pt), source: "manual", corrected: true, originalRaw: cur.raw, confidence: landmarkConfidence(cur.precision === "low" ? "medium" : cur.precision, "manual", 1) };
   }
 
   const list = Object.values(map) as SemanticLandmark[];

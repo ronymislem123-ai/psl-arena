@@ -2,7 +2,7 @@
 
 ## Measurement conventions that need the original visual template
 * **Incomplete (never scored):** EBS (8), IAA (11), JFA (12), DEV IAA/JFA (13), NBR/ALA (27), EYS (42). The data structures are ready; once the template defines the construction, add the formula in `src/engine/ratios/formulas.ts` and flip the status in `database.ts`.
-* **Reconstructed (scored, flagged, excludable):** OCD, ICD/N, JWHR, GS, M/C, FWHF. Alternatives are listed in `docs/RATIOS.md`.
+* **Reconstructed (scored, flagged, excludable):** OCD, GS, M/C, FWHF. JWHR and ICD/N are measured but no longer scored (engine 2.0: no test face reaches their ranges with this construction). Alternatives are listed in `docs/RATIOS.md`.
 * **T2–T5 boundaries** are not in the material. `tierBoundaries` can be filled per ratio once verified; the original 420-point percentage then becomes computable automatically.
 
 ## Landmark model limitations (2D frontal)
@@ -14,7 +14,7 @@
 
 ## Side-view module
 * Landmarks are placed manually (no lateral landmark model); the placement sensitivity (σ) is reported, but a systematic misplacement is not detectable beyond the order/level checks.
-* The image vertical stands in for the true vertical / Frankfort horizontal; Z angle, height ratios and the chin meridian depend on the head posture in the photo. A tilt correction from the tragion–orbitale line would need the orbitale, which is not placed.
+* Engine 2.0: an anatomical reference axis (soft-tissue Frankfort horizontal through tragion and an optional orbitale point, or a manually rotated axis) replaces the image vertical when set; without it the image vertical is still used and flagged.
 * The soft-tissue gonial angle uses the gonion–tragion line as the ramus proxy; it is not the cephalometric bony angle (the guide range 115–130° is applied as provided).
 * No frontal↔side fusion: the profile harmony index is reported separately and is not part of battles.
 * The mentolabial angle, dorsal profile and chin meridian are descriptive only (no sourced numeric target in the material).
@@ -43,3 +43,10 @@
 * **Automated tests not covering:** manual neck-point placement through the UI, hairline dragging through the UI (covered at engine level), multi-face selection UI, settings persistence, export/delete-all and change-password through the UI (covered at API/unit level), side-view point dragging and arrow-key nudging through the UI, reference-image upload through the editor UI (covered at service level), group-stage tournaments through the UI (covered at service/engine level), the print/PDF output itself.
 * **Browser edition (GitHub Pages):** no synchronisation between devices (backup files only); photos are not encrypted with a separate key in the browser; the first analysis needs a connection for the model (~30 MB); data from the server app cannot be imported into the browser edition and vice versa; Safari evicts website storage after seven days without use unless the app is installed to the Home Screen. Enabling GitHub Pages (and, on GitHub Free, making the repository public) is a manual step in the repository settings.
 
+
+## Engine 2.0 / rubric 2.0 (2026-11 re-engineering)
+* **Test–retest noise rose** (PSL SD 0.05 → 0.21 under nuisance changes) and single-feature changes are less separable from that noise (median 5.4 → 3.6 noise SDs) — `docs/MODEL_VALIDATION.md`. Candidate follow-ups: noise-aware measure weights (classical reliability s²/(s²+σ²) from repeated detections of more faces), multi-photo averaging per person.
+* **Noise model from two faces only**; between-photo variation of the same person is not covered.
+* **Ideal example is not photorealistic**; the re-detection residual stays ≈ 4 % IPD.
+* **No population calibration**: PSL = index ÷ 10 is a conformity score, not a percentile.
+* **Reference ranges** that every test face misses on the same side are excluded (JWHR, ET, DEV CT/ET, ICD/N); more faces could reveal further mismatches or re-admit them with corrected constructions.
