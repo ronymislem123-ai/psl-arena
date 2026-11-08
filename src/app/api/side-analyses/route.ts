@@ -1,3 +1,4 @@
+import type { SideLandmarkId, SidePointSource } from "@/engine/side-view";
 import { requireUserApi } from "@/server/auth";
 import { createSideAnalysisSchema } from "@/server/schemas";
 import { fail, ok, readJson } from "@/server/http";
@@ -32,6 +33,8 @@ export async function POST(req: Request) {
       imageHeight: body.imageHeight,
       points: body.points,
       reference: body.reference,
+      placement: body.placement,
+      pointSources: body.pointSources as Partial<Record<SideLandmarkId, SidePointSource>> | undefined,
     });
     return ok({ sideAnalysis: record }, { status: 201 });
   } catch (e) {

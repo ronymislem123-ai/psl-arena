@@ -24,7 +24,7 @@ import type { AdditionalMeasurementId, RatioId, SemanticLandmarkId } from "../ty
 import type { SideMeasurementId } from "../side-view";
 import { evidenceOf } from "../scoring/measurement";
 
-export const RUBRIC_VERSION = "2.0.0";
+export const RUBRIC_VERSION = "2.1.0";
 
 export type RubricArea = "eye" | "proportions" | "bone" | "nose" | "mouth" | "symmetry" | "forehead" | /* 1.0 only */ "midface" | "harmony";
 /** Active categories of rubric 2.0, in display order. */
@@ -38,7 +38,7 @@ export type DerivedKind = "areaBalance" | "verticalBalance";
 export type CriterionId =
   | "canthalTilt" | "eyeSpacing" | "fissureProportions" | "browArea" | "upperLidExposure" | "scleralShow" | "eyeShape"
   | "midfaceRatio" | "facialThirds" | "faceShape" | "eyeMouthGeometry" | "eyeMouthLength" | "lowerThirdProportions" | "facialFifths" | "profileConvexity" | "lowerFaceHarmony"
-  | "jawWidth" | "jawHeightRatio" | "jawAngularityFrontal" | "gonialAngle" | "chinProjection" | "neckChinDefinition" | "chinWidthShape" | "cheekbonePosition" | "cheekboneProjection" | "jawlineDefinition"
+  | "jawWidth" | "jawHeightRatio" | "jawAngularityFrontal" | "gonialAngle" | "mandibularPlane" | "midfaceProjection" | "chinProjection" | "neckChinDefinition" | "chinWidthShape" | "cheekbonePosition" | "cheekboneProjection" | "jawlineDefinition"
   | "noseWidth" | "noseHeightWidth" | "noseProjection" | "nasalAngles"
   | "mouthWidth" | "lipProportions" | "nasolabialAngle" | "lipChinVertical" | "lipShape"
   | "eyeSymmetry" | "noseSymmetry" | "mouthSymmetry" | "jawChinSymmetry"
@@ -71,9 +71,9 @@ export interface CriterionDefinition {
 }
 
 export const AREA_META: Record<RubricArea, { name: string; description: string; legacy?: boolean }> = {
-  eye: { name: "Eye area", description: "Canthal tilt, spacing, fissure proportions, brows; lid exposure, scleral show and eye shape only with a visual assessment." },
+  eye: { name: "Eye area", description: "Canthal tilt, spacing, fissure proportions, brows, upper lid position (MRD1) and scleral show; eye shape only with a vision model." },
   proportions: { name: "Facial proportions", description: "Midface ratio, middle and lower thirds, face shape, eye–mouth geometry and length ratio, lower third, fifths; profile convexity and lower-face height from the profile." },
-  bone: { name: "Bone structure", description: "Jaw width, frontal jaw angle, chin width, cheekbone position; gonial angle, chin projection and neck–chin definition from the profile; cheekbone projection and jawline definition only with a visual assessment." },
+  bone: { name: "Bone structure", description: "Jaw width, frontal jaw angle, chin width, cheekbone position; gonial angle, mandibular plane, midface and chin projection and neck–chin definition from the profile; cheekbone projection and jawline definition only with a vision model." },
   nose: { name: "Nose", description: "Width and height-to-width frontally, projection and angles from the profile." },
   mouth: { name: "Lips & mouth", description: "Mouth width, lip proportions, lip–chin height (frontal and profile) and nasolabial angle." },
   symmetry: { name: "Symmetry", description: "Left–right agreement of eyes/brows, nose, mouth and jaw/chin in the pose-normalised frame." },
@@ -122,8 +122,9 @@ export const LANDMARK_RELIABILITY: Partial<Record<SemanticLandmarkId, number>> =
 export const EYE_MOUTH_LENGTH = { min: 0.36, max: 0.37, s: 0.017 } as const;
 
 const LIM_T1 = "Scored against the reference ranges of the frontal ratio database (docs/RATIOS.md), in units of the natural between-person spread.";
-const LIM_PROFILE = "Needs a side-view analysis with manually placed landmarks (docs/SIDE_VIEW.md).";
-const LIM_VISUAL = "Not inferable from 2D landmarks; assessed only when a visual assessment provider is configured, otherwise reported as not assessable.";
+const LIM_PROFILE = "Needs a side-view analysis (automatic from a profile photo, optionally corrected; docs/SIDE_VIEW.md).";
+const LIM_VISUAL = "Not measurable from 2D landmarks; assessed by a vision model (visual impression, not a measurement) only when one is set up and the user consented to sending the photo, otherwise reported as not assessable.";
+const LIM_EYELID = "Eyelid margins and iris from the face mesh with iris refinement (the iris diameter, 11.7 mm on average, sets the millimetre scale; Rüfer et al. 2005); lash shadows and make-up shift the lid margin.";
 const LIM_JAW = "Frontal jaw landmarks are soft-tissue constructions with low reliability (2D bigonial width ICC .16, Lim et al. 2022); weighted accordingly.";
 
 const c = (d: Omit<CriterionDefinition, "weight"> & { weight?: number }): CriterionDefinition => ({ weight: 1, ...d });
@@ -134,8 +135,8 @@ export const CRITERIA: CriterionDefinition[] = [
   c({ id: "eyeSpacing", area: "eye", name: "Eye spacing", definition: "Inter-pupillary, outer-canthal and intercanthal distances relative to the face and the fissure.", method: "geometric", view: "frontal", inputs: { ratios: ["ESR", "ICD", "OCD"] }, requirements: "Frontal photo with visible canthi.", limitations: [LIM_T1, "The interpupillary/face-width ratio is the one measure here with published preference data (Pallett et al. 2010)."] }),
   c({ id: "fissureProportions", area: "eye", name: "Fissure proportions", definition: "Eye aspect ratio and fissure length relative to the face width.", method: "geometric", view: "frontal", inputs: { ratios: ["EAR", "PFL_BYZGO"] }, requirements: "Neutral expression, eyes open.", limitations: [LIM_T1, "Eye opening changes with expression and fatigue."] }),
   c({ id: "browArea", area: "eye", name: "Brow length", definition: "Brow length relative to the inter-pupillary distance. Brow tilt and its agreement with the canthal tilt are shown but not scored (angle convention does not match the reference, docs/SYSTEM_AUDIT.md).", method: "geometric", view: "frontal", inputs: { ratios: ["EBL"] }, requirements: "Brows visible (no fringe).", limitations: [LIM_T1, "Grooming changes brow ends."] }),
-  c({ id: "upperLidExposure", area: "eye", name: "Upper lid exposure", definition: "Visible upper eyelid (lid show) between lash line and brow.", method: "visual", view: "frontal", inputs: {}, requirements: "Visual assessment provider.", limitations: [LIM_VISUAL] }),
-  c({ id: "scleralShow", area: "eye", name: "Scleral show", definition: "Visible sclera below the iris with a relaxed gaze.", method: "visual", view: "frontal", inputs: {}, requirements: "Visual assessment provider.", limitations: [LIM_VISUAL] }),
+  c({ id: "upperLidExposure", area: "eye", name: "Upper lid position (MRD1)", definition: "Margin–reflex distance 1: distance from the iris centre to the upper lid margin in millimetres (iris diameter = 11.7 mm). Normal 4–5 mm; lower values mean a low (hooded/ptotic) lid, higher values a retracted lid with superior scleral show. The visible pretarsal skin (lid crease) is not a mesh landmark and is not measured.", method: "geometric", view: "frontal", inputs: { additional: ["MRD1"] }, requirements: "Frontal photo, eyes open, gaze straight ahead.", limitations: [LIM_EYELID, "Normal range 4–5 mm (Putterman 2012; Bacharach et al. 2016)."] }),
+  c({ id: "scleralShow", area: "eye", name: "Scleral show", definition: "Visible sclera between the lower edge of the iris and the lower lid margin, in millimetres (iris diameter = 11.7 mm). The lower lid normally rests at the inferior limbus (no inferior scleral show); more than 1 mm is regarded as lower-lid retraction.", method: "geometric", view: "frontal", inputs: { additional: ["SSI"] }, requirements: "Frontal photo, relaxed gaze straight ahead.", limitations: [LIM_EYELID, "Reference: lower lid at the inferior limbus, scleral show > 1 mm = retraction (Bartley 1996)."] }),
   c({ id: "eyeShape", area: "eye", name: "Eye shape", definition: "Overall fissure shape (almond, round, hooded …) as a visual impression.", method: "visual", view: "frontal", inputs: {}, requirements: "Visual assessment provider.", limitations: [LIM_VISUAL] }),
   // F — facial proportions
   c({ id: "midfaceRatio", area: "proportions", name: "Midface ratio", definition: "Midface height relative to the inter-pupillary distance.", method: "geometric", view: "frontal", inputs: { ratios: ["MF"] }, requirements: "Frontal photo, pitch ≤ 15°.", limitations: [LIM_T1, "Residual pitch shortens/lengthens the midface."] }),
@@ -153,7 +154,9 @@ export const CRITERIA: CriterionDefinition[] = [
   c({ id: "chinWidthShape", area: "bone", name: "Chin width", definition: "Mouth width relative to the chin width.", method: "geometric", view: "frontal", inputs: { ratios: ["M_C"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Reconstructed chin corners."] }),
   c({ id: "cheekbonePosition", area: "bone", name: "Cheekbone position", definition: "Height of the widest facial point relative to the midface.", method: "geometric", view: "frontal", inputs: { ratios: ["CBS"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Soft-tissue contour stands in for the zygomatic arch (2D bizygomatic ICC .66, Lim et al. 2022)."] }),
   c({ id: "gonialAngle", area: "bone", name: "Gonial angle (profile)", definition: "Soft-tissue gonial angle between ramus and mandibular body.", method: "profile", view: "profile", inputs: { side: ["GA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Soft-tissue proxy with the tragion as ramus reference."] }),
-  c({ id: "chinProjection", area: "bone", name: "Chin projection (profile)", definition: "Chin position relative to the lips and the facial line (Z angle, H angle).", method: "profile", view: "profile", inputs: { side: ["ZANG", "HANG"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Z angle against the anatomical reference axis (Frankfort horizontal when the orbitale is placed)."] }),
+  c({ id: "mandibularPlane", area: "bone", name: "Mandibular plane (profile)", definition: "Steepness of the soft-tissue jaw line (gonion → menton) against the reference horizontal.", method: "profile", view: "profile", inputs: { side: ["MPA"] }, requirements: "Side-view analysis with a soft-tissue gonion.", limitations: [LIM_PROFILE, "Soft-tissue proxy of the Frankfort–mandibular plane angle; needs the gonion, which is not on the silhouette."] }),
+  c({ id: "midfaceProjection", area: "bone", name: "Midface projection (profile)", definition: "Forward position of the subnasale relative to the glabella vertical.", method: "profile", view: "profile", inputs: { side: ["MFP"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Millimetre norm converted with an average face height."] }),
+  c({ id: "chinProjection", area: "bone", name: "Chin projection (profile)", definition: "Chin position relative to the lips, the facial line and the glabella vertical (Z angle, H angle, Pg to glabella vertical).", method: "profile", view: "profile", inputs: { side: ["ZANG", "HANG", "CHP"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Z angle against the anatomical reference axis (Frankfort horizontal when the orbitale is placed)."] }),
   c({ id: "neckChinDefinition", area: "bone", name: "Neck–chin definition", definition: "Cervicomental and mentocervical angles; neck width frontally when neck points are placed.", method: "profile", view: "any", inputs: { side: ["CMA", "MCA"], ratios: ["NW"] }, requirements: "Side-view analysis or manual neck points.", limitations: [LIM_PROFILE, "Submental fat and head flexion change the angles."] }),
   c({ id: "cheekboneProjection", area: "bone", name: "Cheekbone projection", definition: "Visible zygomatic prominence (3D projection).", method: "visual", view: "any", inputs: {}, requirements: "Visual assessment provider.", limitations: [LIM_VISUAL, "Lighting and body fat dominate the impression."] }),
   c({ id: "jawlineDefinition", area: "bone", name: "Jawline definition", definition: "Visible sharpness of the mandibular border.", method: "visual", view: "any", inputs: {}, requirements: "Visual assessment provider.", limitations: [LIM_VISUAL] }),
@@ -212,6 +215,18 @@ export const CALIBRATION_ANCHORS: [number, number][] = [
 
 /** Minimum share of the geometric rubric (category-weighted) that must be assessable for a fully valid score. */
 export const DEFAULT_MIN_COVERAGE = 0.7;
+
+/**
+ * Eyelid references in millimetres (iris diameter as scale). MRD1: normal 4–5 mm
+ * (Putterman 2012; Bacharach et al. 2016); dispersion 1 mm. Inferior scleral show:
+ * the lower lid rests at the inferior limbus (≤ 0 mm), > 1 mm counts as retraction
+ * (Bartley 1996); up to 0.5 mm is inside the plateau (measurement resolution), 1 mm
+ * dispersion.
+ */
+export const EYELID_RANGES = {
+  MRD1: { range: { min: 4, max: 5 }, s: 1 },
+  SSI: { range: { min: null, max: 0.5 }, s: 1 },
+} as const;
 
 /** Dispersion units of derived measures. */
 export const DERIVED_TOLERANCE = { fifthsPp: 3, eyeMouthLength: EYE_MOUTH_LENGTH.s } as const;

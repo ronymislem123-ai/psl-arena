@@ -1,9 +1,54 @@
 import { dist } from "../geometry";
-import type { AdditionalMeasurementResult, LandmarkMap, QualityReport, RatioResult } from "../types";
+import type { AdditionalMeasurementResult, LandmarkMap, Point, QualityReport, RatioResult } from "../types";
 
 const vdist = (a: { y: number }, b: { y: number }) => Math.abs(a.y - b.y);
 
-export function computeAdditional(map: LandmarkMap, ratios: RatioResult[], quality: QualityReport): AdditionalMeasurementResult[] {
+/** Mean adult horizontal visible iris diameter in mm (Rüfer et al. 2005: 11.71 ± 0.42 mm). */
+export const IRIS_DIAMETER_MM = 11.7;
+
+/** MediaPipe eye contours (lid margins), medial ↔ lateral, and iris rings (centre + 4 ring points). */
+export const EYE_TOPOLOGY = {
+  R: { upper: [33, 246, 161, 160, 159, 158, 157, 173, 133], lower: [33, 7, 163, 144, 145, 153, 154, 155, 133], iris: 468, ring: [469, 470, 471, 472] },
+  L: { upper: [263, 466, 388, 387, 386, 385, 384, 398, 362], lower: [263, 249, 390, 373, 374, 380, 381, 382, 362], iris: 473, ring: [474, 475, 476, 477] },
+} as const;
+
+/** y of a lid contour at x (linear interpolation between the contour points), or null outside it. */
+function lidAt(poly: Point[], x: number): number | null {
+  const pts = [...poly].sort((a, b) => a.x - b.x);
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    if (x >= a.x && x <= b.x) return b.x === a.x ? (a.y + b.y) / 2 : a.y + ((x - a.x) / (b.x - a.x)) * (b.y - a.y);
+  }
+  return null;
+}
+
+/**
+ * Eyelid position from the aligned mesh (pose-normalised frame): MRD1 (iris centre →
+ * upper lid margin) and inferior scleral show (lower iris edge → lower lid margin), in
+ * millimetres with the iris diameter as scale. The iris radius is taken from the
+ * horizontal ring points (the vertical ones are often covered by the lids).
+ */
+export function eyelidMeasures(aligned: Point[] | undefined): { mrd1: number; ssi: number; perEye: Record<"R" | "L", { mrd1: number; ssi: number; irisPx: number }> } | null {
+  if (!aligned || aligned.length < 478) return null;
+  const per = {} as Record<"R" | "L", { mrd1: number; ssi: number; irisPx: number }>;
+  for (const side of ["R", "L"] as const) {
+    const t = EYE_TOPOLOGY[side];
+    const c = aligned[t.iris];
+    const ring = t.ring.map((i) => aligned[i]);
+    const xs = ring.map((p) => p.x);
+    const diameter = Math.max(...xs) - Math.min(...xs);
+    if (!(diameter > 0)) return null;
+    const up = lidAt(t.upper.map((i) => aligned[i]), c.x);
+    const lo = lidAt(t.lower.map((i) => aligned[i]), c.x);
+    if (up == null || lo == null) return null;
+    const mm = IRIS_DIAMETER_MM / diameter;
+    per[side] = { mrd1: (c.y - up) * mm, ssi: (lo - (c.y + diameter / 2)) * mm, irisPx: diameter };
+  }
+  return { mrd1: (per.R.mrd1 + per.L.mrd1) / 2, ssi: (per.R.ssi + per.L.ssi) / 2, perEye: per };
+}
+
+export function computeAdditional(map: LandmarkMap, ratios: RatioResult[], quality: QualityReport, aligned?: Point[]): AdditionalMeasurementResult[] {
   const g = (id: keyof LandmarkMap) => map[id]?.aligned;
   const out: AdditionalMeasurementResult[] = [];
   const baseConf = 0.6 + 0.4 * quality.score;
@@ -83,6 +128,17 @@ export function computeAdditional(map: LandmarkMap, ratios: RatioResult[], quali
     });
   } else {
     out.push({ id: "EML", value: null, availability: "unavailable", confidence: 0, noteCode: tr ? "landmarksMissing" : "hairlineMissing", note: tr ? "Required landmarks missing." : "Hairline not available." });
+  }
+
+  // eyelid position (MRD1, inferior scleral show) from the full aligned mesh
+  const lid = eyelidMeasures(aligned);
+  const eyesOpen = !quality.issues.some((i) => i.code === "eyes-closed");
+  if (lid && eyesOpen) {
+    const conf = baseConf * 0.75;
+    out.push({ id: "MRD1", value: lid.mrd1, values: { mm: lid.mrd1, right: lid.perEye.R.mrd1, left: lid.perEye.L.mrd1 }, availability: "available", confidence: conf, noteCode: "eyelid", note: `Iris centre → upper lid margin = ${lid.mrd1.toFixed(1)} mm (right ${lid.perEye.R.mrd1.toFixed(1)}, left ${lid.perEye.L.mrd1.toFixed(1)}; normal 4–5 mm).` });
+    out.push({ id: "SSI", value: lid.ssi, values: { mm: lid.ssi, right: lid.perEye.R.ssi, left: lid.perEye.L.ssi }, availability: "available", confidence: conf, noteCode: "eyelid", note: `Lower iris edge → lower lid margin = ${lid.ssi.toFixed(1)} mm (right ${lid.perEye.R.ssi.toFixed(1)}, left ${lid.perEye.L.ssi.toFixed(1)}; ≤ 0 = no scleral show below the iris).` });
+  } else {
+    for (const id of ["MRD1", "SSI"] as const) out.push({ id, value: null, availability: "unavailable", confidence: 0, noteCode: "landmarksMissing", note: lid ? "Eyes closed or partly closed." : "Iris landmarks not available." });
   }
   return out;
 }

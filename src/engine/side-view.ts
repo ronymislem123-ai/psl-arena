@@ -15,7 +15,7 @@ import { angleAt, angleBetween, clamp, createRng, dist, gaussian, stddev } from 
 import { expectedIndex, plateauIndex } from "./scoring/measurement";
 import type { Point } from "./types";
 
-export const SIDE_VIEW_VERSION = "1.1.0";
+export const SIDE_VIEW_VERSION = "2.0.0";
 
 /**
  * Anatomical reference frame of the profile. "image": the image axes are taken as
@@ -29,25 +29,27 @@ export const SIDE_VIEW_VERSION = "1.1.0";
 export type SideReference = { kind: "image" } | { kind: "frankfort"; orbitale: Point } | { kind: "manual"; tiltDeg: number };
 
 /** Signed tilt (degrees, + = clockwise on screen) of the anatomical horizontal relative to the image horizontal. */
-export function referenceTilt(points: Pick<SidePoints, "tragion">, ref: SideReference | undefined): number {
+export function referenceTilt(points: Partial<Pick<SidePoints, "tragion">>, ref: SideReference | undefined): number {
   if (!ref || ref.kind === "image") return 0;
+  if (ref.kind === "frankfort" && !points.tragion) return 0;
   if (ref.kind === "manual") return Math.max(-45, Math.min(45, ref.tiltDeg));
-  const v = { x: ref.orbitale.x - points.tragion.x, y: ref.orbitale.y - points.tragion.y };
+  const v = { x: ref.orbitale.x - points.tragion!.x, y: ref.orbitale.y - points.tragion!.y };
   const a = (Math.atan2(v.y, v.x) * 180) / Math.PI;
   // the orbitale lies anterior to the tragion: take the direction closest to the image horizontal
   return Math.abs(a) <= 90 ? a : a - 180 * Math.sign(a);
 }
 
 /** Rotates all points about the tragion so that the anatomical horizontal becomes the image horizontal. */
-export function toReferenceFrame(points: SidePoints, tiltDeg: number): SidePoints {
+export function toReferenceFrame<T extends Partial<SidePoints>>(points: T, tiltDeg: number): T {
   if (!tiltDeg) return points;
-  const t = points.tragion;
+  const t = points.tragion ?? points.glabella ?? points.pronasale ?? { x: 0, y: 0 };
   const r = (-tiltDeg * Math.PI) / 180;
   const c = Math.cos(r);
   const s = Math.sin(r);
-  const out = {} as SidePoints;
+  const out = {} as T;
   for (const id of Object.keys(points) as SideLandmarkId[]) {
     const p = points[id];
+    if (!p) continue;
     out[id] = { x: t.x + (p.x - t.x) * c - (p.y - t.y) * s, y: t.y + (p.x - t.x) * s + (p.y - t.y) * c };
   }
   return out;
@@ -78,6 +80,18 @@ export const SIDE_LANDMARK_ORDER: SideLandmarkId[] = [
 ];
 
 export type SidePoints = Record<SideLandmarkId, Point>;
+/** A (possibly incomplete) point set: automatic detection may not find every point. */
+export type SidePointSet = Partial<SidePoints>;
+
+/**
+ * Points every analysis needs (the facial midline from glabella to menton). The
+ * remaining points (rhinion, alar crease, cervical/neck point, gonion, tragion) are
+ * optional: measurements that need a missing point are reported as not determinable.
+ */
+export const SIDE_CORE_POINTS: SideLandmarkId[] = ["glabella", "nasion", "pronasale", "subnasale", "labrale_sup", "stomion", "labrale_inf", "labiomental", "pogonion", "menton"];
+
+/** How a point was obtained. */
+export type SidePointSource = "manual" | "contour" | "derived" | "segment";
 
 export type SideMeasurementId =
   | "GA"
@@ -95,7 +109,10 @@ export type SideMeasurementId =
   | "LCR"
   | "GOODE"
   | "DORSUM"
-  | "CHIN_MERIDIAN";
+  | "CHIN_MERIDIAN"
+  | "MPA"
+  | "MFP"
+  | "CHP";
 
 export type SideSource = "guide" | "literature" | "descriptive";
 export type SideUnit = "degrees" | "ratio" | "percent";
@@ -249,6 +266,30 @@ export const SIDE_DEFINITIONS: SideMeasurementDefinition[] = [
     limitations: ["Descriptive only; not scored.", LIM_VERTICAL, LIM_MANUAL],
     landmarks: ["nasion", "pogonion", "menton"], weight: 0,
   },
+  {
+    id: "MPA", name: "Mandibular plane angle (soft tissue)", unit: "degrees", range: { min: 20, max: 30 }, source: "literature",
+    reference: "Frankfort–mandibular plane angle 25° ± 5° (Tweed 1954); soft-tissue proxy measured against the reference horizontal.",
+    description: "Steepness of the lower border of the jaw relative to the horizontal; high values mean a steep (long, retrusive) mandible, low values a flat one.",
+    methodology: "Angle between the line soft-tissue gonion → soft-tissue menton and the reference horizontal (Frankfort horizontal when tragion and orbitale are set, otherwise the image horizontal).",
+    limitations: [LIM_SOFT, LIM_VERTICAL, "The bony mandibular plane runs a few degrees steeper than the soft-tissue jaw line; the soft-tissue gonion is reconstructed."],
+    landmarks: ["gonion", "menton"], weight: 1,
+  },
+  {
+    id: "MFP", name: "Midface projection (Sn to glabella vertical)", unit: "percent", range: { min: 2.4, max: 7.2 }, source: "literature",
+    reference: "Legan & Burstone 1980: subnasale 6 ± 3 mm ahead of the glabella vertical; converted with a soft-tissue G–Me' height of 125 mm (Farkas 1994 adult means 115–135 mm).",
+    description: "How far the upper lip base (subnasale) lies ahead of the forehead, i.e. the forward position of the maxilla/midface.",
+    methodology: "Horizontal distance subnasale − glabella along the anterior direction in the reference frame, in percent of the vertical glabella–menton height.",
+    limitations: [LIM_VERTICAL, "The millimetre norm is converted to a percentage with an average face height (± 8 %).", LIM_SOFT],
+    landmarks: ["glabella", "subnasale", "menton"], weight: 1,
+  },
+  {
+    id: "CHP", name: "Chin projection (Pg to glabella vertical)", unit: "percent", range: { min: -3.2, max: 3.2 }, source: "literature",
+    reference: "Legan & Burstone 1980: soft-tissue pogonion 0 ± 4 mm relative to the glabella vertical; converted with G–Me' = 125 mm.",
+    description: "Forward (positive) or backward (negative) position of the chin relative to the forehead.",
+    methodology: "Horizontal distance pogonion − glabella along the anterior direction in the reference frame, in percent of the vertical glabella–menton height.",
+    limitations: [LIM_VERTICAL, "The millimetre norm is converted to a percentage with an average face height (± 8 %)."],
+    landmarks: ["glabella", "pogonion", "menton"], weight: 1,
+  },
 ];
 
 export const SIDE_BY_ID = Object.fromEntries(SIDE_DEFINITIONS.map((d) => [d.id, d])) as Record<SideMeasurementId, SideMeasurementDefinition>;
@@ -265,9 +306,11 @@ export interface SideMeasurementResult {
   /** standard deviation of the value under landmark jitter (null without simulation) */
   valueSigma: number | null;
   intermediate: Record<string, number>;
+  /** landmarks this measurement needs that are not available (value is then null: not determinable) */
+  missingLandmarks?: SideLandmarkId[];
 }
 
-export type SideIssueCode = "verticalOrder" | "anteriorOrder" | "neckOrder" | "tragionLevel" | "gonionLevel" | "lowResolution";
+export type SideIssueCode = "verticalOrder" | "anteriorOrder" | "neckOrder" | "tragionLevel" | "gonionLevel" | "lowResolution" | "missingCore";
 
 export interface SideIssue {
   code: SideIssueCode;
@@ -279,6 +322,10 @@ export interface SideViewConfig {
   seed: number;
   /** anatomical reference axis (default: image axes) */
   reference?: SideReference;
+  /** how the points were obtained (default: manual placement) */
+  placement?: "manual" | "automatic" | "mixed";
+  /** per-point provenance (automatic detection) */
+  pointSources?: Partial<Record<SideLandmarkId, SidePointSource>>;
 }
 
 export const SIDE_DEFAULT_CONFIG: SideViewConfig = { uncertaintySamples: 40, seed: 20251106 };
@@ -299,9 +346,13 @@ export interface SideViewResult {
   uncertainty: { samples: number; sigmaPx: number };
   /** reference axis used (missing on results of version 1.0 = image axes) */
   reference?: { kind: SideReference["kind"]; tiltDeg: number; orbitale?: Point };
+  /** version 2.0: how the points were obtained and which ones are available */
+  placement?: "manual" | "automatic" | "mixed";
+  pointSources?: Partial<Record<SideLandmarkId, SidePointSource>>;
+  missingPoints?: SideLandmarkId[];
 }
 
-export type SideAssumptionCode = "manualPlacement" | "imageVertical" | "frankfortHorizontal" | "manualAxis" | "proxies" | "separateFromFrontal";
+export type SideAssumptionCode = "manualPlacement" | "automaticPlacement" | "imageVertical" | "frankfortHorizontal" | "manualAxis" | "proxies" | "separateFromFrontal";
 
 /**
  * Dispersion unit of a profile measure (engine 2.0). Literature ranges are mostly
@@ -324,44 +375,84 @@ function signedLineDistance(p: Point, a: Point, b: Point): number {
   return ((p.x - a.x) * dy - (p.y - a.y) * dx) / len;
 }
 
-export function detectFacing(points: Pick<SidePoints, "pronasale" | "tragion">): "left" | "right" {
-  return points.pronasale.x < points.tragion.x ? "left" : "right";
+export function detectFacing(points: Partial<Pick<SidePoints, "pronasale" | "tragion" | "nasion" | "subnasale">>): "left" | "right" {
+  const prn = points.pronasale;
+  if (!prn) return "right";
+  if (points.tragion) return prn.x < points.tragion.x ? "left" : "right";
+  // without the tragion: the nasal tip lies anterior to nasion and subnasale
+  const back = [points.nasion, points.subnasale].filter(Boolean) as Point[];
+  if (!back.length) return "right";
+  const bx = back.reduce((s, p) => s + p.x, 0) / back.length;
+  return prn.x < bx ? "left" : "right";
 }
 
 type RawValues = Record<SideMeasurementId, { value: number; intermediate: Record<string, number> }>;
 
-/** All raw values for one point set. `ax` is the anterior unit direction along x (−1 faces left). */
-function computeValues(P: SidePoints, ax: 1 | -1): RawValues {
+const NA = { value: Number.NaN, intermediate: {} };
+
+/** All raw values for one point set. `ax` is the anterior unit direction along x (−1 faces left). Missing inputs give NaN. */
+function computeValues(P: SidePointSet, ax: 1 | -1): RawValues {
+  const has = (...ids: SideLandmarkId[]) => ids.every((id) => !!P[id]);
   const vdist = (a: Point, b: Point) => Math.abs(a.y - b.y);
-  const lip = ax * P.labrale_sup.x >= ax * P.labrale_inf.x ? P.labrale_sup : P.labrale_inf;
-  const zd = { x: P.pogonion.x - lip.x, y: P.pogonion.y - lip.y };
-  const zm = Math.hypot(zd.x, zd.y) || 1;
-  const zAngle = (Math.acos(clamp((zd.x * -ax) / zm, -1, 1)) * 180) / Math.PI;
-  const gm = vdist(P.glabella, P.menton) || 1;
-  const nasalLength = dist(P.nasion, P.pronasale) || 1;
-  const projection = Math.abs(signedLineDistance(P.pronasale, P.nasion, P.alar_crease));
-  const off = signedLineDistance(P.rhinion, P.nasion, P.pronasale);
-  const anteriorSign = Math.sign(signedLineDistance({ x: P.nasion.x + ax, y: P.nasion.y }, P.nasion, P.pronasale)) || 1;
-  const upperLip = vdist(P.subnasale, P.stomion) || 1;
-  const nm = vdist(P.nasion, P.menton) || 1;
-  return {
-    GA: { value: angleAt(P.tragion, P.gonion, P.menton), intermediate: {} },
-    CMA: { value: angleAt(P.menton, P.cervical, P.neck), intermediate: {} },
-    MCA: { value: angleBetween({ x: P.pogonion.x - P.glabella.x, y: P.pogonion.y - P.glabella.y }, { x: P.cervical.x - P.menton.x, y: P.cervical.y - P.menton.y }), intermediate: {} },
-    NFA: { value: angleAt(P.glabella, P.nasion, P.pronasale), intermediate: {} },
-    NFC: { value: angleBetween({ x: P.pogonion.x - P.glabella.x, y: P.pogonion.y - P.glabella.y }, { x: P.pronasale.x - P.nasion.x, y: P.pronasale.y - P.nasion.y }), intermediate: {} },
-    NMA: { value: angleAt(P.nasion, P.pronasale, P.pogonion), intermediate: {} },
-    NLA: { value: angleAt(P.pronasale, P.subnasale, P.labrale_sup), intermediate: {} },
-    MLA: { value: angleAt(P.labrale_inf, P.labiomental, P.pogonion), intermediate: {} },
-    FCA: { value: angleAt(P.glabella, P.subnasale, P.pogonion), intermediate: {} },
-    HANG: { value: angleAt(P.nasion, P.pogonion, P.labrale_sup), intermediate: {} },
-    ZANG: { value: zAngle, intermediate: { lipUsed: lip === P.labrale_sup ? 1 : 2 } },
-    LFH: { value: (vdist(P.subnasale, P.menton) / gm) * 100, intermediate: { lowerFace: vdist(P.subnasale, P.menton), glabellaMenton: gm } },
-    LCR: { value: vdist(P.stomion, P.menton) / upperLip, intermediate: { upperLip, lipChin: vdist(P.stomion, P.menton) } },
-    GOODE: { value: projection / nasalLength, intermediate: { projection, nasalLength } },
-    DORSUM: { value: ((off * anteriorSign) / nasalLength) * 100, intermediate: { offset: off * anteriorSign, nasalLength } },
-    CHIN_MERIDIAN: { value: ((ax * (P.pogonion.x - P.nasion.x)) / nm) * 100, intermediate: { nasionMenton: nm } },
+  const out = {} as RawValues;
+  const put = (id: SideMeasurementId, need: SideLandmarkId[], f: () => { value: number; intermediate: Record<string, number> }) => {
+    out[id] = has(...need) ? f() : NA;
   };
+  const p = P as SidePoints; // only dereferenced after `has`
+  put("GA", ["tragion", "gonion", "menton"], () => ({ value: angleAt(p.tragion, p.gonion, p.menton), intermediate: {} }));
+  put("CMA", ["menton", "cervical", "neck"], () => ({ value: angleAt(p.menton, p.cervical, p.neck), intermediate: {} }));
+  put("MCA", ["glabella", "pogonion", "menton", "cervical"], () => ({ value: angleBetween({ x: p.pogonion.x - p.glabella.x, y: p.pogonion.y - p.glabella.y }, { x: p.cervical.x - p.menton.x, y: p.cervical.y - p.menton.y }), intermediate: {} }));
+  put("NFA", ["glabella", "nasion", "pronasale"], () => ({ value: angleAt(p.glabella, p.nasion, p.pronasale), intermediate: {} }));
+  put("NFC", ["glabella", "pogonion", "nasion", "pronasale"], () => ({ value: angleBetween({ x: p.pogonion.x - p.glabella.x, y: p.pogonion.y - p.glabella.y }, { x: p.pronasale.x - p.nasion.x, y: p.pronasale.y - p.nasion.y }), intermediate: {} }));
+  put("NMA", ["nasion", "pronasale", "pogonion"], () => ({ value: angleAt(p.nasion, p.pronasale, p.pogonion), intermediate: {} }));
+  put("NLA", ["pronasale", "subnasale", "labrale_sup"], () => ({ value: angleAt(p.pronasale, p.subnasale, p.labrale_sup), intermediate: {} }));
+  put("MLA", ["labrale_inf", "labiomental", "pogonion"], () => ({ value: angleAt(p.labrale_inf, p.labiomental, p.pogonion), intermediate: {} }));
+  put("FCA", ["glabella", "subnasale", "pogonion"], () => ({ value: angleAt(p.glabella, p.subnasale, p.pogonion), intermediate: {} }));
+  put("HANG", ["nasion", "pogonion", "labrale_sup"], () => ({ value: angleAt(p.nasion, p.pogonion, p.labrale_sup), intermediate: {} }));
+  put("ZANG", ["pogonion", "labrale_sup", "labrale_inf"], () => {
+    const lip = ax * p.labrale_sup.x >= ax * p.labrale_inf.x ? p.labrale_sup : p.labrale_inf;
+    const zd = { x: p.pogonion.x - lip.x, y: p.pogonion.y - lip.y };
+    const zm = Math.hypot(zd.x, zd.y) || 1;
+    return { value: (Math.acos(clamp((zd.x * -ax) / zm, -1, 1)) * 180) / Math.PI, intermediate: { lipUsed: lip === p.labrale_sup ? 1 : 2 } };
+  });
+  put("LFH", ["glabella", "subnasale", "menton"], () => {
+    const gm = vdist(p.glabella, p.menton) || 1;
+    return { value: (vdist(p.subnasale, p.menton) / gm) * 100, intermediate: { lowerFace: vdist(p.subnasale, p.menton), glabellaMenton: gm } };
+  });
+  put("LCR", ["subnasale", "stomion", "menton"], () => {
+    const upperLip = vdist(p.subnasale, p.stomion) || 1;
+    return { value: vdist(p.stomion, p.menton) / upperLip, intermediate: { upperLip, lipChin: vdist(p.stomion, p.menton) } };
+  });
+  put("GOODE", ["nasion", "alar_crease", "pronasale"], () => {
+    const nasalLength = dist(p.nasion, p.pronasale) || 1;
+    const projection = Math.abs(signedLineDistance(p.pronasale, p.nasion, p.alar_crease));
+    return { value: projection / nasalLength, intermediate: { projection, nasalLength } };
+  });
+  put("DORSUM", ["nasion", "rhinion", "pronasale"], () => {
+    const nasalLength = dist(p.nasion, p.pronasale) || 1;
+    const off = signedLineDistance(p.rhinion, p.nasion, p.pronasale);
+    const anteriorSign = Math.sign(signedLineDistance({ x: p.nasion.x + ax, y: p.nasion.y }, p.nasion, p.pronasale)) || 1;
+    return { value: ((off * anteriorSign) / nasalLength) * 100, intermediate: { offset: off * anteriorSign, nasalLength } };
+  });
+  put("CHIN_MERIDIAN", ["nasion", "pogonion", "menton"], () => {
+    const nm = vdist(p.nasion, p.menton) || 1;
+    return { value: ((ax * (p.pogonion.x - p.nasion.x)) / nm) * 100, intermediate: { nasionMenton: nm } };
+  });
+  put("MPA", ["gonion", "menton"], () => {
+    const dx = ax * (p.menton.x - p.gonion.x);
+    const dy = p.menton.y - p.gonion.y;
+    // positive when the jaw line descends towards the chin (image y points down)
+    return { value: (Math.atan2(dy, Math.max(1e-6, dx)) * 180) / Math.PI, intermediate: { run: dx, rise: dy } };
+  });
+  put("MFP", ["glabella", "subnasale", "menton"], () => {
+    const gm = vdist(p.glabella, p.menton) || 1;
+    return { value: ((ax * (p.subnasale.x - p.glabella.x)) / gm) * 100, intermediate: { offset: ax * (p.subnasale.x - p.glabella.x), glabellaMenton: gm } };
+  });
+  put("CHP", ["glabella", "pogonion", "menton"], () => {
+    const gm = vdist(p.glabella, p.menton) || 1;
+    return { value: ((ax * (p.pogonion.x - p.glabella.x)) / gm) * 100, intermediate: { offset: ax * (p.pogonion.x - p.glabella.x), glabellaMenton: gm } };
+  });
+  return out;
 }
 
 function scoreOf(values: RawValues): { score: number | null; scoredCount: number; per: Record<SideMeasurementId, { deviation: number | null; index: number | null; inRange: boolean | null }> } {
@@ -387,25 +478,27 @@ function scoreOf(values: RawValues): { score: number | null; scoredCount: number
   return { score: den > 0 ? num / den : null, scoredCount, per };
 }
 
-export function findIssues(P: SidePoints, facing: "left" | "right"): SideIssue[] {
+export function findIssues(P: SidePointSet, facing: "left" | "right"): SideIssue[] {
   const ax = facing === "left" ? -1 : 1;
   const issues: SideIssue[] = [];
-  const vertical: SideLandmarkId[] = ["glabella", "nasion", "pronasale", "subnasale", "labrale_sup", "stomion", "labrale_inf", "labiomental", "pogonion", "menton"];
+  if (SIDE_CORE_POINTS.some((id) => !P[id])) issues.push({ code: "missingCore", severity: "error" });
+  const vertical = (["glabella", "nasion", "pronasale", "subnasale", "labrale_sup", "stomion", "labrale_inf", "labiomental", "pogonion", "menton"] as SideLandmarkId[]).filter((id) => P[id]);
   for (let i = 1; i < vertical.length; i++) {
-    if (P[vertical[i]].y <= P[vertical[i - 1]].y) {
+    if (P[vertical[i]]!.y <= P[vertical[i - 1]]!.y) {
       issues.push({ code: "verticalOrder", severity: "error" });
       break;
     }
   }
-  if (ax * P.pronasale.x <= ax * P.subnasale.x || ax * P.pronasale.x <= ax * P.nasion.x || ax * P.pronasale.x <= ax * P.rhinion.x) issues.push({ code: "anteriorOrder", severity: "error" });
-  if (P.cervical.y <= P.menton.y || P.neck.y <= P.cervical.y) issues.push({ code: "neckOrder", severity: "error" });
-  if (P.tragion.y < P.glabella.y || P.tragion.y > P.labrale_sup.y) issues.push({ code: "tragionLevel", severity: "warning" });
-  if (P.gonion.y < P.subnasale.y || P.gonion.y > P.cervical.y) issues.push({ code: "gonionLevel", severity: "warning" });
-  if (Math.abs(P.glabella.y - P.menton.y) < 150) issues.push({ code: "lowResolution", severity: "warning" });
+  const prn = P.pronasale;
+  if (prn && (["subnasale", "nasion", "rhinion"] as SideLandmarkId[]).some((id) => P[id] && ax * prn.x <= ax * P[id]!.x)) issues.push({ code: "anteriorOrder", severity: "error" });
+  if ((P.cervical && P.menton && P.cervical.y <= P.menton.y) || (P.neck && P.cervical && P.neck.y <= P.cervical.y)) issues.push({ code: "neckOrder", severity: "error" });
+  if (P.tragion && P.glabella && P.labrale_sup && (P.tragion.y < P.glabella.y || P.tragion.y > P.labrale_sup.y)) issues.push({ code: "tragionLevel", severity: "warning" });
+  if (P.gonion && P.subnasale && (P.gonion.y < P.subnasale.y || (P.cervical && P.gonion.y > P.cervical.y))) issues.push({ code: "gonionLevel", severity: "warning" });
+  if (P.glabella && P.menton && Math.abs(P.glabella.y - P.menton.y) < 150) issues.push({ code: "lowResolution", severity: "warning" });
   return issues;
 }
 
-export function analyzeSideView(rawPoints: SidePoints, config: Partial<SideViewConfig> = {}): SideViewResult {
+export function analyzeSideView(rawPoints: SidePointSet, config: Partial<SideViewConfig> = {}): SideViewResult {
   const cfg = { ...SIDE_DEFAULT_CONFIG, ...config };
   const tiltDeg = referenceTilt(rawPoints, cfg.reference);
   // every measurement is taken in the anatomical frame (horizontal = reference axis)
@@ -414,19 +507,24 @@ export function analyzeSideView(rawPoints: SidePoints, config: Partial<SideViewC
   const ax: 1 | -1 = facing === "left" ? -1 : 1;
   const issues = findIssues(points, facing);
   const analyzable = !issues.some((i) => i.severity === "error");
-  const faceHeightPx = Math.abs(points.glabella.y - points.menton.y);
-  const sigmaPx = Math.max(1.5, 0.004 * faceHeightPx);
-  const kind = cfg.reference?.kind ?? "image";
+  const faceHeightPx = points.glabella && points.menton ? Math.abs(points.glabella.y - points.menton.y) : 0;
+  const placement = cfg.placement ?? "manual";
+  const sigmaPx = Math.max(1.5, (placement === "manual" ? 0.004 : 0.006) * faceHeightPx);
+  // the Frankfort horizontal needs the tragion; without it the image axes are used
+  const kind = cfg.reference?.kind === "frankfort" && !rawPoints.tragion ? "image" : (cfg.reference?.kind ?? "image");
   const axisCode: SideAssumptionCode = kind === "frankfort" ? "frankfortHorizontal" : kind === "manual" ? "manualAxis" : "imageVertical";
-  const assumptionCodes: SideAssumptionCode[] = ["manualPlacement", axisCode, "proxies", "separateFromFrontal"];
-  const reference: SideViewResult["reference"] = { kind, tiltDeg, ...(cfg.reference?.kind === "frankfort" ? { orbitale: cfg.reference.orbitale } : {}) };
+  const assumptionCodes: SideAssumptionCode[] = [placement === "manual" ? "manualPlacement" : "automaticPlacement", axisCode, "proxies", "separateFromFrontal"];
+  const reference: SideViewResult["reference"] = { kind, tiltDeg, ...(cfg.reference?.kind === "frankfort" && kind === "frankfort" ? { orbitale: cfg.reference.orbitale } : {}) };
+  const missingPoints = SIDE_LANDMARK_ORDER.filter((id) => !points[id]);
+  const provenance = { placement, ...(cfg.pointSources ? { pointSources: cfg.pointSources } : {}), missingPoints };
+  const missingOf = (d: SideMeasurementDefinition) => d.landmarks.filter((id) => !points[id]);
 
   if (!analyzable) {
     // unsuitable placements never yield seemingly precise values
     return {
       engineVersion: SIDE_VIEW_VERSION, facing, analyzable: false,
-      measurements: SIDE_DEFINITIONS.map((d) => ({ id: d.id, value: null, inRange: null, deviation: null, index: null, valueSigma: null, intermediate: {} })),
-      score: null, scoreSigma: null, scoredCount: 0, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: 0, sigmaPx }, reference,
+      measurements: SIDE_DEFINITIONS.map((d) => ({ id: d.id, value: null, inRange: null, deviation: null, index: null, valueSigma: null, intermediate: {}, ...(missingOf(d).length ? { missingLandmarks: missingOf(d) } : {}) })),
+      score: null, scoreSigma: null, scoredCount: 0, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: 0, sigmaPx }, reference, ...provenance,
     };
   }
 
@@ -444,21 +542,28 @@ export function analyzeSideView(rawPoints: SidePoints, config: Partial<SideViewC
     const scores: number[] = [];
     const series: Record<string, number[]> = {};
     for (let s = 0; s < samples; s++) {
-      const jittered = {} as SidePoints;
-      for (const id of SIDE_LANDMARK_ORDER) jittered[id] = { x: points[id].x + gaussian(rng) * sigmaPx, y: points[id].y + gaussian(rng) * sigmaPx };
+      const jittered: SidePointSet = {};
+      for (const id of SIDE_LANDMARK_ORDER) {
+        // the random stream does not depend on which points exist (reproducible per point)
+        const gx = gaussian(rng);
+        const gy = gaussian(rng);
+        const q = points[id];
+        if (q) jittered[id] = { x: q.x + gx * sigmaPx, y: q.y + gy * sigmaPx };
+      }
       // (jitter is isotropic, so jittering in the reference frame is equivalent to jittering the raw points)
       const v = computeValues(jittered, ax);
       const sc = scoreOf(v).score;
       if (sc != null) scores.push(sc);
-      for (const d of SIDE_DEFINITIONS) (series[d.id] ??= []).push(v[d.id].value);
+      for (const d of SIDE_DEFINITIONS) if (Number.isFinite(v[d.id].value)) (series[d.id] ??= []).push(v[d.id].value);
     }
     scoreSigma = scores.length > 1 ? stddev(scores) : null;
-    for (const d of SIDE_DEFINITIONS) sigmas[d.id] = stddev(series[d.id] ?? []);
+    for (const d of SIDE_DEFINITIONS) if (series[d.id]?.length) sigmas[d.id] = stddev(series[d.id]);
   }
 
   const measurements: SideMeasurementResult[] = SIDE_DEFINITIONS.map((d) => {
     const v = values[d.id].value;
     const sig = sigmas[d.id];
+    const missing = missingOf(d);
     // engine 2.0: expectation of the index over the placement uncertainty
     const index = d.range && Number.isFinite(v) && sig ? expectedIndex(v, sig, d.range, toleranceFor(d.range, d.unit)) : per[d.id].index;
     return {
@@ -467,8 +572,9 @@ export function analyzeSideView(rawPoints: SidePoints, config: Partial<SideViewC
       inRange: per[d.id].inRange,
       deviation: per[d.id].deviation,
       index,
-      valueSigma: sig ?? null,
+      valueSigma: Number.isFinite(v) ? (sig ?? null) : null,
       intermediate: values[d.id].intermediate,
+      ...(missing.length ? { missingLandmarks: missing } : {}),
     };
   });
   // the score follows the uncertainty-aware indices
@@ -485,7 +591,7 @@ export function analyzeSideView(rawPoints: SidePoints, config: Partial<SideViewC
     if (den > 0) score = num / den;
   }
 
-  return { engineVersion: SIDE_VIEW_VERSION, facing, analyzable: true, measurements, score, scoreSigma, scoredCount, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: samples >= 4 ? samples : 0, sigmaPx }, reference };
+  return { engineVersion: SIDE_VIEW_VERSION, facing, analyzable: true, measurements, score, scoreSigma, scoredCount, issues, assumptionCodes, faceHeightPx, uncertainty: { samples: samples >= 4 ? samples : 0, sigmaPx }, reference, ...provenance };
 }
 
 export function formatSideValue(id: SideMeasurementId, v: number | null | undefined): string {

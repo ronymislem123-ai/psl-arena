@@ -45,6 +45,10 @@ test.describe("Side view (profile) module", () => {
     await shot(page, "40-side-empty");
     await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "profile-synthetic.jpg"));
     await expect(page.getByTestId("side-canvas")).toBeVisible({ timeout: 30_000 });
+    // version 2.0: the automatic detection runs first; this test then exercises the manual path
+    await expect(page.getByTestId("side-auto")).toHaveAttribute("data-state", /^(ok|failed)$/, { timeout: 180_000 });
+    if (await page.getByTestId("side-reset").isEnabled()) await page.getByTestId("side-reset").click();
+    await expect(page.getByTestId("side-placed")).toContainText("0 of 16");
     await expect(page.getByTestId("side-current")).toHaveAttribute("data-landmark", "glabella");
 
     // the loupe follows the pointer
@@ -66,11 +70,11 @@ test.describe("Side view (profile) module", () => {
     await expect(page.getByText("Facing: right")).toBeVisible();
     await shot(page, "42-side-placed");
 
-    // undo removes the last point and re-opens the step; placing it again restores the preview
+    // undo removes the last point and re-opens the step; the tragion is optional (version 2.0), so the preview stays
     await page.getByTestId("side-undo").click();
     await expect(page.getByTestId("side-placed")).toContainText("15 of 16");
     await expect(page.getByTestId("side-current")).toHaveAttribute("data-landmark", "tragion");
-    await expect(page.getByTestId("side-preview")).toHaveCount(0);
+    await expect(page.getByTestId("side-preview")).toHaveAttribute("data-state", "analyzable");
     await clickImagePoint(page, 330, 420);
     await expect(page.getByTestId("side-preview")).toHaveAttribute("data-state", "analyzable");
 
@@ -96,10 +100,10 @@ test.describe("Side view (profile) module", () => {
     // result page
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Profile Pat");
     await expect(page.getByText("Facing: right")).toBeVisible();
-    await expect(page.getByText("13 scored · 3 descriptive")).toBeVisible();
+    await expect(page.getByText("16 scored · 3 descriptive")).toBeVisible();
     await expect(page.locator('image[href^="/api/images/"]').first()).toBeAttached();
     const rows = page.locator('[data-testid="side-table"] tbody tr');
-    await expect(rows).toHaveCount(16);
+    await expect(rows).toHaveCount(19);
     await expect(page.getByTestId("side-row-LFH")).toContainText("50.0 %");
     await expect(page.getByTestId("side-row-CMA")).toContainText("116.6°");
     await expect(page.getByTestId("side-row-GA")).toContainText("Guide range");
@@ -122,7 +126,7 @@ test.describe("Side view (profile) module", () => {
     await shot(page, "47-side-history");
     const list = await (await page.request.get("/api/side-analyses")).json();
     expect(list.sideAnalyses.length).toBeGreaterThanOrEqual(1);
-    expect(list.sideAnalyses[0].scoredCount).toBe(13);
+    expect(list.sideAnalyses[0].scoredCount).toBe(16);
     const profile = await (await page.request.get(`/api/profiles`)).json();
     expect(profile.profiles.find((p: { label: string }) => p.label === "Profile Pat").sideAnalysisCount).toBe(1);
     await page.goto(`/profiles/${list.sideAnalyses[0].profileId}`);
@@ -155,11 +159,59 @@ test.describe("Side view (profile) module", () => {
     expect(noConsent.status()).toBe(400);
     const good = await request.post("/api/side-analyses", { data: { profileLabel: "API Pat", consent: { rightsConfirmed: true, adultsConfirmed: true }, storeImage: false, imageWidth: 800, imageHeight: 1000, points } });
     expect(good.status()).toBe(201);
-    expect((await good.json()).sideAnalysis.scoredCount).toBe(13);
+    expect((await good.json()).sideAnalysis.scoredCount).toBe(16);
     const mine = (await (await request.get("/api/side-analyses")).json()).sideAnalyses as { id: string }[];
     expect(mine.length).toBeGreaterThan(0);
     const other = await request.post("/api/auth/signup", { data: { email: `e2e-side-other-${Date.now()}@example.com`, password: "other strong password 42" } });
     expect(other.status()).toBe(201);
     expect((await request.get(`/api/side-analyses/${mine[0].id}`)).status()).toBe(404);
+  });
+  test("automatic side view: upload only → landmarks detected → save without manual points → not-determinable measures marked", async ({ page }) => {
+    test.setTimeout(240_000);
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    const login = await page.request.post("/api/auth/login", { data: { email: ACCOUNT.email, password: ACCOUNT.password } });
+    expect(login.ok()).toBeTruthy();
+    await page.goto("/side-view/new");
+    await expect(page.getByTestId("side-upload")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "profile-scan.jpg"));
+    await expect(page.getByTestId("side-auto")).toHaveAttribute("data-state", "ok", { timeout: 180_000 });
+    await expect(page.getByTestId("side-auto-count")).toContainText(/1[0-6] of 16 points detected automatically/);
+    for (const id of ["glabella", "nasion", "pronasale", "subnasale", "labrale_sup", "stomion", "labrale_inf", "labiomental", "pogonion", "menton"]) {
+      await expect(page.getByTestId(`side-step-${id}`)).toHaveAttribute("data-done", "true");
+    }
+    await expect(page.getByTestId("side-src-pronasale")).toContainText(/contour/i);
+    await expect(page.getByTestId("side-step-alar_crease")).toHaveAttribute("data-done", "false"); // not on the silhouette: never guessed
+    await expect(page.getByTestId("side-preview")).toHaveAttribute("data-state", "analyzable");
+    await shot(page, "49-side-auto");
+    await page.getByTestId("side-label").fill("Auto Profile");
+    const boxes = page.locator('input[type="checkbox"]');
+    for (let i = 0; i < (await boxes.count()); i++) await boxes.nth(i).check();
+    await page.getByTestId("side-save").click();
+    await page.waitForURL(/\/side-view\/side_/, { timeout: 60_000 });
+    await expect(page.getByTestId("side-row-FCA")).toContainText("°");
+    await expect(page.getByTestId("side-nd-GOODE")).toContainText("not determinable");
+    await expect(page.getByTestId("side-nd-GA")).toContainText("not determinable");
+    await expect(page.getByText(/detected automatically from the profile silhouette/)).toBeVisible();
+    await shot(page, "50-side-auto-result");
+    const list = await (await page.request.get("/api/side-analyses")).json();
+    const auto = list.sideAnalyses.find((x: { profileLabel?: string; label?: string }) => (x.profileLabel ?? x.label) === "Auto Profile") ?? list.sideAnalyses[0];
+    const full = await (await page.request.get(`/api/side-analyses/${auto.id}`)).json();
+    expect(full.sideAnalysis.result.placement).toBe("automatic");
+    expect(full.sideAnalysis.result.missingPoints).toContain("alar_crease");
+    expect(full.sideAnalysis.points.alar_crease).toBeUndefined();
+    expect(errors).toEqual([]);
+  });
+
+  test("automatic side view rejects a frontal photo with an explanation", async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.request.post("/api/auth/login", { data: { email: ACCOUNT.email, password: ACCOUNT.password } });
+    await page.goto("/side-view/new");
+    await expect(page.getByTestId("side-upload")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "portrait-a-small.jpg"));
+    await expect(page.getByTestId("side-auto")).toHaveAttribute("data-state", "failed", { timeout: 180_000 });
+    await expect(page.getByTestId("side-auto")).toContainText(/frontal face|nasal tip|not possible/i);
+    await expect(page.getByTestId("side-placed")).toContainText("0 of 16");
+    await shot(page, "51-side-auto-frontal");
   });
 });

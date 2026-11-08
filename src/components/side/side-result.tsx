@@ -167,7 +167,9 @@ export function SideResult({ record }: { record: SideAnalysisRecord }) {
                           <Badge tone={SOURCE_TONE[def.source]}>{SIDE_SOURCE_TEXTS[lang][def.source]}</Badge>
                         </td>
                         <td className="py-2 text-right">
-                          {m.index == null ? (
+                          {m.value == null && m.missingLandmarks?.length ? (
+                            <span className="text-xs text-fg-3" data-testid={`side-nd-${m.id}`} title={m.missingLandmarks.map((id) => sideLandmarkText(id, lang).name).join(", ")}>{t("side.notDeterminable")}</span>
+                          ) : m.index == null ? (
                             <span className="text-xs text-fg-3">{t("side.notScored")}</span>
                           ) : (
                             <div className="flex items-center justify-end gap-2">
@@ -237,7 +239,7 @@ function MeasurementDetail({ m }: { m: SideMeasurementResult }) {
           <div className={cn("font-display text-3xl num mt-1", m.index == null && "text-fg-3")}>{m.index == null ? "—" : m.index.toFixed(0)}</div>
           {m.index != null && <Progress value={m.index} tone={scoreTone(m.index)} className="mt-2" animate={false} />}
           <div className="mt-2 text-xs text-fg-2">
-            {m.index == null ? t("side.notScored") : m.inRange ? t("side.inRange") : `${t("side.detail.deviation")} ${m.deviation == null ? "" : formatSideValue(m.id, Math.abs(m.deviation))}`}
+            {m.value == null && m.missingLandmarks?.length ? t("side.missingPoints", { list: m.missingLandmarks.map((id) => sideLandmarkText(id, lang).name).join(", ") }) : m.index == null ? t("side.notScored") : m.inRange ? t("side.inRange") : `${t("side.detail.deviation")} ${m.deviation == null ? "" : formatSideValue(m.id, Math.abs(m.deviation))}`}
           </div>
         </div>
       </div>

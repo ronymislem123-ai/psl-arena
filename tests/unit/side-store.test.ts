@@ -34,13 +34,13 @@ describe("side-view persistence", () => {
     expect(rec.profileLabel).toBe("Sideways");
     expect(rec.facing).toBe("right");
     expect(rec.analyzable).toBe(true);
-    expect(rec.scoredCount).toBe(13);
+    expect(rec.scoredCount).toBe(16);
     expect(rec.score).toBeCloseTo(rec.result.score!, 6);
     expect(rec.imageId).toBeTruthy();
     expect(existsSync(join(dir, "images", `${rec.imageId}.bin`))).toBe(true);
     expect(rec.points).toEqual(PROFILE);
     const rows = db.getDb().prepare("SELECT COUNT(*) AS n FROM side_measurements WHERE analysis_id = ?").get(rec.id) as { n: number };
-    expect(rows.n).toBe(16);
+    expect(rows.n).toBe(19);
     expect(db.getDb().prepare("SELECT value FROM schema_meta WHERE key = 'version'").get()).toEqual({ value: "6" });
 
     const profile = repos.getProfile(userId, rec.profileId)!;

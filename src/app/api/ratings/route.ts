@@ -31,6 +31,9 @@ export async function POST(req: Request) {
       useLatestSide: body.useLatestSide,
       scaleId: body.scaleId,
       minCoverage: body.minCoverage,
+      visualConsent: body.visualConsent,
+      visualImageDataUrl: body.visualConsent ? body.visualImageDataUrl : undefined,
+      lang: body.lang,
     });
     return ok({ rating }, { status: 201 });
   } catch (e) {

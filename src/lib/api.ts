@@ -1,6 +1,6 @@
 "use client";
 import type { AnalysisInput } from "@/engine/types";
-import type { SidePoints, SideReference } from "@/engine/side-view";
+import type { SideLandmarkId, SidePointSet, SidePointSource, SideReference } from "@/engine/side-view";
 import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow, SideAnalysisRecord, SideAnalysisSummary } from "@/server/repos";
 import type { RatingRecord, RatingSummary, ScaleInput, ScaleSummary, TournamentRecord, TournamentSummary, TournamentVersionRow } from "@/server/repos-psl";
 import type { PslScale, ScaleExport } from "@/engine/psl/scale";
@@ -27,8 +27,10 @@ export const api = {
     consent: { rightsConfirmed: true; adultsConfirmed: true };
     imageWidth: number;
     imageHeight: number;
-    points: SidePoints;
+    points: SidePointSet;
     reference?: SideReference;
+    placement?: "manual" | "automatic" | "mixed";
+    pointSources?: Partial<Record<SideLandmarkId, SidePointSource>>;
   }) => request<{ sideAnalysis: SideAnalysisRecord }>("/api/side-analyses", { method: "POST", body: JSON.stringify(payload) }),
   listSideAnalyses: (profileId?: string) => request<{ sideAnalyses: SideAnalysisSummary[] }>(`/api/side-analyses${profileId ? `?profileId=${profileId}` : ""}`),
   deleteSideAnalysis: (id: string) => request<{ deleted: boolean }>(`/api/side-analyses/${id}`, { method: "DELETE" }),
@@ -61,7 +63,11 @@ export const api = {
     scaleId?: string;
     minCoverage?: number;
     consent: { rightsConfirmed: true; adultsConfirmed: true };
+    visualConsent?: boolean;
+    visualImageDataUrl?: string;
+    lang?: "de" | "en";
   }) => request<{ rating: RatingRecord }>("/api/ratings", { method: "POST", body: JSON.stringify(payload) }),
+  rubric: () => request<{ version: string; visualProvider: { configured: boolean; providerId: string | null; model: string | null; criteria: string[]; hint: "notConfigured" | "missingKey" | "browserKey" | null } }>("/api/rubric"),
   deleteRating: (id: string) => request<{ deleted: boolean }>(`/api/ratings/${id}`, { method: "DELETE" }),
   leaderboards: () => request<{ participants: { id: string; name: string; imageId: string | null; score: number | null; tier: string | null }[]; categories: { id: string; name: string }[]; rankings: CategoryRanking[] }>("/api/leaderboards"),
   // tournaments

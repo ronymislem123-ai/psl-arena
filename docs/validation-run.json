@@ -1,15 +1,15 @@
 {
-  "date": "2026-11-08T15:01:58.896Z",
+  "date": "2026-11-08T17:53:15.247Z",
   "rows": [
     {
       "label": "A original",
       "file": "portrait-a.jpg",
-      "score": 5.396845812955851,
+      "score": 5.456809608402551,
       "tier": "Mid MTN",
-      "coverage": 0.8062698412698412,
+      "coverage": 0.7872222222222223,
       "valid": true,
       "areas": {
-        "eye": 5.681348244982063,
+        "eye": 5.929414874077282,
         "proportions": 8.746743999353988,
         "bone": 4.396258398414136,
         "nose": 0.4868926519960879,
@@ -22,8 +22,8 @@
         "eyeSpacing": 9.737674036500026,
         "fissureProportions": 2.7588574648877184,
         "browArea": 9.527350426341371,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 3.935398927039958,
+        "scleralShow": 10,
         "eyeShape": null,
         "midfaceRatio": 9.997371833409515,
         "facialThirds": 8.108700955077609,
@@ -39,6 +39,8 @@
         "chinWidthShape": 5.687222678575978e-7,
         "cheekbonePosition": 9.996131616057104,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -59,17 +61,17 @@
         "foreheadHeight": 7.881461388660259,
         "foreheadWidth": 9.942633745837261
       },
-      "analysisOverall": 53.968458129558506
+      "analysisOverall": 54.56809608402551
     },
     {
       "label": "A repeat",
       "file": "portrait-a.jpg",
-      "score": 5.396845812955851,
+      "score": 5.456809608402551,
       "tier": "Mid MTN",
-      "coverage": 0.8062698412698412,
+      "coverage": 0.7872222222222223,
       "valid": true,
       "areas": {
-        "eye": 5.681348244982063,
+        "eye": 5.929414874077282,
         "proportions": 8.746743999353988,
         "bone": 4.396258398414136,
         "nose": 0.4868926519960879,
@@ -82,8 +84,8 @@
         "eyeSpacing": 9.737674036500026,
         "fissureProportions": 2.7588574648877184,
         "browArea": 9.527350426341371,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 3.935398927039958,
+        "scleralShow": 10,
         "eyeShape": null,
         "midfaceRatio": 9.997371833409515,
         "facialThirds": 8.108700955077609,
@@ -99,6 +101,8 @@
         "chinWidthShape": 5.687222678575978e-7,
         "cheekbonePosition": 9.996131616057104,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -119,17 +123,17 @@
         "foreheadHeight": 7.881461388660259,
         "foreheadWidth": 9.942633745837261
       },
-      "analysisOverall": 53.968458129558506
+      "analysisOverall": 54.56809608402551
     },
     {
       "label": "A mirrored",
       "file": "portrait-a-mirror.jpg",
-      "score": 5.5727335198825365,
+      "score": 5.647747702286372,
       "tier": "Mid MTN",
-      "coverage": 0.8062698412698412,
+      "coverage": 0.7872222222222223,
       "valid": true,
       "areas": {
-        "eye": 6.254536478786333,
+        "eye": 6.575368585141282,
         "proportions": 8.9036067242301,
         "bone": 4.418453293673784,
         "nose": 0.47994000843285933,
@@ -142,8 +146,8 @@
         "eyeSpacing": 9.76844381991805,
         "fissureProportions": 3.1351211116914888,
         "browArea": 9.246058476809104,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 5.333368403174453,
+        "scleralShow": 10,
         "eyeShape": null,
         "midfaceRatio": 9.999908080822268,
         "facialThirds": 8.659124016852365,
@@ -159,6 +163,8 @@
         "chinWidthShape": 8.422213277133147e-7,
         "cheekbonePosition": 9.99873193616989,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -179,17 +185,17 @@
         "foreheadHeight": 8.42733696951004,
         "foreheadWidth": 9.974946006762709
       },
-      "analysisOverall": 55.727335198825365
+      "analysisOverall": 56.477477022863724
     },
     {
       "label": "A 60 % scale",
       "file": "portrait-a-small.jpg",
-      "score": 5.2901664345403425,
-      "tier": "Low MTN",
-      "coverage": 0.8062698412698412,
+      "score": 5.398587301701697,
+      "tier": "Mid MTN",
+      "coverage": 0.7872222222222223,
       "valid": true,
       "areas": {
-        "eye": 5.430697293247543,
+        "eye": 5.876673025937119,
         "proportions": 8.688847717393614,
         "bone": 4.229339487926131,
         "nose": 0.4513875952122059,
@@ -202,8 +208,8 @@
         "eyeSpacing": 9.595454528662174,
         "fissureProportions": 2.4790550626653403,
         "browArea": 9.513701452212885,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 4.804832414241654,
+        "scleralShow": 10,
         "eyeShape": null,
         "midfaceRatio": 9.99630326223557,
         "facialThirds": 8.354874352417678,
@@ -219,6 +225,8 @@
         "chinWidthShape": 2.319443107302609e-7,
         "cheekbonePosition": 9.999999999999996,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -239,17 +247,17 @@
         "foreheadHeight": 8.233213524358543,
         "foreheadWidth": 9.901663723236474
       },
-      "analysisOverall": 52.901664345403425
+      "analysisOverall": 53.98587301701697
     },
     {
       "label": "A tighter crop",
       "file": "portrait-a-crop.jpg",
-      "score": 5.342938228397842,
+      "score": 5.429454553188342,
       "tier": "Mid MTN",
-      "coverage": 0.7218253968253968,
+      "coverage": 0.7027777777777777,
       "valid": true,
       "areas": {
-        "eye": 5.852121954802378,
+        "eye": 6.218406505030457,
         "proportions": 7.780992698248365,
         "bone": 4.319562816430614,
         "nose": 0.6898405124537903,
@@ -262,8 +270,8 @@
         "eyeSpacing": 9.714372414247018,
         "fissureProportions": 2.8910569305386598,
         "browArea": 9.464276312298555,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 4.982147570718867,
+        "scleralShow": 9.999999999999998,
         "eyeShape": null,
         "midfaceRatio": 9.958199954572653,
         "facialThirds": null,
@@ -279,6 +287,8 @@
         "chinWidthShape": 0.000003663920300013355,
         "cheekbonePosition": 9.999999999999996,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -299,17 +309,17 @@
         "foreheadHeight": null,
         "foreheadWidth": 9.974476839185305
       },
-      "analysisOverall": 53.42938228397842
+      "analysisOverall": 54.294545531883415
     },
     {
       "label": "B original",
       "file": "portrait-b.jpg",
-      "score": 6.419896575499502,
+      "score": 6.594879644687696,
       "tier": "Mid HTN",
-      "coverage": 0.8062698412698412,
+      "coverage": 0.7872222222222223,
       "valid": true,
       "areas": {
-        "eye": 6.014601634313717,
+        "eye": 6.70634743919593,
         "proportions": 7.944635309929406,
         "bone": 6.711541414636299,
         "nose": 2.0212264003687492,
@@ -322,8 +332,8 @@
         "eyeSpacing": 9.23869812055264,
         "fissureProportions": 4.156931007427609,
         "browArea": 9.745780444675082,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 7.602428884645862,
+        "scleralShow": 10,
         "eyeShape": null,
         "midfaceRatio": 7.567359472444743,
         "facialThirds": 9.989524671828681,
@@ -339,6 +349,8 @@
         "chinWidthShape": 2.738197319593361,
         "cheekbonePosition": 9.921095480451132,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -359,17 +371,17 @@
         "foreheadHeight": 9.630094977317079,
         "foreheadWidth": 9.996023116328029
       },
-      "analysisOverall": 64.19896575499502
+      "analysisOverall": 65.94879644687695
     },
     {
       "label": "B repeat",
       "file": "portrait-b.jpg",
-      "score": 6.419896575499502,
+      "score": 6.594879644687696,
       "tier": "Mid HTN",
-      "coverage": 0.8062698412698412,
+      "coverage": 0.7872222222222223,
       "valid": true,
       "areas": {
-        "eye": 6.014601634313717,
+        "eye": 6.70634743919593,
         "proportions": 7.944635309929406,
         "bone": 6.711541414636299,
         "nose": 2.0212264003687492,
@@ -382,8 +394,8 @@
         "eyeSpacing": 9.23869812055264,
         "fissureProportions": 4.156931007427609,
         "browArea": 9.745780444675082,
-        "upperLidExposure": null,
-        "scleralShow": null,
+        "upperLidExposure": 7.602428884645862,
+        "scleralShow": 10,
         "eyeShape": null,
         "midfaceRatio": 7.567359472444743,
         "facialThirds": 9.989524671828681,
@@ -399,6 +411,8 @@
         "chinWidthShape": 2.738197319593361,
         "cheekbonePosition": 9.921095480451132,
         "gonialAngle": null,
+        "mandibularPlane": null,
+        "midfaceProjection": null,
         "chinProjection": null,
         "neckChinDefinition": null,
         "cheekboneProjection": null,
@@ -419,35 +433,35 @@
         "foreheadHeight": 9.630094977317079,
         "foreheadWidth": 9.996023116328029
       },
-      "analysisOverall": 64.19896575499502
+      "analysisOverall": 65.94879644687695
     }
   ],
   "repeatA": 0,
   "repeatB": 0,
-  "mirror": 0.17588770692668554,
+  "mirror": 0.19093809388382077,
   "mirrorCriteria": {
-    "n": 26,
-    "mean": 0.3802052905421919,
+    "n": 28,
+    "mean": 0.40297525107969584,
     "max": 2.85751407514375,
     "maxId": "lipProportions"
   },
-  "scale60": 0.10667937841550845,
+  "scale60": 0.05822230670085382,
   "scaleCriteria": {
-    "n": 26,
-    "mean": 0.16486561214310924,
+    "n": 28,
+    "mean": 0.18414069296151916,
     "max": 0.9839675576001667,
     "maxId": "noseSymmetry"
   },
-  "crop": 0.053907584558008814,
+  "crop": 0.027355055214209223,
   "cropCriteria": {
-    "n": 23,
-    "mean": 0.3923122983006157,
+    "n": 25,
+    "mean": 0.4027972601837229,
     "max": 5.59847041149019,
     "maxId": "faceShape"
   },
   "tierStable": {
     "mirror": true,
-    "scale60": false,
+    "scale60": true,
     "crop": true
   }
 }

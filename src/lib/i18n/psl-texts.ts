@@ -9,8 +9,8 @@ export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition:
   eyeSpacing: { name: "Augenabstand", definition: "Pupillen-, äußerer und innerer Augenwinkelabstand relativ zu Gesicht und Lidspalte." },
   fissureProportions: { name: "Lidspalten-Proportionen", definition: "Augen-Seitenverhältnis und Lidspaltenlänge relativ zur Gesichtsbreite." },
   browArea: { name: "Brauenlänge", definition: "Brauenlänge relativ zum Pupillenabstand. Brauenneigung und ihre Übereinstimmung mit der kanthalen Neigung werden angezeigt, aber nicht bewertet (die Winkelkonvention passt nicht zur Referenz)." },
-  upperLidExposure: { name: "Oberlid-Exposition", definition: "Sichtbares Oberlid zwischen Wimpernkranz und Braue." },
-  scleralShow: { name: "Sklera-Show", definition: "Sichtbare Sklera unterhalb der Iris bei entspanntem Blick." },
+  upperLidExposure: { name: "Oberlidposition (MRD1)", definition: "Margin-Reflex-Distanz 1: Abstand vom Iriszentrum zum Oberlidrand in Millimetern (Irisdurchmesser = 11,7 mm). Normal 4–5 mm; kleinere Werte = tief stehendes (hängendes) Lid, größere = zurückgezogenes Lid mit Sklera über der Iris. Die sichtbare Lidhaut bis zur Lidfalte ist kein Netzpunkt und wird nicht gemessen." },
+  scleralShow: { name: "Sklera-Show", definition: "Sichtbare Sklera zwischen unterem Irisrand und Unterlidrand in Millimetern (Irisdurchmesser = 11,7 mm). Das Unterlid liegt normalerweise am unteren Limbus (keine Sklera sichtbar); mehr als 1 mm gilt als Unterlidretraktion." },
   eyeShape: { name: "Augenform", definition: "Gesamtform der Lidspalte (mandelförmig, rund, hängend …) als visueller Eindruck." },
   midfaceRatio: { name: "Mittelgesichts-Verhältnis", definition: "Mittelgesichtshöhe relativ zum Pupillenabstand." },
   facialThirds: { name: "Mittleres & unteres Drittel", definition: "Mittleres und unteres Drittel der Gesichtshöhe gegenüber ihren Referenzbereichen (das obere Drittel gehört zur Kategorie Stirn)." },
@@ -25,7 +25,9 @@ export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition:
   jawHeightRatio: { name: "Kiefer-Breiten-Höhen-Verhältnis", definition: "Bigoniale Breite über Untergesichtshöhe (Rubrik 1.0; in 2.0 entfernt, weil die rekonstruierte Konstruktion den Referenzbereich nicht reproduziert)." },
   jawAngularityFrontal: { name: "Kieferwinkligkeit (frontal)", definition: "Frontale Projektion des Kieferwinkels." },
   gonialAngle: { name: "Kieferwinkel (Profil)", definition: "Weichteil-Kieferwinkel zwischen Ast und Kieferkörper." },
-  chinProjection: { name: "Kinnprojektion (Profil)", definition: "Kinnposition relativ zu Lippen und Gesichtslinie (Z-Winkel, H-Winkel)." },
+  mandibularPlane: { name: "Unterkieferebene (Profil)", definition: "Neigung der Weichteil-Kieferlinie (Gonion → Menton) gegenüber der Referenzhorizontalen." },
+  midfaceProjection: { name: "Mittelgesichtsprojektion (Profil)", definition: "Vorlage des Subnasale gegenüber der Glabella-Vertikalen." },
+  chinProjection: { name: "Kinnprojektion (Profil)", definition: "Kinnposition relativ zu Lippen, Gesichtslinie und Glabella-Vertikaler (Z-Winkel, H-Winkel, Pg zur Glabella-Vertikalen)." },
   neckChinDefinition: { name: "Hals-Kinn-Definition", definition: "Zervikomentaler und mentozervikaler Winkel; frontal die Halsbreite bei gesetzten Halspunkten." },
   chinWidthShape: { name: "Kinnbreite", definition: "Mundbreite relativ zur Kinnbreite." },
   cheekboneProjection: { name: "Wangenknochen-Projektion", definition: "Sichtbare Prominenz der Jochbeine (3D-Projektion)." },
@@ -52,9 +54,9 @@ export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition:
 };
 
 export const AREA_TEXTS_DE: Record<RubricArea, { name: string; description: string }> = {
-  eye: { name: "Augenpartie", description: "Kanthale Neigung, Abstand, Lidspalten-Proportionen, Brauen; Lid-Exposition, Sklera-Show und Augenform nur mit visueller Bewertung." },
+  eye: { name: "Augenpartie", description: "Kanthale Neigung, Abstand, Lidspalten-Proportionen, Brauen, Oberlidposition (MRD1) und Sklera-Show; die Augenform nur mit einem visuellen Modell." },
   proportions: { name: "Gesichtsproportionen", description: "Mittelgesichts-Verhältnis, mittleres und unteres Drittel, Gesichtsform, Augen–Mund-Geometrie und -Längenverhältnis, Untergesicht, Fünftel; Profilkonvexität und Untergesichtshöhe aus dem Profil." },
-  bone: { name: "Knochenstruktur", description: "Kieferbreite, frontaler Kieferwinkel, Kinnbreite, Wangenknochen-Position; Kieferwinkel, Kinnprojektion und Hals-Kinn-Definition aus dem Profil; Wangenknochen-Projektion und Kieferlinie nur mit visueller Bewertung." },
+  bone: { name: "Knochenstruktur", description: "Kieferbreite, frontaler Kieferwinkel, Kinnbreite, Wangenknochen-Position; Kieferwinkel, Unterkieferebene, Mittelgesichts- und Kinnprojektion sowie Hals-Kinn-Definition aus dem Profil; Wangenknochen-Projektion und Kieferlinie nur mit einem visuellen Modell." },
   nose: { name: "Nase", description: "Breite und Höhe frontal, Projektion und Winkel aus dem Profil." },
   mouth: { name: "Lippen & Mund", description: "Mundbreite, Lippenproportionen, Lippen-Kinn-Höhe (frontal und Profil) und nasolabialer Winkel." },
   symmetry: { name: "Symmetrie", description: "Links-rechts-Übereinstimmung von Augen/Brauen, Nase, Mund und Kiefer/Kinn im lage-normalisierten Bezugssystem." },

@@ -241,6 +241,12 @@ export function RatingResult({ record }: { record: RatingRecord }) {
               <div className="glass rounded-xl p-4"><div className="text-[11px] uppercase tracking-wider text-fg-2">{t("rater.result.score")}</div><div className="font-display text-3xl num mt-1">{open.assessable ? formatPsl(open.score) : "—"}</div>{open.index != null && <div className="text-xs text-fg-3">index {open.index.toFixed(0)}/100</div>}</div>
               <div className="glass rounded-xl p-4"><div className="text-[11px] uppercase tracking-wider text-fg-2">{isV2 ? t("rater.result.reliability") : t("rater.result.weight")}</div><div className="font-display text-3xl num mt-1">{isV2 ? (open.reliability != null ? open.reliability.toFixed(2) : "—") : open.weight}</div><div className="text-xs text-fg-3">{areaName(open.area, lang)}{isV2 && ` · ${t("rater.result.categoryWeight")} ${r.areas.find((a) => a.id === open.area)?.weight ?? 0} %`}</div></div>
               {!open.assessable && <div className="text-xs text-amber">{t(`rater.result.reason.${open.notAssessableCode ?? "inputsUnavailable"}`)}</div>}
+              {open.source === "visual-model" && open.assessable && (
+                <div className="glass rounded-xl p-3 text-xs space-y-1" data-testid="visual-note">
+                  <div className="text-amber">{t("rater.result.visualLabel", { model: r.inputs.visualModel ?? r.inputs.visualProvider ?? "" })}</div>
+                  {r.visualNotes?.[open.id] && <div className="text-fg-1">„{r.visualNotes[open.id]}“</div>}
+                </div>
+              )}
             </div>
           </div>
         )}

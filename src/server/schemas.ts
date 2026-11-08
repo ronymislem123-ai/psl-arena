@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SIDE_LANDMARK_ORDER } from "@/engine/side-view";
+import { SIDE_CORE_POINTS, SIDE_LANDMARK_ORDER } from "@/engine/side-view";
 import { CRITERIA, RUBRIC_AREAS } from "@/engine/psl/rubric";
 import { SCALE_EXPORT_FORMAT } from "@/engine/psl/scale";
 
@@ -63,7 +63,11 @@ export const createAnalysisSchema = z.object({
   input: analysisInputSchema,
 });
 
-export const sidePointsSchema = z.object(Object.fromEntries(SIDE_LANDMARK_ORDER.map((id) => [id, pointSchema])) as Record<(typeof SIDE_LANDMARK_ORDER)[number], typeof pointSchema>);
+/** Profile points: the midline (glabella → menton) is required, the other points are optional (automatic detection). */
+export const sidePointsSchema = z.object(
+  Object.fromEntries(SIDE_LANDMARK_ORDER.map((id) => [id, SIDE_CORE_POINTS.includes(id) ? pointSchema : pointSchema.optional()])) as Record<(typeof SIDE_LANDMARK_ORDER)[number], typeof pointSchema>,
+);
+const sidePointSourceSchema = z.enum(["manual", "contour", "derived", "segment"]);
 
 export const createSideAnalysisSchema = z.object({
   profileId: z.string().optional(),
@@ -74,6 +78,8 @@ export const createSideAnalysisSchema = z.object({
   imageWidth: z.number().int().positive().max(20_000),
   imageHeight: z.number().int().positive().max(20_000),
   points: sidePointsSchema,
+  placement: z.enum(["manual", "automatic", "mixed"]).optional(),
+  pointSources: z.partialRecord(z.enum(SIDE_LANDMARK_ORDER as [string, ...string[]]), sidePointSourceSchema).optional(),
   reference: z
     .discriminatedUnion("kind", [
       z.object({ kind: z.literal("image") }),
@@ -178,6 +184,9 @@ export const createRatingSchema = z
     scaleId: z.string().optional(),
     minCoverage: z.number().min(0.3).max(1).optional(),
     consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),
+    visualConsent: z.boolean().optional(),
+    visualImageDataUrl: z.string().max(12_000_000).optional(),
+    lang: z.enum(["de", "en"]).optional(),
   })
   .refine((v) => !!v.analysisId || !!v.newAnalysis, { message: "analysisId or newAnalysis is required." });
 

@@ -1,13 +1,15 @@
 "use client";
 /**
  * AI PSL Rater setup: rate a new frontal photo (in-browser detection, same
- * pipeline as battles) or a saved analysis; choose the scale, attach the latest
- * side view of the profile, set the minimum coverage, confirm consent.
+ * pipeline as battles) plus an optional profile photo (automatic side view, no
+ * manual points needed) or a saved analysis; choose the scale, set the minimum
+ * coverage, confirm consent, and optionally allow the vision model for the
+ * visual criteria (explicit consent to send the photo, per rating).
  */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ScanFace, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Eye, ImagePlus, ScanFace, ShieldCheck, XCircle } from "lucide-react";
 import { UploadSlot } from "@/components/battle/upload-slot";
 import { PageHeader } from "@/components/layout/app-shell";
 import { ScaleBar } from "@/components/psl/tier-badge";
@@ -24,6 +26,9 @@ import { rememberSessionImage } from "@/lib/session-images";
 import { useSettings } from "@/lib/settings";
 import { warmUpLandmarker } from "@/lib/vision/landmarker";
 import { buildAnalysisInput } from "@/lib/vision/pipeline";
+import { loadImageFile, type LoadedImage } from "@/lib/vision/image";
+import { detectProfile, looksFrontal, warmUpSegmenter, type AutoProfileRun } from "@/lib/vision/profile";
+import { SIDE_LANDMARK_ORDER } from "@/engine/side-view";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/repos";
 import type { ScaleSummary } from "@/server/repos-psl";
@@ -49,9 +54,21 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
   const [adult, setAdult] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // optional profile photo → automatic side view
+  const [sideImg, setSideImg] = useState<LoadedImage | null>(null);
+  const [sideRun, setSideRun] = useState<AutoProfileRun | null>(null);
+  const [sideBusy, setSideBusy] = useState(false);
+  const [sideErr, setSideErr] = useState<string | null>(null);
+  // vision model for the visual criteria
+  const [vision, setVision] = useState<{ configured: boolean; model: string | null; hint: string | null } | null>(null);
+  const [visualConsent, setVisualConsent] = useState(false);
 
   useEffect(() => {
+    api.rubric().then((r) => setVision(r.visualProvider)).catch(() => setVision(null));
+  }, []);
+  useEffect(() => {
     warmUpLandmarker();
+    warmUpSegmenter();
     s.initConfig({ captureDistance: settings.defaultCaptureDistance, includeReconstructed: settings.includeReconstructed, storeImages: settings.storeImagesByDefault });
     // bring back the photo of this tab after a reload or a browser crash
     void s.restore();
@@ -85,16 +102,56 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
   const uploadReady = slot.status === "ready" && !!slot.preview?.quality.analyzable;
   const ready = (mode === "upload" ? uploadReady : !!analysisId) && rights && adult && !busy;
   const latestSide = sides[0];
+  const sideUsable = !!sideRun?.result.ok && !looksFrontal(sideRun.quality);
+
+  const onSideFile = async (f: File | undefined) => {
+    if (!f) return;
+    setSideBusy(true);
+    setSideErr(null);
+    setSideRun(null);
+    try {
+      const loaded = await loadImageFile(f, f.name);
+      setSideImg(loaded);
+      setSideRun(await detectProfile(loaded.canvas));
+    } catch (e) {
+      setSideErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSideBusy(false);
+    }
+  };
 
   const rate = async () => {
     setBusy(true);
     setError(null);
     try {
-      const common = { scaleId, minCoverage, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const } };
+      const consentToModel = !!vision?.configured && visualConsent;
+      const common = { scaleId, minCoverage, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const }, visualConsent: consentToModel, lang };
       let res;
       if (mode === "upload") {
         const input = buildAnalysisInput(slot.prep!, slot.faceIndex, { includeReconstructed: s.config.includeReconstructed, captureDistance: s.config.captureDistance, uncertaintySamples: 40, seed: 20251106 }, slotManual(slot));
-        res = await api.createRating({ ...common, newAnalysis: { profileLabel: slot.label.trim() || undefined, imageDataUrl: s.config.storeImages ? slot.prep!.image.dataUrl : undefined, storeImage: s.config.storeImages, input }, sideAnalysisId: null });
+        // automatic side view first, so that the rating includes the profile criteria
+        let side: { id: string; profileId: string } | null = null;
+        if (sideUsable && sideImg && sideRun) {
+          const sr = await api.createSideAnalysis({
+            profileLabel: slot.label.trim() || undefined,
+            imageDataUrl: s.config.storeImages ? sideImg.dataUrl : undefined,
+            storeImage: s.config.storeImages,
+            consent: { rightsConfirmed: true, adultsConfirmed: true },
+            imageWidth: sideImg.width,
+            imageHeight: sideImg.height,
+            points: sideRun.result.points,
+            placement: "automatic",
+            pointSources: sideRun.result.sources,
+          });
+          side = { id: sr.sideAnalysis.id, profileId: sr.sideAnalysis.profileId };
+          rememberSessionImage(sr.sideAnalysis.id, sideImg.dataUrl);
+        }
+        res = await api.createRating({
+          ...common,
+          newAnalysis: { profileId: side?.profileId, profileLabel: side ? undefined : slot.label.trim() || undefined, imageDataUrl: s.config.storeImages ? slot.prep!.image.dataUrl : undefined, storeImage: s.config.storeImages, input },
+          sideAnalysisId: side?.id ?? null,
+          visualImageDataUrl: consentToModel ? slot.prep!.image.dataUrl : undefined,
+        });
         if (res.rating.analysisId) rememberSessionImage(res.rating.analysisId, slot.prep!.image.dataUrl);
         s.reset();
       } else {
@@ -161,7 +218,35 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
                 </Field>
                 <Toggle checked={s.config.includeReconstructed} onChange={(v) => s.setConfig({ includeReconstructed: v })} label={t("battle.includeReconstructed")} hint={t("battle.includeReconstructedHint")} />
                 <Toggle checked={s.config.storeImages} onChange={(v) => s.setConfig({ storeImages: v })} label={t("battle.storeImages")} hint={t("battle.storeImagesHint")} />
-                <p className="text-xs text-fg-3">{t("rater.sideNone")} {t("rater.addSide")}: /side-view/new</p>
+              </CardBody>
+            </Card>
+          )}
+          {mode === "upload" && (
+            <Card data-testid="rater-side">
+              <CardHeader title={t("rater.sidePhoto")} subtitle={t("rater.sidePhotoHint")} icon={<ImagePlus size={18} />} />
+              <CardBody className="space-y-2 text-sm">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-xs hover:bg-white/5">
+                  <ImagePlus size={14} /> {sideImg ? t("common.replace") : t("rater.sideChoose")}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => void onSideFile(e.target.files?.[0])} data-testid="rater-side-input" />
+                </label>
+                {sideBusy && <div className="flex items-center gap-2 text-fg-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan border-t-transparent" /> {t("side.auto.running")}</div>}
+                {sideErr && <div className="text-[#ff8fa3]">{sideErr}</div>}
+                {sideImg && sideRun && (
+                  <div className="flex gap-3" data-testid="rater-side-state" data-state={sideUsable ? "ok" : "failed"}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={sideImg.dataUrl} alt="" className="h-20 w-16 rounded-md object-cover" />
+                    <div className="space-y-1 text-xs">
+                      {sideUsable ? (
+                        <div className="flex items-center gap-1 text-mint"><CheckCircle2 size={14} /> {t("side.auto.ok", { n: Object.keys(sideRun.result.points).length, total: SIDE_LANDMARK_ORDER.length })}</div>
+                      ) : looksFrontal(sideRun.quality) ? (
+                        <div className="flex items-center gap-1 text-[#ff8fa3]"><XCircle size={14} /> {t("side.auto.frontal", { deg: Math.round(sideRun.quality.frontalFaceYawDeg ?? 0) })}</div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-[#ff8fa3]"><XCircle size={14} /> {t("side.auto.failed")}: {sideRun.result.issues.filter((i) => i.severity === "error").map((i) => t(`side.auto.issue.${i.code}`)).join(" ")}</div>
+                      )}
+                      {sideUsable && <div className="text-fg-3">{t("rater.sideAutoNote")}</div>}
+                    </div>
+                  </div>
+                )}
               </CardBody>
             </Card>
           )}
@@ -179,6 +264,19 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
               <Field label={`${t("rater.minCoverage")}: ${Math.round(minCoverage * 100)} %`} hint={t("rater.minCoverageHint")}>
                 <input type="range" min={50} max={95} step={5} value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Number(e.target.value) / 100)} className="w-full accent-[#4f7cff]" data-testid="rater-min-coverage" />
               </Field>
+            </CardBody>
+          </Card>
+          <Card data-testid="rater-vision" data-configured={vision?.configured ? "true" : "false"}>
+            <CardHeader title={t("rater.vision.title")} subtitle={t("rater.vision.sub")} icon={<Eye size={18} />} />
+            <CardBody className="space-y-2 text-xs">
+              {vision?.configured ? (
+                <>
+                  <Checkbox checked={visualConsent} onChange={setVisualConsent} label={t("rater.vision.consent", { model: vision.model ?? "" })} />
+                  <p className="text-fg-3">{t("rater.vision.privacy")}</p>
+                </>
+              ) : (
+                <p className="text-fg-2">{t(vision?.hint === "browserKey" ? "rater.vision.setupBrowser" : vision?.hint === "missingKey" ? "rater.vision.setupKey" : "rater.vision.setupServer")} <Link href="/settings" className="text-accent underline underline-offset-2">{t("rater.vision.toSettings")}</Link></p>
+              )}
             </CardBody>
           </Card>
           <Card>

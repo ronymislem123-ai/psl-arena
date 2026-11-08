@@ -22,7 +22,7 @@ import { createRng, gaussian } from "../geometry";
 import { MIRROR } from "../landmarks/canonical";
 import { canonicalImageFrame } from "../landmarks/pose";
 import { RATIO_BY_ID } from "../ratios/database";
-import { CRITERIA, DERIVED_TOLERANCE, EYE_MOUTH_LENGTH } from "../psl/rubric";
+import { CRITERIA, DERIVED_TOLERANCE, EYE_MOUTH_LENGTH, EYELID_RANGES } from "../psl/rubric";
 import { rangeDistance } from "../scoring/measurement";
 import type { AnalysisInput, AnalysisResult, Point, RatioId, T1Range } from "../types";
 
@@ -58,6 +58,9 @@ export function idealTargets(): IdealTarget[] {
   }
   out.push({ key: "a:EML", kind: "additional", id: "EML", range: { min: EYE_MOUTH_LENGTH.min, max: EYE_MOUTH_LENGTH.max }, aim: { min: 0.3615, max: 0.3685 }, s: EYE_MOUTH_LENGTH.s });
   out.push({ key: "a:FIFTHS", kind: "additional", id: "FIFTHS", range: { min: null, max: 0 }, aim: { min: null, max: 0 }, s: DERIVED_TOLERANCE.fifthsPp });
+  // rubric 2.1: eyelid position (MRD1 4–5 mm, no inferior scleral show)
+  out.push({ key: "a:MRD1", kind: "additional", id: "MRD1", range: { ...EYELID_RANGES.MRD1.range }, aim: { min: 4.2, max: 4.8 }, s: EYELID_RANGES.MRD1.s });
+  out.push({ key: "a:SSI", kind: "additional", id: "SSI", range: { ...EYELID_RANGES.SSI.range }, aim: { min: null, max: 0 }, s: EYELID_RANGES.SSI.s });
   return out;
 }
 

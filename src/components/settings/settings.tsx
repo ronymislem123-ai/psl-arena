@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Input, Select, Toggle } from "@/components/ui/controls";
 import { RecoveryCodes } from "@/components/auth/recovery-codes";
 import { BrowserDataCard } from "./browser-data";
+import { VisionModelCard } from "./vision-model";
 import { PageHeader } from "@/components/layout/app-shell";
 import { BRAND } from "@/config/brand";
 import { ENGINE_VERSION } from "@/engine/analysis";
@@ -49,6 +50,7 @@ export function SettingsView({ account }: { account: AccountInfo | null }) {
         ) : (
           <BrowserDataCard />
         )}
+        <VisionModelCard />
         <Card>
           <CardHeader title={t("settings.appearance")} />
           <CardBody className="space-y-2">

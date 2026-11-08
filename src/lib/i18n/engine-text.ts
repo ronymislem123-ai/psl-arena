@@ -313,6 +313,10 @@ export function additionalNote(m: AdditionalMeasurementResult, lang: Lang): stri
       return `Nasenspitze → Menton = ${n2(v.noseTipToMentonOverIpd ?? 0)}× IPD (${n2(v.noseTipToMentonOverLowerThird ?? 0)}× unteres Drittel). Nur Rohwert – keine Formel und kein Ziel definiert.`;
     case "eyeMouthLength":
       return `Pupillenlinie → Mund = ${n1((v.ratio ?? m.value ?? 0) * 100)} % von Haaransatz → Kinn (bevorzugt 0,36–0,37 bei Pallett et al. 2010, Gesichter weißer Frauen).`;
+    case "eyelid":
+      return m.id === "MRD1"
+        ? `Iriszentrum → Oberlidrand = ${n1(v.mm ?? m.value ?? 0)} mm (rechts ${n1(v.right ?? 0)}, links ${n1(v.left ?? 0)}; normal 4–5 mm).`
+        : `Unterer Irisrand → Unterlidrand = ${n1(v.mm ?? m.value ?? 0)} mm (rechts ${n1(v.right ?? 0)}, links ${n1(v.left ?? 0)}; ≤ 0 = keine Sklera unter der Iris sichtbar).`;
     case "hairlineMissing":
       return "Haaransatz nicht verfügbar.";
     case "landmarksMissing":

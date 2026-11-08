@@ -1,10 +1,30 @@
 # Side-view (profile) module
 
-The frontal engine cannot measure anything that needs depth: the true gonial angle, the cervicomental angle, chin projection, the nasal dorsum. The side-view module adds these from a **lateral photo** — without a landmark model.
+The frontal engine cannot measure anything that needs depth: the true gonial angle, the cervicomental angle, chin and midface projection, the nasal dorsum. The side-view module adds these from a **lateral photo**. Since version 2.0 (2026-11-08) the user only uploads the photo: the points are **detected automatically**; manual correction and extra points are optional.
 
-## Why manual landmarks
+## Automatic detection (side view 2.0)
 
-Face-landmark models (including the MediaPipe mesh used for the frontal analysis) are trained on near-frontal faces and become unreliable on a true 90° profile: the hidden half of the face is hallucinated, and contour points drift. Instead of presenting those guesses as measurements, the module asks the user to place **16 standard soft-tissue points** under guidance:
+Face-landmark models (including the MediaPipe mesh used for the frontal analysis) are trained on near-frontal faces: on a true profile the MediaPipe face detector finds no face at all (verified on the rendered head scan at 80–100°), and where it does, the hidden half is hallucinated. The soft-tissue midline points, however, all lie on the **profile silhouette**. The pipeline (`src/lib/vision/profile.ts` in the browser, `src/engine/side-auto.ts` pure TypeScript):
+
+1. **Quality check.** The face landmarker runs on the photo; a face turned less than 50° means "not a profile photo" and nothing is placed (message with the measured turn). Resolution, cropping and lip/neck visibility are reported as warnings.
+2. **Segmentation** with the MediaPipe Image Segmenter (multiclass selfie model, served from this origin, runs in the browser): background / hair / body skin / face skin / clothes. Two passes: whole photo, then a crop around the head (≈ 3× the effective resolution of the 256 × 256 model input).
+3. **Contour.** Largest person component → Moore boundary tracing → Gaussian smoothing → resampling at ≈ 0.25 mm; the anterior part from the top of the head down the neck is kept.
+4. **Scale.** Head length (widest head row above the neck ≈ 21 cm with nose and hair), vertex → nasal tip (≈ 16 cm, only when the top of the head is in the photo), then the soft-tissue nasal length N–Prn (≈ 4.8 cm, Farkas 1994) for the lower face. The scale only sets search windows; all measurements stay scale-free.
+5. **Points**, each with a geometric definition:
+   * pronasale — the anterior extreme that stands out above *and* below (the nose; lips and chin stand out on one side only);
+   * nasion — deepest point behind the chord glabella → nasal tip; glabella — most anterior forehead point 0.4–3 cm above it;
+   * rhinion — top of a dorsal hump on the upper two thirds of the dorsum, otherwise 40 % of the dorsum (marked *derived*);
+   * labrale sup./inf., pogonion — anterior extremes between subnasale and the chin turn; subnasale, stomion, labiomental fold — deepest points between their neighbours; the lower-face frame follows the glabella → subnasale axis when the head is tilted by more than 10°;
+   * chin turn — where the contour runs backwards for ≥ 1.5 cm (submental line); menton — most convex point between pogonion and cervical point; cervical point — deepest point behind the chord pogonion → lower neck; neck point — 2.5 cm along the neck front below it;
+   * gonion — only from a plausible corner of the face-skin/body-skin border (5–13 cm behind the menton); otherwise not determinable.
+   * **Not guessed:** alar crease, tragion and orbitale are not on the silhouette. Measurements that need them (GOODE, GA, Frankfort axis) are reported as **not determinable** (with the missing point named) unless the user places them.
+6. **Provenance.** Every point carries its source (contour / derived / segment border / manual); the result stores `placement` (automatic, mixed, manual) and the missing points. The placement sensitivity uses σ = 0.6 % of the face height for automatic points (0.4 % manual), and automatic profile measures enter the rating with reliability 0.8.
+
+**Validation** (`tests/unit/side-auto.test.ts`, `tests/e2e/side-view.spec.ts`): the synthetic profile drawing with known points (pronasale within 8 px, lips/chin within 14 px, nasion 18 px, glabella 30 px, menton 25 px at a 400 px face height); real MediaPipe segmentations of a rendered 3D head scan (Lee Perry-Smith, CC BY 3.0) at 80°, 90°, 100° and two head tilts — full midline, cervical and neck point, anatomically plausible angles, left/right mirror within 2°, deterministic output. Known failure: a head tilted far back (chin up ≈ 25°+) gives "lips/chin not found" instead of wrong points. Gonion: not found on the head scan (the skin classes are not separated there), so GA and MPA usually need a manually placed gonion/tragion.
+
+## Manual placement (optional)
+
+The user can correct any point or place all **16 standard soft-tissue points** manually under guidance:
 
 | # | Landmark | Placement |
 | --- | --- | --- |
@@ -48,6 +68,9 @@ All values are scale-free (angles or ratios of distances between placed points).
 | LCR | Vertical lip–chin ratio | (Stm–Me) / (Sn–Stm), vertical | ≈ 2.0 (1 : 2) | Legan & Burstone 1980 |
 | GOODE | Nasal projection | ⊥ distance Prn to line N–alar crease / N–Prn | 0.55–0.60 | Goode (in Powell & Humphreys 1984) |
 | DORSUM | Dorsal profile | signed ⊥ offset of rhinion from N–Prn in % of N–Prn | — | descriptive (+ hump / − saddle) |
+| MPA | Mandibular plane angle (soft tissue) | line Go′–Me′ vs reference horizontal | 20–30° | Tweed 1954 (FMA 25° ± 5°; soft-tissue proxy) |
+| MFP | Midface projection | Sn ahead of the glabella vertical in % of G–Me′ | 2.4–7.2 % | Legan & Burstone 1980 (6 ± 3 mm, converted with G–Me′ ≈ 125 mm, Farkas 1994) |
+| CHP | Chin projection | Pg′ relative to the glabella vertical in % of G–Me′ | −3.2 to +3.2 % | Legan & Burstone 1980 (0 ± 4 mm, converted) |
 | CHIN_MERIDIAN | Chin position | anterior offset of Pg from the vertical through N in % of N–Me | — | descriptive (Gonzalez-Ulloa zero meridian; no numeric target in the material) |
 
 Point targets (LFH, LCR) use the app's tolerance rule (10 % of the target, as in the frontal engine) rather than an invented range. Nothing from this module enters the 42-ratio frontal score; the **profile harmony index** is the plain mean of the 13 scored harmony indices (100 inside the range, halving per tolerance unit outside — the same curve as the frontal ratios) and is reported as a separate number.

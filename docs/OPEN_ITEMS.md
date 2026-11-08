@@ -13,14 +13,14 @@
 * Eyebrow tilt follows the mesh brow contour; brows hidden by hair or heavily groomed reduce accuracy.
 
 ## Side-view module
-* Landmarks are placed manually (no lateral landmark model); the placement sensitivity (σ) is reported, but a systematic misplacement is not detectable beyond the order/level checks.
+* Since 2026-11-08 the midline points are detected automatically from the person silhouette (`docs/SIDE_VIEW.md`). Points off the silhouette (alar crease, tragion, orbitale; usually the gonion) are not detected — GA, GOODE, MPA and the Frankfort axis then need manually added points. Validated on a synthetic profile and a rendered 3D head scan, **not yet on a set of real profile photos with expert annotations**; a strongly tilted head (chin up) is rejected rather than measured. Beards, high collars and hair over the forehead change the silhouette and therefore the points.
 * Engine 2.0: an anatomical reference axis (soft-tissue Frankfort horizontal through tragion and an optional orbitale point, or a manually rotated axis) replaces the image vertical when set; without it the image vertical is still used and flagged.
 * The soft-tissue gonial angle uses the gonion–tragion line as the ramus proxy; it is not the cephalometric bony angle (the guide range 115–130° is applied as provided).
 * No frontal↔side fusion: the profile harmony index is reported separately and is not part of battles.
 * The mentolabial angle, dorsal profile and chin meridian are descriptive only (no sourced numeric target in the material).
 
 ## PSL modules (rater, scales, tournaments)
-* **Visual criteria need a provider.** Six rubric criteria (lid exposure, scleral show, eye shape, cheekbone projection, jawline definition, lip shape) are modelled but assessable only through `VisualAssessmentProvider`; none is bundled, so they stay "not assessable" (8 % of the rubric weight). A provider must respect the privacy rules and would reduce reproducibility (model variance).
+* **Visual criteria.** Rubric 2.1 measures upper lid position (MRD1) and scleral show geometrically. Eye shape, lip shape, cheekbone projection and jawline definition are assessed by a real vision model (Claude API) only when it is set up and the user consents per rating; the integration is tested against the SDK request/response contract with mocked HTTP, but **no live call was possible in the development environment (no API key)**. Model scores are impressions, vary with the model version and are not validated against human ratings.
 * **Calibration and weights are conventions.** The index→PSL anchors and the criterion weights are documented and versioned but not fitted to human ratings; no consented reference dataset with independent human raters exists in this project, so no empirical accuracy, inter-rater agreement or bias statistics are claimed (`docs/VALIDATION.md`).
 * **Minimum coverage** defaults to 70 % (brief suggestion: 80 %, reachable only with a profile view); configurable per rating.
 * **Three-quarter view** is not supported (no engine for it); only frontal + profile are fused.

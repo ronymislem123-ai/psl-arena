@@ -510,6 +510,20 @@ export const ADDITIONAL_DEFINITIONS: AdditionalMeasurementDefinition[] = [
     limitations: ["Preference data from white female faces only (Pallett et al. 2010).", "Depends on the estimated or confirmed hairline.", "Mouth opening moves the stomion."],
     landmarks: ["pupil_R", "pupil_L", "stomion", "trichion", "menton"],
   },
+  {
+    id: "MRD1", name: "Upper lid position (MRD1)", unit: "none", referenceValue: "4–5 mm (Putterman 2012)", status: "measurable",
+    description: "Margin–reflex distance 1: iris centre to upper lid margin in millimetres.",
+    methodology: "Aligned (pose-normalised) mesh; vertical distance from the iris centre (468/473) to the upper lid contour at the iris-centre column, scaled by the horizontal iris diameter (ring points) = 11.7 mm (Rüfer et al. 2005); mean of both eyes. Scored in rubric 2.1 (criterion upper lid position).",
+    limitations: ["Lid margins are mesh contour points; lashes, make-up and lid shadows shift them.", "Individual iris diameters vary by ± 0.4 mm (± 4 %)."],
+    landmarks: ["pupil_R", "pupil_L"],
+  },
+  {
+    id: "SSI", name: "Inferior scleral show", unit: "none", referenceValue: "≤ 0 mm; > 1 mm = lower-lid retraction (Bartley 1996)", status: "measurable",
+    description: "Visible sclera between the lower edge of the iris and the lower lid margin, in millimetres.",
+    methodology: "Aligned mesh; lower lid contour at the iris-centre column minus the lower iris edge (centre + horizontal iris radius), scaled by the iris diameter = 11.7 mm; mean of both eyes. Negative = the lid covers the lower iris edge. Scored in rubric 2.1 (criterion scleral show).",
+    limitations: ["Lid margins are mesh contour points; lashes and make-up shift them.", "Gaze direction changes the value: looking up exposes sclera below the iris."],
+    landmarks: ["pupil_R", "pupil_L"],
+  },
 ];
 
 export const ADDITIONAL_BY_ID = Object.fromEntries(ADDITIONAL_DEFINITIONS.map((d) => [d.id, d])) as Record<

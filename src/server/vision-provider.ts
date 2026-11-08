@@ -1,19 +1,22 @@
 /**
- * Integration point for an external visual-assessment model (the only way the
- * rubric's `visual` criteria can be assessed). No provider ships enabled: without
- * one, visual criteria are reported as "not assessable" — never simulated.
- *
- * To add a provider, implement `VisualAssessmentProvider`, validate the model's
- * output with `visualAssessmentSchema` and register it in `getVisualProvider()`.
+ * Visual assessment provider: the only way the rubric's `visual` criteria (eye shape,
+ * lip shape, cheekbone projection, jawline definition) are assessed. These are
+ * visual impressions, not measurements; they are never simulated. A provider is
+ * available when a vision model is configured (server: PSL_ARENA_VISION_PROVIDER=claude
+ * + ANTHROPIC_API_KEY; browser edition: the user's own key), and it is only called
+ * when the user consented to sending the photo for that rating.
  */
 import { z } from "zod";
 import { CRITERIA, type CriterionDefinition, type CriterionId } from "@/engine/psl/rubric";
 import type { VisualAssessmentSet } from "@/engine/psl/rating";
+import { assessWithClaude, CLAUDE_PROVIDER_ID, DEFAULT_VISUAL_MODEL } from "@/lib/visual-model/claude";
+import { bytesToBase64 } from "./bytes";
+import { visionConfig, visionConfigHint } from "./vision-config";
 
 export interface VisualAssessmentProvider {
   id: string;
   modelVersion: string;
-  assess(image: { buf: Uint8Array; mime: string }, criteria: CriterionDefinition[]): Promise<VisualAssessmentSet>;
+  assess(image: { buf: Uint8Array; mime: string }, criteria: CriterionDefinition[], opts?: { lang?: "de" | "en" }): Promise<VisualAssessmentSet>;
 }
 
 export const VISUAL_CRITERIA = CRITERIA.filter((c) => c.method === "visual");
@@ -23,18 +26,32 @@ export const visualAssessmentSchema = z.object({
   providerId: z.string().min(1),
   modelVersion: z.string().min(1),
   assessedAt: z.string().min(1),
-  assessments: z.record(
+  // partial: the model may declare criteria not assessable on a photo (zod 4 records over enums are exhaustive)
+  assessments: z.partialRecord(
     z.enum(VISUAL_CRITERIA.map((c) => c.id) as [CriterionId, ...CriterionId[]]),
     z.object({ score: z.number().min(0).max(10), confidence: z.number().min(0).max(1), note: z.string().max(400).optional() }),
   ),
 });
 
-export function getVisualProvider(): VisualAssessmentProvider | null {
-  // Reserved for a configured provider (e.g. PSL_ARENA_VISION_PROVIDER=<id>); none is bundled.
-  return null;
+/** Test hook: replaces the configured provider (null = use the configuration). */
+let override: VisualAssessmentProvider | null | undefined;
+export function setVisualProviderForTests(p: VisualAssessmentProvider | null | undefined) {
+  override = p;
 }
 
-export function providerStatus(): { configured: boolean; providerId: string | null; criteria: CriterionId[] } {
+export function getVisualProvider(): VisualAssessmentProvider | null {
+  if (override !== undefined) return override;
+  const cfg = visionConfig();
+  if (!cfg) return null;
+  const model = cfg.model ?? DEFAULT_VISUAL_MODEL;
+  return {
+    id: CLAUDE_PROVIDER_ID,
+    modelVersion: model,
+    assess: (image, _criteria, opts) => assessWithClaude({ base64: bytesToBase64(image.buf), mime: image.mime }, { apiKey: cfg.apiKey, model, browser: cfg.browser, lang: opts?.lang }),
+  };
+}
+
+export function providerStatus(): { configured: boolean; providerId: string | null; model: string | null; criteria: CriterionId[]; hint: "notConfigured" | "missingKey" | "browserKey" | null } {
   const p = getVisualProvider();
-  return { configured: !!p, providerId: p?.id ?? null, criteria: VISUAL_CRITERIA.map((c) => c.id) };
+  return { configured: !!p, providerId: p?.id ?? null, model: p?.modelVersion ?? null, criteria: VISUAL_CRITERIA.map((c) => c.id), hint: p ? null : visionConfigHint() };
 }

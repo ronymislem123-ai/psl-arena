@@ -25,8 +25,8 @@ describe("side-view texts", () => {
       expect(SIDE_LANDMARK_TEXTS.de[id].hint.length).toBeGreaterThan(10);
     }
     for (const lang of ["en", "de"] as const) {
-      expect(Object.keys(SIDE_ISSUE_TEXTS[lang]).sort()).toEqual(["anteriorOrder", "gonionLevel", "lowResolution", "neckOrder", "tragionLevel", "verticalOrder"]);
-      expect(Object.keys(SIDE_ASSUMPTION_TEXTS[lang]).sort()).toEqual(["frankfortHorizontal", "imageVertical", "manualAxis", "manualPlacement", "proxies", "separateFromFrontal"]);
+      expect(Object.keys(SIDE_ISSUE_TEXTS[lang]).sort()).toEqual(["anteriorOrder", "gonionLevel", "lowResolution", "missingCore", "neckOrder", "tragionLevel", "verticalOrder"]);
+      expect(Object.keys(SIDE_ASSUMPTION_TEXTS[lang]).sort()).toEqual(["automaticPlacement", "frankfortHorizontal", "imageVertical", "manualAxis", "manualPlacement", "proxies", "separateFromFrontal"]);
     }
   });
 });

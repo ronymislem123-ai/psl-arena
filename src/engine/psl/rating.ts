@@ -28,15 +28,33 @@ export interface VisualAssessmentSet {
   assessments: Partial<Record<CriterionId, VisualAssessment>>;
 }
 
+/** Why the vision model did or did not contribute to a rating. */
+export type VisualStatus = "used" | "notConfigured" | "noConsent" | "noImage" | "failed";
+
 export interface RatingInput {
   frontal: AnalysisResult;
   side?: SideViewResult | null;
   visual?: VisualAssessmentSet | null;
+  /** rubric 2.1: status of the vision model for this rating (default: used when `visual` is set, else notConfigured) */
+  visualStatus?: VisualStatus;
+  /** short, language-neutral error code when the model call failed */
+  visualError?: string;
   scale: PslScaleSnapshot;
   minCoverage?: number;
 }
 
-export type NotAssessableCode = "requiresProfile" | "requiresVisualProvider" | "inputsUnavailable" | "notEnoughAreas" | "frontalUnusable";
+export type NotAssessableCode =
+  | "requiresProfile"
+  | "requiresVisualProvider" // rubric ≤ 2.0 (stored ratings)
+  | "visualNotConfigured"
+  | "visualNoConsent"
+  | "visualNoImage"
+  | "visualFailed"
+  | "visualNotAssessable"
+  | "profileNotDeterminable"
+  | "inputsUnavailable"
+  | "notEnoughAreas"
+  | "frontalUnusable";
 export type CriterionSource = "frontal" | "profile" | "mixed" | "visual-model" | "derived";
 
 export interface CriterionScore {
@@ -105,8 +123,10 @@ export interface RatingResult {
   lowerRated: { id: CriterionId; score: number }[];
   notAssessable: { id: CriterionId; code: NotAssessableCode }[];
   quality: { frontalLevel: QualityLevel; frontalAnalyzable: boolean; frontalIssues: number; sideIssues: number; sideUsed: boolean; visualUsed: boolean; hairline: boolean };
-  inputs: { frontalCreatedAt: string; sideFacing: "left" | "right" | null; visualProvider: string | null };
-  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "lowConfidence" | "legacyEngine")[];
+  inputs: { frontalCreatedAt: string; sideFacing: "left" | "right" | null; visualProvider: string | null; visualModel?: string | null; visualStatus?: VisualStatus; visualError?: string | null; sidePlacement?: "manual" | "automatic" | "mixed" | null };
+  /** rubric 2.1: per visual criterion, the model's short reason */
+  visualNotes?: Partial<Record<CriterionId, string>>;
+  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "visualFailed" | "lowConfidence" | "legacyEngine")[];
   /** rubric 2.0 aggregation details */
   aggregation?: {
     method: "weighted-power-mean";
@@ -123,14 +143,15 @@ export interface RatingResult {
   descriptive?: { id: string; value: number | null; reason: string }[];
 }
 
-const SIDE_RELIABILITY = 1; // manually placed profile points: reliability not separately quantified
+/** manually placed profile points: 1 (reliability not separately quantified); automatically detected: 0.8 */
+const sideReliability = (side: SideViewResult) => (side.placement && side.placement !== "manual" ? 0.8 : 1);
 
 function sideMeasures(side: SideViewResult | null | undefined, into: MeasureMap) {
   if (!side?.analyzable) return;
   const conf = side.issues.some((i) => i.severity === "warning") ? 0.7 : 0.85;
   for (const m of side.measurements) {
     if (m.index == null) continue;
-    into.set(`p:${m.id}`, { index: m.index, confidence: conf, reliability: SIDE_RELIABILITY, weight: SIDE_BY_ID[m.id]?.weight ?? 1, source: "profile" });
+    into.set(`p:${m.id}`, { index: m.index, confidence: conf, reliability: sideReliability(side), weight: SIDE_BY_ID[m.id]?.weight ?? 1, source: "profile" });
   }
 }
 
@@ -152,6 +173,7 @@ export function pslDecimals(sigma: number | null | undefined): number {
 
 export function rateFace(input: RatingInput): RatingResult {
   const { frontal, side, visual, scale } = input;
+  const visualStatus: VisualStatus = input.visualStatus ?? (visual ? "used" : "notConfigured");
   const minCoverage = input.minCoverage ?? DEFAULT_MIN_COVERAGE;
   const createdAt = new Date().toISOString();
   const frontalUsable = frontal.quality.analyzable;
@@ -167,8 +189,11 @@ export function rateFace(input: RatingInput): RatingResult {
     const base = { id: def.id, area: def.area, weight: def.weight };
     if (!frontalUsable) return { ...base, assessable: false, notAssessableCode: "frontalUnusable", index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
     if (a.index == null) {
+      const visualCode: NotAssessableCode =
+        visualStatus === "used" ? "visualNotAssessable" : visualStatus === "noConsent" ? "visualNoConsent" : visualStatus === "noImage" ? "visualNoImage" : visualStatus === "failed" ? "visualFailed" : "visualNotConfigured";
+      const needsProfile = def.method === "profile" || (def.inputs.side?.length && !(def.inputs.ratios ?? []).some((r) => measures.has(`r:${r}`)));
       const code: NotAssessableCode =
-        def.method === "visual" ? "requiresVisualProvider" : def.method === "profile" || (def.inputs.side?.length && !side?.analyzable && !(def.inputs.ratios ?? []).some((r) => measures.has(`r:${r}`))) ? "requiresProfile" : "inputsUnavailable";
+        def.method === "visual" ? visualCode : needsProfile && side?.analyzable ? "profileNotDeterminable" : needsProfile ? "requiresProfile" : "inputsUnavailable";
       return { ...base, assessable: false, notAssessableCode: code, index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
     }
     const source: CriterionSource = a.fromVisual ? "visual-model" : a.fromFrontal && a.fromProfile ? "mixed" : a.fromProfile ? "profile" : "frontal";
@@ -254,7 +279,8 @@ export function rateFace(input: RatingInput): RatingResult {
   if (!frontalUsable) warningCodes.push("frontalUnusable");
   if (provisional) warningCodes.push("lowCoverage");
   if (!side?.analyzable) warningCodes.push("noProfile");
-  if (!visual) warningCodes.push("noVisualProvider");
+  if (!visual && visualStatus === "notConfigured") warningCodes.push("noVisualProvider");
+  if (visualStatus === "failed") warningCodes.push("visualFailed");
   if (confidence > 0 && confidence < 0.5) warningCodes.push("lowConfidence");
   if (legacyEngine) warningCodes.push("legacyEngine");
 
@@ -289,7 +315,8 @@ export function rateFace(input: RatingInput): RatingResult {
       visualUsed: !!visual,
       hairline: frontal.landmarks.some((l) => l.id === "trichion"),
     },
-    inputs: { frontalCreatedAt: frontal.createdAt, sideFacing: side?.facing ?? null, visualProvider: visual?.providerId ?? null },
+    inputs: { frontalCreatedAt: frontal.createdAt, sideFacing: side?.facing ?? null, visualProvider: visual?.providerId ?? null, visualModel: visual?.modelVersion ?? null, visualStatus, visualError: input.visualError ?? null, sidePlacement: side?.analyzable ? (side.placement ?? "manual") : null },
+    visualNotes: visual ? Object.fromEntries(Object.entries(visual.assessments).filter(([, v]) => v?.note).map(([k, v]) => [k, v!.note!])) : undefined,
     warningCodes,
     aggregation: { method: "weighted-power-mean", p: AGGREGATION_P, overallIndex, arithmeticIndex: frontalUsable ? h.overallArithmetic : null, compensationPenalty: frontalUsable ? h.compensationPenalty : null, mcSamples: pslSamples.length },
     reliability: analysisReliability(frontal).level,

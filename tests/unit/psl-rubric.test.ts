@@ -14,7 +14,7 @@ const scale = snapshotScale(buildStandardScale());
 
 describe("rubric definition", () => {
   it("category weights sum to 100 and every active category has criteria", () => {
-    expect(RUBRIC_VERSION).toBe("2.0.0");
+    expect(RUBRIC_VERSION).toBe("2.1.0");
     expect(totalWeight()).toBe(100);
     expect(RUBRIC_AREAS).toEqual(["eye", "proportions", "bone", "nose", "mouth", "symmetry", "forehead"]);
     for (const a of RUBRIC_AREAS) {
@@ -121,7 +121,7 @@ describe("rating engine on real fixtures", () => {
 
   it("rates a frontal analysis with documented coverage and a tier on the scale", () => {
     const r = rateFace({ frontal, scale });
-    expect(r.rubricVersion).toBe("2.0.0");
+    expect(r.rubricVersion).toBe("2.1.0");
     expect(r.score).not.toBeNull();
     expect(r.score!).toBeGreaterThan(0);
     expect(r.score!).toBeLessThan(10);
@@ -139,7 +139,8 @@ describe("rating engine on real fixtures", () => {
     const sum = ratingSummary(r);
     expect(sum.total).toBe(CRITERIA.length);
     expect(r.notAssessable.filter((n) => n.code === "requiresProfile").length).toBeGreaterThanOrEqual(7);
-    expect(r.notAssessable.filter((n) => n.code === "requiresVisualProvider")).toHaveLength(6);
+    // rubric 2.1: two former visual criteria are measured; four remain visual-model only
+    expect(r.notAssessable.filter((n) => n.code === "visualNotConfigured")).toHaveLength(4);
     expect(r.warningCodes).toContain("noProfile");
     expect(r.warningCodes).toContain("noVisualProvider");
     // overall = calibrated weighted power mean of the category indices
@@ -150,7 +151,7 @@ describe("rating engine on real fixtures", () => {
     expect(r.aggregation!.compensationPenalty!).toBeGreaterThanOrEqual(0);
     // the frontal analysis reports the same model
     expect(frontal.scores.overall).toBeCloseTo(pm, 9);
-    expect(frontal.scores.rubric!.version).toBe("2.0.0");
+    expect(frontal.scores.rubric!.version).toBe("2.1.0");
     // Monte-Carlo σ through the whole aggregation, and the precision it justifies
     expect(r.aggregation!.mcSamples).toBe(frontal.config.uncertaintySamples);
     expect(r.scoreSigma!).toBeGreaterThan(0);
@@ -206,16 +207,18 @@ describe("rating engine on real fixtures", () => {
   });
 
   it("uses visual assessments only when supplied and keeps them separate", () => {
-    const visual = { providerId: "test", modelVersion: "0", assessedAt: "2026-01-01", assessments: { upperLidExposure: { score: 8, confidence: 0.6 }, scleralShow: { score: 2.5, confidence: 0.9 } } };
+    const visual = { providerId: "test", modelVersion: "0", assessedAt: "2026-01-01", assessments: { eyeShape: { score: 8, confidence: 0.6 }, lipShape: { score: 2.5, confidence: 0.9 } } };
     const r = rateFace({ frontal, visual, scale });
-    const u = r.criteria.find((c) => c.id === "upperLidExposure")!;
+    const u = r.criteria.find((c) => c.id === "eyeShape")!;
     expect(u.assessable).toBe(true);
     expect(u.source).toBe("visual-model");
     expect(u.score).toBeCloseTo(8, 9);
     // visual criteria never change the coverage of the geometric rubric
     expect(r.coverage).toBeCloseTo(rateFace({ frontal, scale }).coverage, 12);
     expect(r.quality.visualUsed).toBe(true);
-    expect(rateFace({ frontal, visual: { ...visual, assessments: { upperLidExposure: { score: 14, confidence: 1 } } }, scale }).criteria.find((c) => c.id === "upperLidExposure")!.score).toBe(10);
+    expect(rateFace({ frontal, visual: { ...visual, assessments: { eyeShape: { score: 14, confidence: 1 } } }, scale }).criteria.find((c) => c.id === "eyeShape")!.score).toBe(10);
+    // measured eyelid criteria are not taken from a model
+    expect(r.criteria.find((c) => c.id === "scleralShow")!.source).toBe("frontal");
   });
 
   it("is deterministic and strengths/lower-rated come from the criterion scores", () => {

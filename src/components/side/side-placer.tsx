@@ -1,18 +1,19 @@
 "use client";
 /**
- * New side-view analysis: upload a profile photo, place the 16 landmarks under
- * guidance (loupe, drag, arrow-key nudging), choose the profile, consent, save.
+ * New side-view analysis: upload a profile photo → automatic quality check and
+ * profile landmarks from the silhouette (lib/vision/profile.ts) → optional manual
+ * correction or completion (loupe, drag, arrow-key nudging) → profile, consent, save.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Eraser, ImagePlus, Info, RefreshCw, Undo2, XCircle, ZoomIn } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eraser, ImagePlus, Info, RefreshCw, ScanFace, Undo2, XCircle, ZoomIn } from "lucide-react";
 import { PageHeader } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Checkbox, Input, Select, Toggle } from "@/components/ui/controls";
 import { SideCanvas } from "@/components/side/side-canvas";
-import { analyzeSideView, referenceTilt, SIDE_LANDMARK_ORDER, type SideLandmarkId, type SidePoints, type SideReference } from "@/engine/side-view";
+import { analyzeSideView, referenceTilt, SIDE_CORE_POINTS, SIDE_LANDMARK_ORDER, type SideLandmarkId, type SidePointSet, type SidePointSource, type SidePoints, type SideReference } from "@/engine/side-view";
 import type { Point } from "@/engine/types";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -20,6 +21,7 @@ import { SIDE_ISSUE_TEXTS, sideLandmarkText } from "@/lib/i18n/side-texts";
 import { rememberSessionImage } from "@/lib/session-images";
 import { useSettings } from "@/lib/settings";
 import { loadImageFile, type LoadedImage } from "@/lib/vision/image";
+import { detectProfile, looksFrontal, warmUpSegmenter, type AutoProfileRun } from "@/lib/vision/profile";
 import { cn, fmt } from "@/lib/utils";
 import type { ProfileRow } from "@/server/repos";
 import { paths } from "@/lib/paths";
@@ -60,9 +62,15 @@ export function SidePlacer() {
   const [orbitale, setOrbitale] = useState<Point | null>(null);
   const [manualTilt, setManualTilt] = useState(0);
   const [placingOrbitale, setPlacingOrbitale] = useState(false);
+  // automatic detection
+  const [detecting, setDetecting] = useState(false);
+  const [auto, setAuto] = useState<AutoProfileRun | null>(null);
+  const [autoError, setAutoError] = useState<string | null>(null);
+  const [sources, setSources] = useState<Partial<Record<SideLandmarkId, SidePointSource>>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    warmUpSegmenter();
     const id = requestAnimationFrame(() => setHydrated(true));
     api
       .listProfiles()
@@ -71,7 +79,7 @@ export function SidePlacer() {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const onFiles = useCallback(async (files: FileList | null) => {
+  const onFiles = async (files: FileList | null) => {
     const f = files?.[0];
     if (!f) return;
     setLoading(true);
@@ -80,15 +88,41 @@ export function SidePlacer() {
       const loaded = await loadImageFile(f, f.name);
       setImg(loaded);
       setPoints({});
+      setSources({});
       setHistory([]);
       setCurrent(SIDE_LANDMARK_ORDER[0]);
       setSelected(null);
+      setLoading(false);
+      await runDetection(loaded);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
+
+  /** quality check + automatic landmarks; nothing is placed when the photo is not a usable profile */
+  const runDetection = async (loaded: LoadedImage) => {
+    setDetecting(true);
+    setAuto(null);
+    setAutoError(null);
+    try {
+      const run = await detectProfile(loaded.canvas);
+      setAuto(run);
+      if (run.result.ok && !looksFrontal(run.quality)) {
+        const pts = run.result.points;
+        setPoints(pts);
+        setSources(run.result.sources);
+        setHistory([]);
+        setSelected(null);
+        setCurrent(nextUnplaced(pts));
+      }
+    } catch (e) {
+      setAutoError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDetecting(false);
+    }
+  };
 
   const nextUnplaced = (pts: Partial<SidePoints>, after?: SideLandmarkId): SideLandmarkId | null => {
     const start = after ? SIDE_LANDMARK_ORDER.indexOf(after) + 1 : 0;
@@ -103,6 +137,7 @@ export function SidePlacer() {
     const wasPlaced = !!pointsRef.current[id];
     const next = { ...pointsRef.current, [id]: p };
     setPoints(next);
+    setSources((s) => ({ ...s, [id]: "manual" }));
     if (!wasPlaced) {
       setHistory((h) => [...h, id]);
       setCurrent(nextUnplaced(next, id));
@@ -116,11 +151,17 @@ export function SidePlacer() {
     const next = { ...pointsRef.current };
     delete next[last];
     setPoints(next);
+    setSources((s) => {
+      const n = { ...s };
+      delete n[last];
+      return n;
+    });
     setCurrent(last);
     setSelected(null);
   };
   const reset = () => {
     setPoints({});
+    setSources({});
     setHistory([]);
     setCurrent(SIDE_LANDMARK_ORDER[0]);
     setSelected(null);
@@ -132,13 +173,20 @@ export function SidePlacer() {
 
   const placedCount = SIDE_LANDMARK_ORDER.filter((id) => points[id]).length;
   const allPlaced = placedCount === TOTAL;
+  // the midline (glabella → menton) suffices; the other points are optional
+  const coreReady = SIDE_CORE_POINTS.every((id) => points[id]);
+  const presentSources = Object.fromEntries(SIDE_LANDMARK_ORDER.filter((id) => points[id]).map((id) => [id, sources[id] ?? "manual"])) as Partial<Record<SideLandmarkId, SidePointSource>>;
+  const manualCount = Object.values(presentSources).filter((v) => v === "manual").length;
+  const autoCount = placedCount - manualCount;
+  const placement: "manual" | "automatic" | "mixed" = autoCount === 0 ? "manual" : manualCount === 0 ? "automatic" : "mixed";
   const reference: SideReference = refKind === "frankfort" && orbitale ? { kind: "frankfort", orbitale } : refKind === "manual" ? { kind: "manual", tiltDeg: manualTilt } : { kind: "image" };
-  const preview = useMemo(() => (allPlaced ? analyzeSideView(points as SidePoints, { uncertaintySamples: 24, reference }) : null), [allPlaced, points, reference.kind, orbitale, manualTilt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const preview = useMemo(() => (coreReady ? analyzeSideView(points as SidePointSet, { uncertaintySamples: 24, reference, placement, pointSources: presentSources }) : null), [coreReady, points, reference.kind, orbitale, manualTilt, placement]); // eslint-disable-line react-hooks/exhaustive-deps
   const liveTilt = points.tragion ? referenceTilt(points as Pick<SidePoints, "tragion">, reference) : 0;
-  const canSave = !!img && allPlaced && !!preview?.analyzable && rights && adult && !saving;
+  const canSave = !!img && coreReady && !!preview?.analyzable && rights && adult && !saving;
+  const autoMissing = auto?.result.ok ? SIDE_LANDMARK_ORDER.filter((id) => !auto.result.points[id]) : [];
 
   const save = async () => {
-    if (!img || !allPlaced) return;
+    if (!img || !coreReady) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -150,8 +198,10 @@ export function SidePlacer() {
         consent: { rightsConfirmed: true, adultsConfirmed: true },
         imageWidth: img.width,
         imageHeight: img.height,
-        points: points as SidePoints,
+        points: points as SidePointSet,
         reference,
+        placement,
+        pointSources: presentSources,
       });
       rememberSessionImage(res.sideAnalysis.id, img.dataUrl);
       router.push(paths.sideView(res.sideAnalysis.id));
@@ -266,6 +316,46 @@ export function SidePlacer() {
             )}
           </div>
 
+          {img && (detecting || auto || autoError) && (
+            <Card data-testid="side-auto" data-state={detecting ? "running" : auto?.result.ok && !looksFrontal(auto.quality) ? "ok" : "failed"}>
+              <CardHeader title={t("side.auto.title")} icon={<ScanFace size={18} />} />
+              <CardBody className="space-y-2 text-sm">
+                {detecting && (
+                  <div className="flex items-center gap-2 text-fg-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan border-t-transparent" /> {t("side.auto.running")}
+                  </div>
+                )}
+                {!detecting && autoError && <div className="text-[#ff8fa3]">{t("side.auto.failed")}: {autoError}</div>}
+                {!detecting && auto && looksFrontal(auto.quality) && (
+                  <div className="flex gap-2 text-[#ff8fa3]" data-testid="side-auto-frontal"><XCircle size={16} className="shrink-0 mt-0.5" /> {t("side.auto.frontal", { deg: Math.round(auto.quality.frontalFaceYawDeg ?? 0) })}</div>
+                )}
+                {!detecting && auto && !looksFrontal(auto.quality) && auto.result.ok && (
+                  <>
+                    <div className="flex items-center gap-2 text-mint" data-testid="side-auto-count"><CheckCircle2 size={16} /> {t("side.auto.ok", { n: Object.keys(auto.result.points).length, total: TOTAL })}</div>
+                    {autoMissing.length > 0 && <p className="text-xs text-fg-2">{t("side.auto.notDeterminable", { list: autoMissing.map((id) => sideLandmarkText(id, lang).name).join(", ") })}</p>}
+                    {manualCount > 0 && <p className="text-xs text-amber">{t("side.auto.corrected", { n: manualCount })}</p>}
+                  </>
+                )}
+                {!detecting && auto && !auto.result.ok && (
+                  <div className="flex gap-2 text-[#ff8fa3]" data-testid="side-auto-failed"><XCircle size={16} className="shrink-0 mt-0.5" /> {t("side.auto.failed")}: {auto.result.issues.filter((i) => i.severity === "error").map((i) => t(`side.auto.issue.${i.code}`)).join(" ")}</div>
+                )}
+                {!detecting && auto && auto.result.issues.some((i) => i.severity === "warning") && (
+                  <ul className="space-y-1">
+                    {auto.result.issues.filter((i) => i.severity === "warning").map((i) => (
+                      <li key={i.code} className="flex gap-2 text-xs text-amber"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> {t(`side.auto.issue.${i.code}`)}</li>
+                    ))}
+                  </ul>
+                )}
+                {!detecting && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button size="sm" variant="outline" onClick={() => img && void runDetection(img)} data-testid="side-auto-retry"><RefreshCw size={14} /> {t("side.auto.retry")}</Button>
+                    <span className="text-xs text-fg-3">{t("side.auto.manualHint")}</span>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          )}
+
           {preview && (
             <>
             <Card data-testid="side-reference">
@@ -353,6 +443,8 @@ export function SidePlacer() {
                       >
                         <span className={cn("grid h-5 w-5 shrink-0 place-items-center rounded-md font-mono text-[10px]", done ? "bg-mint/20 text-mint" : "bg-white/10 text-fg-2")}>{done ? "✓" : i + 1}</span>
                         <span className="truncate">{sideLandmarkText(id, lang).name}</span>
+                        {done && sources[id] && sources[id] !== "manual" && <span className="ml-auto shrink-0 rounded bg-cyan/15 px-1 text-[9px] uppercase tracking-wide text-cyan" data-testid={`side-src-${id}`}>{t(`side.auto.source.${sources[id]}`)}</span>}
+                        {!done && !SIDE_CORE_POINTS.includes(id) && <span className="ml-auto shrink-0 text-[9px] text-fg-3">{t("side.auto.optional")}</span>}
                       </button>
                     </li>
                   );

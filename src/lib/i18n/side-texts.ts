@@ -160,6 +160,24 @@ export const SIDE_MEASUREMENT_TEXTS_DE: Record<SideMeasurementId, SideMeasuremen
     limitations: ["Nur beschreibend; nicht bewertet.", LIM_VERTICAL_DE, LIM_MANUAL_DE],
     reference: "Null-Meridian nach Gonzalez-Ulloa: Vertikale durch das Nasion; kein Zahlenziel im Material.",
   },
+  MPA: {
+    name: "Unterkieferebenen-Winkel (Weichteil)", description: "Neigung des Unterkieferrands gegenüber der Horizontalen; hohe Werte = steiler (langer, zurückliegender) Unterkiefer, niedrige = flacher.",
+    methodology: "Winkel zwischen der Linie Weichteil-Gonion → Weichteil-Menton und der Referenzhorizontalen (Frankfurter Horizontale, wenn Tragion und Orbitale gesetzt sind, sonst die Bildhorizontale).",
+    limitations: [LIM_SOFT_DE, LIM_VERTICAL_DE, "Die knöcherne Mandibularebene verläuft einige Grad steiler als die Weichteil-Kieferlinie; das Weichteil-Gonion ist rekonstruiert."],
+    reference: "Frankfurt-Mandibularebenen-Winkel 25° ± 5° (Tweed 1954); Weichteil-Näherung gegen die Referenzhorizontale.",
+  },
+  MFP: {
+    name: "Mittelgesichtsprojektion (Sn zur Glabella-Vertikalen)", description: "Wie weit die Oberlippenbasis (Subnasale) vor der Stirn liegt, d. h. die Vorlage von Oberkiefer/Mittelgesicht.",
+    methodology: "Horizontaler Abstand Subnasale − Glabella in Blickrichtung im Referenzsystem, in Prozent der vertikalen Höhe Glabella–Menton.",
+    limitations: [LIM_VERTICAL_DE, "Die Millimeternorm wird mit einer mittleren Gesichtshöhe in Prozent umgerechnet (± 8 %).", LIM_SOFT_DE],
+    reference: "Legan & Burstone 1980: Subnasale 6 ± 3 mm vor der Glabella-Vertikalen; umgerechnet mit einer Weichteilhöhe G–Me' von 125 mm (Farkas 1994: Mittelwerte Erwachsener 115–135 mm).",
+  },
+  CHP: {
+    name: "Kinnprojektion (Pg zur Glabella-Vertikalen)", description: "Vorwärtige (positiv) oder rückwärtige (negativ) Lage des Kinns relativ zur Stirn.",
+    methodology: "Horizontaler Abstand Pogonion − Glabella in Blickrichtung im Referenzsystem, in Prozent der vertikalen Höhe Glabella–Menton.",
+    limitations: [LIM_VERTICAL_DE, "Die Millimeternorm wird mit einer mittleren Gesichtshöhe in Prozent umgerechnet (± 8 %)."],
+    reference: "Legan & Burstone 1980: Weichteil-Pogonion 0 ± 4 mm zur Glabella-Vertikalen; umgerechnet mit G–Me' = 125 mm.",
+  },
 };
 
 export function sideMeasurementText(id: SideMeasurementId, lang: Lang): SideMeasurementText {
@@ -180,6 +198,7 @@ export const SIDE_ISSUE_TEXTS: Record<Lang, Record<SideIssueCode, string>> = {
     tragionLevel: "The tragion usually lies between brow and upper-lip level; the gonial angle may be off.",
     gonionLevel: "The gonion usually lies between nose base and cervical level; the gonial angle may be off.",
     lowResolution: "The face is small in the image (less than 150 px from glabella to menton); placement errors weigh heavily.",
+    missingCore: "Not all midline points (glabella to menton) are available; no values are computed.",
   },
   de: {
     verticalOrder: "Die Mittellinienpunkte liegen nicht von oben nach unten (Glabella → Nasion → Nasenspitze → Subnasale → Lippen → Kinn). Bitte die Platzierung prüfen.",
@@ -188,12 +207,14 @@ export const SIDE_ISSUE_TEXTS: Record<Lang, Record<SideIssueCode, string>> = {
     tragionLevel: "Das Tragion liegt normalerweise zwischen Brauen- und Oberlippenhöhe; der Kieferwinkel kann abweichen.",
     gonionLevel: "Das Gonion liegt normalerweise zwischen Nasenbasis und Zervikalhöhe; der Kieferwinkel kann abweichen.",
     lowResolution: "Das Gesicht ist im Bild klein (unter 150 px von Glabella bis Menton); Platzierungsfehler wiegen schwer.",
+    missingCore: "Nicht alle Mittellinienpunkte (Glabella bis Menton) sind vorhanden; es werden keine Werte berechnet.",
   },
 };
 
 export const SIDE_ASSUMPTION_TEXTS: Record<Lang, Record<SideAssumptionCode, string>> = {
   en: {
     manualPlacement: "Landmarks were placed manually; precision depends on the placement (the σ values show the sensitivity).",
+    automaticPlacement: "Landmarks were detected automatically from the profile silhouette (person segmentation); points not on the silhouette (alar crease, tragion, gonion) are only used when they could be derived and are otherwise reported as not determinable. The σ values assume a detection error of 0.6 % of the face height.",
     imageVertical: "The image vertical is used as the true vertical (natural head position assumed) for the Z angle, the height ratios and the chin meridian. Place the orbitale or rotate the reference axis if the head is tilted.",
     frankfortHorizontal: "The soft-tissue Frankfort horizontal (tragion → orbitale) is the horizontal reference for the Z angle, the height ratios and the chin meridian; it lies a few degrees from the bony Frankfort plane.",
     manualAxis: "The reference axis was rotated manually; the Z angle, the height ratios and the chin meridian are measured against it.",
@@ -202,6 +223,7 @@ export const SIDE_ASSUMPTION_TEXTS: Record<Lang, Record<SideAssumptionCode, stri
   },
   de: {
     manualPlacement: "Die Landmarks wurden manuell gesetzt; die Präzision hängt von der Platzierung ab (die σ-Werte zeigen die Empfindlichkeit).",
+    automaticPlacement: "Die Landmarks wurden automatisch aus der Profilsilhouette (Personensegmentierung) bestimmt; Punkte außerhalb der Silhouette (Nasenflügelfurche, Tragion, Gonion) werden nur verwendet, wenn sie sich ableiten ließen, sonst als nicht bestimmbar ausgewiesen. Die σ-Werte nehmen einen Erkennungsfehler von 0,6 % der Gesichtshöhe an.",
     imageVertical: "Die Bildvertikale gilt als wahre Vertikale (natürliche Kopfhaltung vorausgesetzt) für Z-Winkel, Höhenverhältnisse und Kinnmeridian. Bei geneigtem Kopf Orbitale setzen oder die Referenzachse drehen.",
     frankfortHorizontal: "Die Weichteil-Frankfurter-Horizontale (Tragion → Orbitale) ist die horizontale Referenz für Z-Winkel, Höhenverhältnisse und Kinnmeridian; sie weicht um wenige Grad von der knöchernen Frankfurter Ebene ab.",
     manualAxis: "Die Referenzachse wurde manuell gedreht; Z-Winkel, Höhenverhältnisse und Kinnmeridian werden daran gemessen.",

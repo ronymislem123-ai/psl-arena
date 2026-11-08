@@ -3,7 +3,7 @@
  * invisible (queries filter by user_id, never by id alone).
  */
 import type { AnalysisInput, AnalysisResult, BattleResult } from "@/engine/types";
-import type { SidePoints, SideViewResult } from "@/engine/side-view";
+import type { SidePointSet, SideViewResult } from "@/engine/side-view";
 import { getDb, newId } from "./db";
 import { deleteAllImageFiles, deleteImageFile } from "./images";
 import { deleteAllPsl, exportPsl, pslStats } from "./repos-psl";
@@ -212,7 +212,7 @@ export interface SideAnalysisSummary {
 }
 
 export interface SideAnalysisRecord extends SideAnalysisSummary {
-  points: SidePoints;
+  points: SidePointSet;
   result: SideViewResult;
 }
 
@@ -238,10 +238,10 @@ export function getSideAnalysis(userId: string, id: string): SideAnalysisRecord 
   const row = getDb().prepare(`${SIDE_SELECT} AND s.id = ?`).get(userId, id) as Record<string, unknown> | undefined;
   if (!row) return null;
   const full = getDb().prepare("SELECT points_json, result_json FROM side_analyses WHERE id = ? AND user_id = ?").get(id, userId) as { points_json: string; result_json: string };
-  return { ...mapSideSummary(row), points: JSON.parse(full.points_json) as SidePoints, result: JSON.parse(full.result_json) as SideViewResult };
+  return { ...mapSideSummary(row), points: JSON.parse(full.points_json) as SidePointSet, result: JSON.parse(full.result_json) as SideViewResult };
 }
 
-export function insertSideAnalysis(args: { userId: string; profileId: string; imageId: string | null; imageWidth: number; imageHeight: number; points: SidePoints; result: SideViewResult }): SideAnalysisRecord {
+export function insertSideAnalysis(args: { userId: string; profileId: string; imageId: string | null; imageWidth: number; imageHeight: number; points: SidePointSet; result: SideViewResult }): SideAnalysisRecord {
   const db = getDb();
   const id = newId("side");
   const t = now();

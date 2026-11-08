@@ -36,7 +36,15 @@ describe("engine on real landmark fixtures", () => {
       expect(res.symmetry.score).not.toBeNull();
       expect(res.uncertainty!.overallSigma).toBeGreaterThan(0);
       expect(res.features.length).toBeGreaterThan(30);
-      expect(res.additional).toHaveLength(8);
+      expect(res.additional).toHaveLength(10);
+      // rubric 2.1: eyelid position measured from the iris and the lid contours (mm via the iris diameter)
+      const mrd1 = res.additional.find((a) => a.id === "MRD1")!;
+      const ssi = res.additional.find((a) => a.id === "SSI")!;
+      expect(mrd1.availability).toBe("available");
+      expect(mrd1.value!).toBeGreaterThan(1.5);
+      expect(mrd1.value!).toBeLessThan(6.5);
+      expect(ssi.value!).toBeGreaterThan(-5);
+      expect(ssi.value!).toBeLessThan(2);
     });
   }
 

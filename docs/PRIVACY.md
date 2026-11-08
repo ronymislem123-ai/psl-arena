@@ -35,6 +35,17 @@
 - **Deletion:** ratings, scales (with images), tournaments (with participants and versions) can be deleted individually; "delete all data" and account deletion remove them with everything else.
 - **Legal note:** processing facial images of other people requires a lawful basis and, in the EU, the data-subject information obligations of the GDPR; biometric categorisation for sensitive attributes is prohibited under the EU AI Act and is not performed here. This documentation is not a legal compliance guarantee; operators should obtain their own legal review before offering the service to others.
 
+## Vision model (rubric 2.1)
+
+- **Off by default.** Eye shape, lip shape, cheekbone projection and jawline definition are only assessed by an external vision model (Anthropic Claude) when one is set up: by the operator (server: `PSL_ARENA_VISION_PROVIDER=claude`, `ANTHROPIC_API_KEY`) or by the user (browser edition: own key, stored only in that browser's localStorage).
+- **Explicit consent per rating.** The frontal photo is sent only when the user ticks the consent box for that rating; the box is unticked by default. Without it nothing leaves the device/server and the four criteria are reported as not assessable. Side-view photos are never sent.
+- **What is sent and returned.** One downscaled JPEG and the four criterion definitions; the model returns per criterion a score, a confidence and one sentence. The instructions forbid identification and any estimate of age, ethnicity, health or other personal attributes and any overall attractiveness verdict; the answer is validated against a strict schema, anything else is discarded. The provider's own data-retention terms apply to the sent photo.
+- **Key handling.** The SDK client is created with the configured key and the fixed endpoint `https://api.anthropic.com` only (it does not pick up other tokens or base URLs from the environment). The browser key is never written to the database or backups.
+
+## Automatic side view
+
+- Segmentation and profile detection run entirely in the browser (MediaPipe models served from this origin); the profile photo is stored only on opt-in, like frontal photos. Automatically detected points are stored with their source so that a result can always be traced to "detected" or "placed by the user".
+
 ## Browser edition (GitHub Pages)
 
 - **No server, no accounts.** The static build (`docs/BROWSER_EDITION.md`) runs analyses, ratings, tournaments and storage entirely in the visitor's browser. Nothing is uploaded; the host only serves files and sees ordinary page-load metadata.

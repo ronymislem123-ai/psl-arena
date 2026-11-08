@@ -15,7 +15,7 @@ async function signIn(page: Page) {
 }
 
 /** Rates a frontal photo through the real UI (in-browser detection) and returns the rating id + score. */
-async function rateUpload(page: Page, file: string, label: string, scaleId?: string) {
+async function rateUpload(page: Page, file: string, label: string, scaleId?: string, sideFile?: string) {
   await page.goto("/rater");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("AI PSL Rater");
   await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
@@ -23,6 +23,10 @@ async function rateUpload(page: Page, file: string, label: string, scaleId?: str
   await page.locator('input[type="file"]').first().setInputFiles(join(FIX, file));
   await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
   await page.getByPlaceholder("e.g. Alex").fill(label);
+  if (sideFile) {
+    await page.getByTestId("rater-side-input").setInputFiles(join(FIX, sideFile));
+    await expect(page.getByTestId("rater-side-state")).toHaveAttribute("data-state", "ok", { timeout: 180_000 });
+  }
   const confirm = page.getByRole("button", { name: "Confirm hairline" });
   if (await confirm.isEnabled()) await confirm.click();
   const boxes = page.locator('input[type="checkbox"]');
@@ -126,7 +130,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await expect(page.getByText("Overall assessment")).toBeVisible();
     await expect(page.getByText("Analysis quality")).toBeVisible();
     await expect(page.getByText(/does not determine a person/)).toBeVisible();
-    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(40);
+    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(42);
     await expect(page.getByTestId("scale-marker")).toBeVisible();
     await expect(page.getByTestId("rating-areas")).toBeVisible();
     await page.waitForTimeout(1500);
@@ -139,7 +143,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     expect(a.score).toBeLessThan(10);
     // the stored rating carries the scale snapshot and rubric version
     const rec = (await (await page.request.get(`/api/ratings/${a.id}`)).json()).rating;
-    expect(rec.rubricVersion).toBe("2.0.0");
+    expect(rec.rubricVersion).toBe("2.1.0");
     expect(rec.scaleSnapshot.tiers.length).toBe(21);
     expect(rec.result.criteria.filter((c: { assessable: boolean }) => c.assessable).length).toBeGreaterThan(20);
     expect(rec.result.notAssessable.some((n: { code: string }) => n.code === "requiresProfile")).toBe(true);
@@ -186,6 +190,36 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await expect(page.getByTestId("leaderboards")).toBeVisible();
     await expect(page.getByTestId("leaderboards").locator("ol").first()).toBeVisible();
     await shot(page, "58-leaderboards");
+  });
+
+  test("rater: frontal + profile photo in one step — automatic side view feeds the profile criteria; vision model needs setup and consent", async ({ page }) => {
+    test.setTimeout(420_000);
+    await signIn(page);
+    await page.goto("/rater");
+    await expect(page.getByTestId("rater-vision")).toHaveAttribute("data-configured", "false");
+    await expect(page.getByTestId("rater-vision")).toContainText(/No vision model set up/);
+    const r = await rateUpload(page, "portrait-a.jpg", "Full Upload", undefined, "profile-scan.jpg");
+    const rec = (await (await page.request.get(`/api/ratings/${r.id}`)).json()).rating;
+    expect(rec.sideAnalysisId).toMatch(/^side_/);
+    const crit = (id: string) => rec.result.criteria.find((c: { id: string }) => c.id === id);
+    for (const id of ["profileConvexity", "nasolabialAngle", "midfaceProjection", "chinProjection", "neckChinDefinition"]) expect(crit(id).assessable, id).toBe(true);
+    expect(crit("chinProjection").source).toMatch(/profile|mixed/);
+    // off-silhouette points are not guessed: gonial angle and nose projection stay not determinable
+    expect(crit("gonialAngle").notAssessableCode).toBe("profileNotDeterminable");
+    expect(crit("noseProjection").notAssessableCode).toBe("profileNotDeterminable");
+    // measured eyelid criteria, visual-model criteria clearly marked
+    expect(crit("scleralShow").assessable).toBe(true);
+    expect(crit("upperLidExposure").assessable).toBe(true);
+    expect(crit("eyeShape").notAssessableCode).toBe("visualNotConfigured");
+    expect(rec.result.inputs.sidePlacement).toBe("automatic");
+    expect(rec.result.coverage).toBeGreaterThan(0.85);
+    const side = (await (await page.request.get(`/api/side-analyses/${rec.sideAnalysisId}`)).json()).sideAnalysis;
+    expect(side.profileId).toBe(rec.profileId);
+    await page.waitForTimeout(1200);
+    await shot(page, "56b-rating-front-and-profile");
+    await page.getByTestId("criterion-eyeShape").click();
+    await expect(page.getByRole("dialog")).toContainText(/only with a vision model/);
+    await page.keyboard.press("Escape");
   });
 
   test("tournaments: ranking tournament with duplicate ratings, category winners, knockout with manual tie decision, reopen/version, mobile", async ({ page, browser }) => {

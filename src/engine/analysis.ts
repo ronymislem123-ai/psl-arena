@@ -40,7 +40,7 @@ export function computeCore(input: AnalysisInput) {
   const harmony = harmonyIndex(ratios);
   const proportion = proportionScore(categories);
   const structure = structureScore(categories);
-  const additional = computeAdditional(map, ratios, quality);
+  const additional = computeAdditional(map, ratios, quality, am.aligned);
   const hierarchy = aggregateHierarchy(frontalMeasures(ratios, symmetry, additional));
   return { am, map, list, quality, ratios, symmetry, additional, categories, harmony, proportion, structure, hierarchy, overall: hierarchy.overall };
 }

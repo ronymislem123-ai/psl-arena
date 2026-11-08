@@ -1,13 +1,22 @@
-# PSL rating rubric (version 2.0.0)
+# PSL rating rubric (version 2.1.0)
 
 The AI PSL Rater and the frontal analysis share one scoring model: measures
 (frontal ratios, symmetry metrics, two derived frontal measures, profile
-measurements, optional visual assessments) → **40 criteria** (one anatomical trait
+measurements, optional vision-model assessments) → **42 criteria** (one anatomical trait
 each) → **7 categories** → overall index 0–100 → PSL 0–10. The rubric is versioned
 (`RUBRIC_VERSION` in `src/engine/psl/rubric.ts`); every rating stores the version,
 calibration, minimum coverage and a snapshot of the scale. Ratings of rubric 1.0.0
 keep rendering with their own criteria and areas (`LEGACY_CRITERIA`, legacy
 `AREA_META` entries).
+
+**2.1.0 (2026-11-08):** upper lid position (MRD1) and scleral show are now
+*measured* from the iris and lid contours of the mesh (millimetres via the iris
+diameter 11.7 mm) instead of waiting for a visual provider; two profile criteria
+were added (mandibular plane MPA, midface projection MFP) and the chin projection
+also uses CHP (pogonion to the glabella vertical); the four remaining visual
+criteria are assessed by a real vision model (Claude API) when one is set up and
+the user consents per rating. Side views are detected automatically from the
+profile silhouette (`docs/SIDE_VIEW.md`).
 
 What changed against 1.0.0 and why is listed in `docs/SYSTEM_AUDIT.md` and
 `docs/REENGINEERING_REPORT.md`; the measured effect is in `docs/MODEL_VALIDATION.md`.
@@ -54,7 +63,9 @@ interaction term of the non-compensatory aggregation.
 | | eyeSpacing | ESR, ICD, OCD |
 | | fissureProportions | EAR, PFL/BYZGO |
 | | browArea (brow length) | EBL |
-| | upperLidExposure, scleralShow, eyeShape | visual provider only |
+| | upperLidExposure (upper lid position) | MRD1: iris centre → upper lid margin, mm (normal 4–5 mm, Putterman 2012) |
+| | scleralShow | SSI: lower iris edge → lower lid margin, mm (≤ 0 normal, > 1 mm retraction, Bartley 1996; plateau to 0.5 mm, s = 1 mm) |
+| | eyeShape | vision model only |
 | Facial proportions | midfaceRatio | MF |
 | | facialThirds (middle & lower) | FT-M, FT-L |
 | | faceShape | TFWHR, LFF, DEV BIT/BIG |
@@ -67,9 +78,12 @@ interaction term of the non-compensatory aggregation.
 | | jawAngularityFrontal | GS |
 | | chinWidthShape | M/C |
 | | cheekbonePosition | CBS |
-| | gonialAngle, chinProjection | profile GA; ZANG, HANG |
+| | gonialAngle | profile GA |
+| | mandibularPlane | profile MPA (soft-tissue Go–Me to the reference horizontal, 20–30°, Tweed 1954 FMA 25 ± 5°) |
+| | midfaceProjection | profile MFP (Sn ahead of the glabella vertical, 2.4–7.2 % of G–Me; Legan & Burstone 1980: 6 ± 3 mm with G–Me ≈ 125 mm) |
+| | chinProjection | profile ZANG, HANG, CHP (Pg to the glabella vertical, ± 3.2 %; Legan & Burstone 1980: 0 ± 4 mm) |
 | | neckChinDefinition | profile CMA, MCA; frontal NW (manual neck points) |
-| | cheekboneProjection, jawlineDefinition | visual provider only |
+| | cheekboneProjection, jawlineDefinition | vision model only |
 | Nose | noseWidth | N/BYZGO |
 | | noseHeightWidth | N/H |
 | | noseProjection, nasalAngles | profile GOODE; NFA, NFC, NMA |
@@ -77,7 +91,7 @@ interaction term of the non-compensatory aggregation.
 | | lipProportions | LL/UL, LIP WHR |
 | | lipChinVertical | C/P (frontal) + LCR (profile) |
 | | nasolabialAngle | profile NLA |
-| | lipShape | visual provider only |
+| | lipShape | vision model only |
 | Symmetry | eyeSymmetry | eye opening, fissure length, canthal tilt, canthus height, brow height, brow tilt |
 | | noseSymmetry | nose tip, alar base |
 | | mouthSymmetry | mouth-corner height and width |
@@ -150,9 +164,27 @@ of different engine generations are inconclusive.
 
 ## Visual criteria
 
-Six visual criteria need an external provider (`src/server/vision-provider.ts`);
-none is bundled and nothing is simulated. Without a provider they are *not
-assessable* and — new in 2.0 — do not lower the coverage.
+Since 2.1 four criteria remain visual impressions that no landmark measures:
+eye shape, lip shape, cheekbone projection and jawline definition. They are
+assessed by a real vision model (`src/lib/visual-model/claude.ts`, Anthropic
+Claude through the official SDK, structured output validated with zod; provider
+`src/server/vision-provider.ts`) — never simulated, never guessed:
+
+* **Set-up.** Server edition: `PSL_ARENA_VISION_PROVIDER=claude` and
+  `ANTHROPIC_API_KEY` (optional `PSL_ARENA_VISION_MODEL`, default
+  `claude-opus-5-5` with server-side fallback). Browser edition: the user's own
+  key in the settings, stored only in that browser.
+* **Consent per rating.** The photo is sent only when the user ticks the consent
+  box for that rating; otherwise the four criteria report `visualNoConsent`.
+* **What the model may say.** One 0–10 score per criterion with anchors, a
+  confidence and a one-sentence reason, or "not assessable" (beard, hair, pose).
+  The prompt forbids identification, age/ethnicity/health estimates and any
+  overall attractiveness verdict. Scores are labelled "visual impression by the
+  model …, not a measurement".
+* **Status per criterion:** `visualNotConfigured`, `visualNoConsent`,
+  `visualNoImage`, `visualFailed` (key rejected, network, refusal — the rating is
+  still computed) or `visualNotAssessable` (the model declined this feature).
+* The visual criteria do not change the coverage (as in 2.0).
 
 ## Known limitations
 
@@ -161,7 +193,12 @@ assessable* and — new in 2.0 — do not lower the coverage.
   systematically between populations.
 - Category weights and p are evidence-informed conventions, not fitted to human
   ratings (none were available).
-- 2D soft-tissue stand-ins for bony landmarks; profile criteria depend on manual
-  placement.
+- 2D soft-tissue stand-ins for bony landmarks; profile criteria come from the
+  automatically detected silhouette points (or manual placement); points off the
+  silhouette (alar crease, tragion, often the gonion) make GA, GOODE and MPA
+  "not determinable" unless the user adds them.
+- Vision-model scores are impressions of a general model, not validated against
+  human ratings, and vary between runs and model versions (the model id is stored
+  with every rating).
 - The rubric is for consenting adults' voluntary comparison of facial geometry; the
   disclaimer is part of every result.

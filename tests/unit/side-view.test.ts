@@ -26,16 +26,16 @@ const mirror = (p: SidePoints, width = 1000): SidePoints => Object.fromEntries(O
 const transform = (p: SidePoints, f: (q: { x: number; y: number }) => { x: number; y: number }): SidePoints => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, f(v)])) as SidePoints;
 
 describe("side-view database", () => {
-  it("has 16 measurements: 13 scored, 3 descriptive, every range sourced", () => {
-    expect(SIDE_DEFINITIONS).toHaveLength(16);
+  it("has 19 measurements: 16 scored, 3 descriptive, every range sourced", () => {
+    expect(SIDE_DEFINITIONS).toHaveLength(19);
     const scored = SIDE_DEFINITIONS.filter((d) => d.range && d.weight > 0);
     const descriptive = SIDE_DEFINITIONS.filter((d) => !d.range);
-    expect(scored).toHaveLength(13);
+    expect(scored).toHaveLength(16);
     expect(descriptive).toHaveLength(3);
     for (const d of descriptive) expect(d.weight).toBe(0);
     for (const d of SIDE_DEFINITIONS) {
       expect(d.reference.length, d.id).toBeGreaterThan(10);
-      expect(d.landmarks.length, d.id).toBeGreaterThanOrEqual(3);
+      expect(d.landmarks.length, d.id).toBeGreaterThanOrEqual(2);
       for (const l of d.landmarks) expect(SIDE_LANDMARK_ORDER).toContain(l);
       if (d.source === "guide") expect(d.reference).toMatch(/guide/i);
       if (d.source === "literature") expect(d.reference).toMatch(/\d{4}/); // carries a year
@@ -72,8 +72,45 @@ describe("side-view measurements (hand-computed on the synthetic profile)", () =
     expect(detectFacing(mirror(PROFILE))).toBe("left");
     expect(r.analyzable).toBe(true);
     expect(r.issues).toHaveLength(0);
-    expect(r.scoredCount).toBe(13);
-    expect(r.measurements).toHaveLength(16);
+    expect(r.scoredCount).toBe(16);
+    expect(r.measurements).toHaveLength(19);
+  });
+
+  it("computes the mandibular plane, midface and chin projection by hand (version 2.0)", () => {
+    // MPA: gonion (380,640) → menton (490,700): atan(60/110)
+    expect(value(r, "MPA")).toBeCloseTo((Math.atan2(60, 110) * 180) / Math.PI, 6);
+    // MFP / CHP: anterior offset from the glabella vertical over G–Me height (400 px)
+    expect(value(r, "MFP")).toBeCloseTo(((516 - 500) / 400) * 100, 6);
+    expect(value(r, "CHP")).toBeCloseTo(((514 - 500) / 400) * 100, 6);
+    const m = analyzeSideView(mirror(PROFILE));
+    for (const id of ["MPA", "MFP", "CHP"] as SideMeasurementId[]) expect(value(m, id)).toBeCloseTo(value(r, id), 6);
+  });
+
+  it("accepts incomplete point sets: missing optional points make only their measurements not determinable", () => {
+    const partial: Partial<SidePoints> = { ...PROFILE };
+    delete partial.alar_crease;
+    delete partial.tragion;
+    delete partial.gonion;
+    const p = analyzeSideView(partial, { placement: "automatic" });
+    expect(p.analyzable).toBe(true);
+    expect(p.facing).toBe("right"); // without the tragion: from the nasal tip vs nasion/subnasale
+    expect(p.missingPoints).toEqual(["alar_crease", "gonion", "tragion"]);
+    expect(p.assumptionCodes).toContain("automaticPlacement");
+    const m = (id: SideMeasurementId) => p.measurements.find((x) => x.id === id)!;
+    for (const id of ["GA", "GOODE", "MPA"] as SideMeasurementId[]) {
+      expect(m(id).value).toBeNull();
+      expect(m(id).index).toBeNull();
+      expect(m(id).missingLandmarks!.length).toBeGreaterThan(0);
+    }
+    // everything else equals the complete analysis
+    for (const id of ["FCA", "NLA", "CMA", "ZANG", "LFH", "MFP", "CHP"] as SideMeasurementId[]) expect(m(id).value).toBeCloseTo(value(r, id), 9);
+    expect(p.scoredCount).toBe(13);
+    // the midline is required
+    const noChin: Partial<SidePoints> = { ...partial };
+    delete noChin.pogonion;
+    const bad = analyzeSideView(noChin);
+    expect(bad.analyzable).toBe(false);
+    expect(bad.issues.map((i) => i.code)).toContain("missingCore");
   });
 
   it("matches angles computed by hand", () => {

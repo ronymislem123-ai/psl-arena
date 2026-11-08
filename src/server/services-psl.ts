@@ -3,7 +3,8 @@
  * (frontal + optional profile + optional visual provider), tournament lifecycle.
  */
 import type { AnalysisInput } from "@/engine/types";
-import { rateFace, type RatingResult } from "@/engine/psl/rating";
+import { rateFace, type RatingResult, type VisualStatus } from "@/engine/psl/rating";
+import { VisualModelError } from "@/lib/visual-model/claude";
 import { RUBRIC_VERSION } from "@/engine/psl/rubric";
 import { BUILTIN_SCALE_ID, exportScale, snapshotScale, validateScale, type PslScale, type PslTier, type ScaleExport } from "@/engine/psl/scale";
 import { computeResults, initialState, resolveTiedMatch, step } from "@/engine/tournament/engine";
@@ -93,6 +94,11 @@ export interface CreateRatingArgs {
   useLatestSide?: boolean;
   scaleId?: string;
   minCoverage?: number;
+  /** explicit consent to send the frontal photo to the configured vision model for this rating */
+  visualConsent?: boolean;
+  /** the photo for the vision model when it is not stored (sent only with consent, never stored) */
+  visualImageDataUrl?: string;
+  lang?: "de" | "en";
 }
 
 export async function createRating(userId: string, args: CreateRatingArgs) {
@@ -118,23 +124,33 @@ export async function createRating(userId: string, args: CreateRatingArgs) {
   if (!scale) throw new ServiceError(404, "Scale not found.");
   assertValidScale(scale);
 
-  // optional external visual assessment (never simulated)
+  // optional vision-model assessment of the visual criteria: only with a configured
+  // model AND the user's consent for this rating; never simulated
   let visual = null;
+  let visualStatus: VisualStatus = "notConfigured";
+  let visualError: string | undefined;
   const provider = getVisualProvider();
   if (provider) {
-    const img = imageDataUrl ? decodeDataUrl(imageDataUrl) : analysis.imageId ? readImage(userId, analysis.imageId) : null;
-    if (img) {
-      try {
-        const raw = await provider.assess(img, VISUAL_CRITERIA);
-        visual = visualAssessmentSchema.parse(raw);
-      } catch (e) {
-        console.error("[vision-provider] assessment rejected:", e instanceof Error ? e.message : e);
-        visual = null;
+    if (!args.visualConsent) visualStatus = "noConsent";
+    else {
+      const src = args.visualImageDataUrl ?? imageDataUrl;
+      const img = src ? decodeDataUrl(src) : analysis.imageId ? readImage(userId, analysis.imageId) : null;
+      if (!img) visualStatus = "noImage";
+      else {
+        try {
+          const raw = await provider.assess(img, VISUAL_CRITERIA, { lang: args.lang });
+          visual = visualAssessmentSchema.parse(raw);
+          visualStatus = "used";
+        } catch (e) {
+          visualStatus = "failed";
+          visualError = e instanceof VisualModelError ? e.code : "invalidOutput";
+          console.error("[vision-provider] assessment failed:", e instanceof Error ? e.message : e);
+        }
       }
     }
   }
 
-  const result: RatingResult = rateFace({ frontal: analysis.result, side: side?.result ?? null, visual, scale: snapshotScale(scale), minCoverage: args.minCoverage });
+  const result: RatingResult = rateFace({ frontal: analysis.result, side: side?.result ?? null, visual, visualStatus, visualError, scale: snapshotScale(scale), minCoverage: args.minCoverage });
   return insertRating({ userId, profileId: analysis.profileId, analysisId: analysis.id, sideAnalysisId: side?.id ?? null, scaleId: scale.id, result });
 }
 

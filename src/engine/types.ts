@@ -239,7 +239,9 @@ export type AdditionalMeasurementId =
   | "BYZ_BIG"
   | "EAR_ANGLE"
   | "NOSE_CHIN"
-  | "EML";
+  | "EML"
+  | "MRD1"
+  | "SSI";
 
 /** Scoring categories used for category indices and battle rounds. */
 export type CategoryId =
@@ -365,7 +367,7 @@ export interface RatioResult {
   excludedFromScore?: boolean;
 }
 
-export type AdditionalNoteCode = "requiresProfile" | "requiresProfileSeeGS" | "fingerRule" | "fifths" | "byzBig" | "noEarLandmarks" | "noseChin" | "eyeMouthLength" | "hairlineMissing" | "landmarksMissing";
+export type AdditionalNoteCode = "eyelid" | "requiresProfile" | "requiresProfileSeeGS" | "fingerRule" | "fifths" | "byzBig" | "noEarLandmarks" | "noseChin" | "eyeMouthLength" | "hairlineMissing" | "landmarksMissing";
 
 export interface AdditionalMeasurementResult {
   id: AdditionalMeasurementId;

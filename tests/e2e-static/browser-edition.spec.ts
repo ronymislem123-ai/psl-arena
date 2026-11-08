@@ -231,3 +231,44 @@ test("German browser with page translation: battle setup does not crash", async 
   expect(errors.filter((e) => !/dom-guard/.test(e))).toEqual([]);
   await ctx.close();
 });
+
+test("browser edition: automatic side view runs locally; vision model needs the user's own key and consent", async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors = collectErrors(page);
+  const external: string[] = [];
+  page.on("request", (r) => {
+    const u = new URL(r.url());
+    if (!["127.0.0.1", "localhost"].includes(u.hostname)) external.push(u.hostname);
+  });
+  await page.goto("side-view/new/");
+  await expect(page.getByTestId("side-upload")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "profile-scan-left.jpg"));
+  await expect(page.getByTestId("side-auto")).toHaveAttribute("data-state", "ok", { timeout: 180_000 });
+  await expect(page.getByText("Facing: left")).toBeVisible();
+  await expect(page.getByTestId("side-preview")).toHaveAttribute("data-state", "analyzable");
+  await page.getByTestId("side-label").fill("Static Profile");
+  const boxes = page.locator('input[type="checkbox"]');
+  for (let i = 0; i < (await boxes.count()); i++) await boxes.nth(i).check();
+  await page.getByTestId("side-save").click();
+  await page.waitForURL(/side-view\/view\/\?id=side_/, { timeout: 60_000 });
+  await expect(page.getByTestId("side-row-FCA")).toContainText("°");
+  await shot(page, "s10-side-auto-result");
+
+  // the vision model is off until the user enters a key (stored only in this browser)
+  await page.goto("settings/");
+  await expect(page.getByTestId("vision-model-card")).toHaveAttribute("data-configured", "false");
+  await page.getByTestId("vision-key").fill("sk-ant-test-key");
+  await page.getByTestId("vision-save").click();
+  await expect(page.getByTestId("vision-model-card")).toHaveAttribute("data-configured", "true");
+  expect(await page.evaluate(() => localStorage.getItem("psl-arena.visionModel"))).toContain("sk-ant-test-key");
+  await shot(page, "s11-vision-settings");
+  await page.goto("rater/");
+  await expect(page.getByTestId("rater-vision")).toHaveAttribute("data-configured", "true");
+  await expect(page.getByTestId("rater-vision").locator('input[type="checkbox"]')).not.toBeChecked(); // consent is opt-in
+  await page.goto("settings/");
+  await page.getByTestId("vision-remove").click();
+  await expect(page.getByTestId("vision-model-card")).toHaveAttribute("data-configured", "false");
+  // nothing was sent anywhere: all requests stayed on this origin
+  expect(external).toEqual([]);
+  expect(errors).toEqual([]);
+});

@@ -18,7 +18,7 @@
  */
 import { RATIO_BY_ID } from "../ratios/database";
 import type { AdditionalMeasurementResult, RatioResult, SymmetryResult } from "../types";
-import { AGGREGATION_P, CATEGORY_WEIGHTS, CRITERIA, EYE_MOUTH_LENGTH, measureReliability, RUBRIC_AREAS, DERIVED_TOLERANCE, type CriterionDefinition, type CriterionId, type RubricArea } from "../psl/rubric";
+import { AGGREGATION_P, CATEGORY_WEIGHTS, CRITERIA, EYE_MOUTH_LENGTH, EYELID_RANGES, measureReliability, RUBRIC_AREAS, DERIVED_TOLERANCE, type CriterionDefinition, type CriterionId, type RubricArea } from "../psl/rubric";
 import { plateauIndex } from "./measurement";
 
 export type MeasureSource = "frontal" | "profile" | "visual";
@@ -52,12 +52,17 @@ export function measureKeys(def: CriterionDefinition): string[] {
 export function additionalIndex(id: string, value: number): number | null {
   if (id === "FIFTHS") return plateauIndex(value, { min: null, max: 0 }, DERIVED_TOLERANCE.fifthsPp);
   if (id === "EML") return plateauIndex(value, { min: EYE_MOUTH_LENGTH.min, max: EYE_MOUTH_LENGTH.max }, EYE_MOUTH_LENGTH.s);
+  if (id === "MRD1") return plateauIndex(value, EYELID_RANGES.MRD1.range, EYELID_RANGES.MRD1.s);
+  if (id === "SSI") return plateauIndex(value, EYELID_RANGES.SSI.range, EYELID_RANGES.SSI.s);
   return null;
 }
 
 const ADDITIONAL_RELIABILITY: Record<string, number> = {
   FIFTHS: measureReliability(["zygion_R", "zygion_L"]),
   EML: measureReliability(["trichion"]),
+  // lid margins of the mesh: moderate agreement with manual annotation; weighted like the soft-tissue contour points
+  MRD1: 0.6,
+  SSI: 0.6,
 };
 
 /** Frontal measure map from an analysis' parts (point estimates). */
