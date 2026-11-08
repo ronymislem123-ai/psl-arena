@@ -173,3 +173,61 @@ test("browser edition on a phone: navigation, German texts, offline reload", asy
   expect(errors.filter((e) => !e.includes("net::ERR_INTERNET_DISCONNECTED"))).toEqual([]);
   await ctx.close();
 });
+
+/**
+ * Regression for the battle-page crash reported on 2026-11-08: browsers translated
+ * the (English) app into German, rewriting text nodes behind React's back, and the
+ * next update threw "Failed to execute 'removeChild' on 'Node'". The page now opens
+ * in German for a German browser, is marked as not translatable, and survives a
+ * forced translation (simulated here like Chrome's: every text node wrapped in <font>).
+ */
+test("German browser with page translation: battle setup does not crash", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "de-DE" });
+  await ctx.addInitScript(() => {
+    const translate = (root: Node) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const nodes: Text[] = [];
+      while (walker.nextNode()) {
+        const n = walker.currentNode as Text;
+        if (n.nodeValue?.trim() && !n.parentElement?.closest("script,style,font")) nodes.push(n);
+      }
+      for (const n of nodes) {
+        const outer = document.createElement("font");
+        const inner = document.createElement("font");
+        inner.textContent = n.nodeValue;
+        outer.appendChild(inner);
+        n.parentNode?.replaceChild(outer, n);
+      }
+    };
+    window.addEventListener("load", () =>
+      setTimeout(() => {
+        translate(document.body);
+        new MutationObserver((ms) => {
+          for (const m of ms) for (const a of Array.from(m.addedNodes)) translate(a.nodeType === Node.TEXT_NODE ? (a.parentNode ?? a) : a);
+        }).observe(document.body, { childList: true, subtree: true });
+      }, 1000),
+    );
+  });
+  const page = await ctx.newPage();
+  const errors = collectErrors(page);
+  await page.goto("battle/new/");
+  await expect(page.locator("html")).toHaveAttribute("translate", "no");
+  await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await page.waitForTimeout(1500); // let the simulated translation run
+  const inputs = page.locator('input[type="file"]');
+  await inputs.nth(0).setInputFiles(join(FIX, "portrait-a.jpg"));
+  await inputs.nth(1).setInputFiles(join(FIX, "portrait-b.jpg"));
+  await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+  await expect(page.getByTestId("slot-b")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+  const boxes = page.locator('input[type="checkbox"]');
+  for (let i = 0; i < (await boxes.count()); i++) await boxes.nth(i).check();
+  await expect(page.getByTestId("page-error")).toHaveCount(0);
+  await page.getByTestId("start-battle").click();
+  await page.waitForURL(/\/battle\/view\/?\?id=btl_/, { timeout: 120_000 });
+  await expect(page.getByTestId("page-error")).toHaveCount(0);
+  await shot(page, "s20-translated-battle");
+  expect(errors.filter((e) => !/dom-guard/.test(e))).toEqual([]);
+  await ctx.close();
+});

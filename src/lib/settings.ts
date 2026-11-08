@@ -32,5 +32,17 @@ export const useSettings = create<SettingsState>()(
 
 /** Rehydrate persisted settings after mount to avoid server/client markup mismatches. */
 export function rehydrateSettings() {
-  void useSettings.persist.rehydrate();
+  let firstVisit = false;
+  try {
+    firstVisit = localStorage.getItem("psl-arena-settings") === null;
+  } catch {
+    /* storage blocked: keep the default */
+  }
+  void Promise.resolve(useSettings.persist.rehydrate()).then(() => {
+    // first visit: follow the browser language, so a German browser gets the app's own
+    // German texts instead of offering to machine-translate the page (which breaks React)
+    if (firstVisit && typeof navigator !== "undefined" && (navigator.languages?.[0] ?? navigator.language ?? "").toLowerCase().startsWith("de")) {
+      useSettings.getState().set({ language: "de" });
+    }
+  });
 }

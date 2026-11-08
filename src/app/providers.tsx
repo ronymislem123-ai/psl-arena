@@ -1,4 +1,5 @@
 "use client";
+import "@/lib/dom-guard";
 import type { ReactNode } from "react";
 import { I18nProvider } from "@/lib/i18n";
 import { AppShell, type ShellUser } from "@/components/layout/app-shell";

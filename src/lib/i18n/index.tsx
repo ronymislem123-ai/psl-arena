@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode, useEffect } from "react";
 import { useSettings } from "@/lib/settings";
 import { de } from "./de";
 import { en, type Dict } from "./en";
@@ -39,6 +39,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       return s;
     };
     return { t, lang, dict };
+  }, [lang]);
+  // keep <html lang> in sync so browsers do not take a German page for an English one
+  useEffect(() => {
+    document.documentElement.lang = lang;
   }, [lang]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

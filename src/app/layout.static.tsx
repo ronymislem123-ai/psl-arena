@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: BRAND.name },
   icons: { icon: `${BASE}/icon.svg`, apple: `${BASE}/icons/apple-touch-icon.png` },
   formatDetection: { telephone: false },
+  // the app ships its own German translation; browser page translation breaks React (see lib/dom-guard.ts)
+  other: { google: "notranslate" },
   robots: { index: false, follow: false },
 };
 
@@ -25,7 +27,7 @@ export const viewport: Viewport = { themeColor: "#07080a", width: "device-width"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" translate="no" className="notranslate" suppressHydrationWarning>
       <body>
         <Providers user={null}>{children}</Providers>
         <RegisterServiceWorker />
