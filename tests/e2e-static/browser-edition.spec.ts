@@ -266,7 +266,10 @@ test("browser edition: no side view any more; vision model needs the user's own 
   // rubric 3.0: front profile only — the side view is gone from navigation and routes
   await page.goto("./");
   await expect(page.locator('a[href*="side-view"]')).toHaveCount(0);
-  expect((await page.request.get("side-view/new/")).status()).toBe(404);
+  // navigate in the browser (works against the deployed site too): the old route is a "not found" page
+  await page.goto("side-view/new/");
+  await expect(page.getByTestId("local-not-found")).toBeVisible();
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
 
   // the vision model is off until the user enters a key (stored only in this browser)
   await page.goto("settings/");
