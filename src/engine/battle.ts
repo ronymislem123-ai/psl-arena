@@ -26,6 +26,12 @@ function decide(a: number | null, b: number | null, m: number): RoundWinner {
   return d > 0 ? "B" : "A";
 }
 
+/** |B − A| of the scores as displayed (one decimal), so the text matches the numbers shown. */
+export function shownDiff(a: number | null, b: number | null): number {
+  if (a == null || b == null) return 0;
+  return Math.abs(Number(b.toFixed(1)) - Number(a.toFixed(1)));
+}
+
 export function resolveBattle(A: AnalysisResult, B: AnalysisResult): BattleResult {
   const rounds: BattleRound[] = [];
 
@@ -82,15 +88,16 @@ export function resolveBattle(A: AnalysisResult, B: AnalysisResult): BattleResul
     verdictCode = "lowConfidence";
     reason = "Measurement confidence is too low for a conclusive result (image quality, pose or expression).";
   } else if (Math.abs(diff as number) <= mOverall) {
+    // shown difference = difference of the shown (one-decimal) scores, so that "54.6 : 65.9" reads "11.3"
     verdict = "draw";
     verdictCode = "draw";
-    verdictParams = { diff: Math.abs(diff as number), margin: mOverall };
-    reason = `The overall difference (${Math.abs(diff as number).toFixed(1)} points) lies within the measurement uncertainty (±${mOverall.toFixed(1)}).`;
+    verdictParams = { diff: shownDiff(A.scores.overall, B.scores.overall), margin: mOverall };
+    reason = `The overall difference (${shownDiff(A.scores.overall, B.scores.overall).toFixed(1)} points) lies within the measurement uncertainty (±${mOverall.toFixed(1)}).`;
   } else {
     verdict = (diff as number) > 0 ? "B" : "A";
     verdictCode = "winner";
-    verdictParams = { diff: Math.abs(diff as number), margin: mOverall };
-    reason = `Overall difference of ${Math.abs(diff as number).toFixed(1)} points exceeds the uncertainty margin of ±${mOverall.toFixed(1)}.`;
+    verdictParams = { diff: shownDiff(A.scores.overall, B.scores.overall), margin: mOverall };
+    reason = `Overall difference of ${shownDiff(A.scores.overall, B.scores.overall).toFixed(1)} points exceeds the uncertainty margin of ±${mOverall.toFixed(1)}.`;
   }
 
   // key differences by harmony index delta among ratios available on both sides

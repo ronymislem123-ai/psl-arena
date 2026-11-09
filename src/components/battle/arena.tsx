@@ -205,7 +205,7 @@ function RoundCenter({ round, index }: { round: BattleRound; index: number }) {
         <span className={cn("font-display text-3xl md:text-5xl font-bold num", round.winner === "B" ? "text-mint text-glow" : "text-[#c4b5fd]")}>{vb == null ? "—" : vb.toFixed(0)}</span>
       </div>
       <div className="mt-2 font-mono text-[10px] text-fg-3">
-        ±{round.margin.toFixed(1)} {round.winner === "draw" ? `· ${t("battle.draw")}` : round.winner === "n/a" ? "· n/a" : ""}
+        ±{round.margin.toFixed(1)} {round.winner === "draw" ? `· ${t("battle.draw")}` : round.winner === "n/a" ? `· ${t("score.na")}` : ""}
       </div>
     </motion.div>
   );
@@ -240,7 +240,7 @@ function MiniRound({ r, index, labelA, labelB }: { r: BattleRound; index: number
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium truncate">{battleRoundLabel(r, lang)}</div>
         <div className="text-[10px] text-fg-3 truncate">
-          {r.winner === "A" ? labelA : r.winner === "B" ? labelB : r.winner === "draw" ? t("battle.draw") : "n/a"} · ±{r.margin.toFixed(1)}
+          {r.winner === "A" ? labelA : r.winner === "B" ? labelB : r.winner === "draw" ? t("battle.draw") : t("score.na")} · ±{r.margin.toFixed(1)}
         </div>
       </div>
       <div className="font-mono text-xs num">

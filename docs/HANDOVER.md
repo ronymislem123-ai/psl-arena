@@ -105,3 +105,14 @@ Offene Punkte: Validierung der automatischen Profilpunkte an echten, expertenann
 - **Messwerte aus dem Foto** (`src/engine/appearance.ts`): Oberlid-Anteil, Oberlid-Scheitel, Amorbogen-Tiefe, Lippenrot-Fülle (Mesh); Kieferkanten-Kontrast, Jochbein-Licht/Schatten (Pixel, im Browser gemessen, nur Zahlen gesendet). Angezeigt je Kriterium und im Detaildialog, **nicht bewertet** (keine Referenzbereiche). Siehe `docs/RUBRIC.md` → „Free alternatives“.
 - Tests: `tests/unit/appearance.test.ts` (synthetische Bilder: scharfe vs. weiche Kante, beleuchtete vs. flache Wangen; Gewichtung, Vorrang, Schema), E2E „rater: self-assessment …“ in `tests/e2e/psl.spec.ts`.
 - Offen: Die Bildmaße sind nicht gegen Expertenurteile validiert; Zielbereiche bewusst nicht vergeben.
+
+## 9. Gesamtprüfung Bewertungen & Analysen (2026-11-09)
+
+Drei unabhängige Prüfungen (Messlogik, Punktplatzierung auf Fotos, deutsche Oberfläche, Live-Version) und Behebung:
+
+- **Haare vor der Stirn:** frontal wird ein geschätzter Haaransatz mit oberem Drittel < ≈ 23 % (Referenz 31 % − 3 SD) verworfen (`src/engine/hairline-check.ts`, Warnung `hairlineCovered`, Kriterien „Haaransatz von Haaren verdeckt“; Button „Verdeckt – nicht verwenden“); im Profil sind Haare (Segmentierungsklasse) nie Nasenspitze oder Glabella, die Glabella ist optional (`hairOverForehead`).
+- **Geneigter Kopf im Profil:** Warnung `headTilted`, wenn die Glabella–Subnasale-Linie > 8° von ≈ 5° abweicht.
+- **Engine 2.1.0 / Rubrik 2.2.0:** stetiger Zygion (Parabel statt Argmax), GS nur angezeigt (41 Kriterien), MC-Stichproben zentriert, Mimik begrenzt die Zuverlässigkeit, Sklera-Show keine „Stärke“, Idealgesicht neu berechnet.
+- **Rater:** Ein während der Wiederherstellung gewähltes Foto wurde überschrieben (Generationszähler in `battle-store.ts`).
+- **Oberfläche:** Frontal-Index statt „PSL-Style-Score“ (mit PSL-Umrechnung und Hinweis), Engine-1.x-Kennzahlen eingeklappt, nicht bewertete Verhältnisse nicht mehr als Abweichung, lesbare Messgrößen statt Rohschlüsseln, deutsche Overlay-/Regionstexte, Spaltenkopf „Quelle“, Methoden deutsch, keine Repository-Pfade/internen Formulierungen, Vergleich/Battle/Turnier/Seitenansicht-Texte und Zahlen korrigiert, σ/λ in Großbuchstaben-Köpfen, Telefon-Layout bei 320 px.
+- Offene Punkte: `docs/OPEN_ITEMS.md` → „Audit 2026-11-09“.

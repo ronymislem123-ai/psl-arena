@@ -84,7 +84,7 @@ describe("ratings", () => {
     expect(r1.scaleName).toBe("PSL Standard");
     expect(r1.result.coverage).toBeGreaterThan(0.7);
     expect(r1.result.coverage).toBeLessThan(0.9);
-    expect(r1.result.rubricVersion).toBe("2.1.0");
+    expect(r1.result.rubricVersion).toBe("2.2.0");
     expect(r1.valid).toBe(true);
     expect(r1.tierName).toBeTruthy();
     const side = services.createSideAnalysis(userId, { profileId, storeImage: false, imageWidth: 1000, imageHeight: 1000, points: PROFILE });

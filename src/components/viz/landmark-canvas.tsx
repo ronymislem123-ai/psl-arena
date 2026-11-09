@@ -59,7 +59,7 @@ const C = {
 
 export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMesh, scanning, edit, highlight, className, compact, onSelect, selectedId }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const { lang } = useT();
+  const { t, lang } = useT();
   const [hover, setHover] = useState<SemanticLandmarkId | null>(null);
   const [drag, setDrag] = useState(false);
   const [dragId, setDragId] = useState<SemanticLandmarkId | null>(null);
@@ -173,7 +173,7 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
             {line(P("pupil_L"), P("brow_lower_mid_L"), C.dim, "2 3", 1, "pl")}
             {label(P("brow_lateral_R"), value("ET"), C.cyan, -0.3, -0.8, "l1", "end")}
             {label(P("brow_lateral_L"), value("EBL"), C.cyan, 0.3, -0.8, "l2")}
-            {label(P("brow_line"), "brow line", C.amber, 0, -0.5, "l3", "middle")}
+            {label(P("brow_line"), t("analysis.overlay.browLine"), C.amber, 0, -0.5, "l3", "middle")}
           </>
         );
       case "midface":
@@ -259,7 +259,7 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
             {label(P("trichion") ? { x: P("trichion")!.x + ux * faceHalf, y: P("trichion")!.y + uy * faceHalf } : undefined, value("FT_U"), C.amber, 0.3, 2.2, "l1")}
             {label(P("glabella") ? { x: P("glabella")!.x + ux * faceHalf, y: P("glabella")!.y + uy * faceHalf } : undefined, value("FT_M"), C.amber, 0.3, 2.2, "l2")}
             {label(P("subnasale") ? { x: P("subnasale")!.x + ux * faceHalf, y: P("subnasale")!.y + uy * faceHalf } : undefined, value("FT_L"), C.amber, 0.3, 2.2, "l3")}
-            {!P("trichion") && label(P("forehead_top"), "hairline missing", C.rose, 0, -1.4, "l4", "middle")}
+            {!P("trichion") && label(P("forehead_top"), t("analysis.overlay.hairlineMissing"), C.rose, 0, -1.4, "l4", "middle")}
           </>
         );
       case "ratios":
@@ -306,10 +306,10 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
             {vline(midRaw, faceHalf * 1.9, C.cyan, "7 4", "v")}
             {label(down(midRaw, faceHalf * 1.95), "V", C.cyan, 0, 0.9, "vl", "middle")}
             {tri && hline(tri, faceHalf * 0.9, C.amber, "4 4", "t")}
-            {tri && label({ x: tri.x + ux * faceHalf * 0.92, y: tri.y + uy * faceHalf * 0.92 }, "trichion", C.amber, 0.3, 0.35, "tl")}
+            {tri && label({ x: tri.x + ux * faceHalf * 0.92, y: tri.y + uy * faceHalf * 0.92 }, t("analysis.overlay.hairline"), C.amber, 0.3, 0.35, "tl")}
             {tip && dir && line(tip, dir, C.mint, undefined, 2, "dir")}
             {dir && <circle cx={dir.x} cy={dir.y} r={dot * 1.4} fill={C.mint} />}
-            {label(down(P("menton"), faceHalf * 0.15), `yaw ${pose.yaw.toFixed(1)}° · pitch ${pose.pitch.toFixed(1)}° · roll ${((roll * 180) / Math.PI).toFixed(1)}° · ${method === "3d" ? "3D pose correction" : "2D roll correction"}`, C.white, 0, 1.4, "pose", "middle")}
+            {label(down(P("menton"), faceHalf * 0.15), t("analysis.overlay.pose", { yaw: pose.yaw.toFixed(1), pitch: pose.pitch.toFixed(1), roll: ((roll * 180) / Math.PI).toFixed(1), method: t(method === "3d" ? "analysis.overlay.pose3d" : "analysis.overlay.pose2d") }), C.white, 0, 1.4, "pose", "middle")}
           </g>
         );
       }
@@ -338,7 +338,7 @@ export function LandmarkCanvas({ imageSrc, width, height, result, layer, showMes
               const m = { x: midRaw.x - along * ux - across * uy, y: midRaw.y - along * uy + across * ux };
               return <circle key={`m${i}`} cx={m.x} cy={m.y} r={dot * 1.1} fill="none" stroke={C.rose} strokeWidth={1} vectorEffect="non-scaling-stroke" />;
             })}
-            {label(P("menton"), `symmetry ${result.symmetry.score?.toFixed(0) ?? "—"}`, C.cyan, 0, 1.8, "l1", "middle")}
+            {label(P("menton"), t("analysis.overlay.symmetry", { v: result.symmetry.score?.toFixed(0) ?? "—" }), C.cyan, 0, 1.8, "l1", "middle")}
           </>
         );
       }

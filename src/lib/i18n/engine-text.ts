@@ -46,6 +46,7 @@ const ISSUE_DE: Record<NonNullable<QualityIssue["key"]>, (p: Record<string, numb
   "expression.mild": () => "Leichter Gesichtsausdruck erkannt; ein neutraler Ausdruck verbessert die Genauigkeit.",
   faceCutOff: () => "Das Gesicht berührt den Bildrand; Haaransatz oder Kinn könnten abgeschnitten sein.",
   multipleFaces: (p) => `${p.n} Gesichter erkannt; das ausgewählte Gesicht wird analysiert.`,
+  hairlineCovered: (p) => `Haare scheinen die Stirn zu verdecken (der sichtbare Übergang ergibt ein oberes Drittel von nur ${p.share} %). Haaransatz-basierte Verhältnisse werden nicht ausgewertet; den Haaransatz nur dann manuell setzen, wenn er sichtbar ist.`,
   hairlineNotFound: () => "Der Haaransatz konnte nicht geschätzt werden. Bitte manuell setzen, um Haaransatz-basierte Verhältnisse (Drittel, TFWHR, LFF, FWHF) zu aktivieren.",
   selfie: () => "Nahaufnahme-Perspektive (Selfie) vergrößert die Nase und verschmälert das Gesicht; tiefenabhängige Verhältnisse haben reduzierte Konfidenz.",
 };
@@ -77,7 +78,7 @@ export function unavailableText(r: RatioResult, lang: Lang): string {
   if (lang !== "de" || !r.unavailableCode) return fallback;
   switch (r.unavailableCode) {
     case "incomplete":
-      return "Die Messkonvention ist im bereitgestellten Material unvollständig; nicht gemessen und nicht bewertet.";
+      return "Die Messkonvention ist in der Quelle (Community-Leitfaden) unvollständig; nicht gemessen und nicht bewertet.";
     case "hairline":
       return "Haaransatz (Trichion) nicht verfügbar – Schätzung fehlgeschlagen oder nicht bestätigt; manuell setzen, um dieses Verhältnis zu aktivieren.";
     case "neck":
@@ -97,7 +98,7 @@ export function tierText(r: RatioResult, lang: Lang): string {
     case "inT1":
       return "Innerhalb des T1-Zielbereichs (+10 Punkte).";
     case "outsideUndetermined":
-      return "Außerhalb des T1-Bereichs. T2–T5-Grenzen sind im bereitgestellten Material nicht definiert, daher werden keine Stufenpunkte vergeben (unbestimmte Stufe).";
+      return "Außerhalb des T1-Bereichs. T2–T5-Grenzen sind in der Quelle (Community-Leitfaden) nicht definiert, daher werden keine Stufenpunkte vergeben (unbestimmte Stufe).";
     case "verifiedTier":
       return `Außerhalb T1 um ${formatValue(Math.abs(r.deviation ?? 0), RATIO_BY_ID[r.id].unit)}; Stufe ${r.tier} (${r.tierPoints} Punkte) aus verifizierten Grenzen.`;
     case "notScoredIncomplete":
@@ -146,8 +147,8 @@ export function localizedExplanation(r: RatioResult, landmarks: SemanticLandmark
     index:
       r.index != null
         ? de
-          ? `Harmonie-Index ${r.index.toFixed(0)}/100: 100 innerhalb T1, halbiert sich je Toleranzeinheit (${formatValue(def.tolerance, def.unit)}) außerhalb.`
-          : `Harmony index ${r.index.toFixed(0)}/100: 100 inside T1, halving for every tolerance unit (${formatValue(def.tolerance, def.unit)}) outside.`
+          ? `Harmonie-Index ${r.index.toFixed(0)}/100: 100 innerhalb T1; außerhalb ein Gauß-Abfall in Einheiten der natürlichen Streuung (${formatValue(def.tolerance, def.unit)}): 61 bei einer Einheit, 14 bei zwei – gemittelt über die Messunsicherheit des Werts.`
+          : `Harmony index ${r.index.toFixed(0)}/100: 100 inside T1; outside, a Gaussian fall-off in units of the natural spread (${formatValue(def.tolerance, def.unit)}): 61 at one unit, 14 at two — averaged over the measurement uncertainty of the value.`
         : de
           ? "Kein Index (nicht auswertbar)."
           : "No index (not evaluable).",
@@ -162,7 +163,7 @@ export function sourceText(lang: Lang): string {
 
 // ---------------------------------------------------------------- features
 const FEATURE_LABEL_DE: Record<string, string> = {
-  canthalTilt: "Canthal Tilt", eyeSpacing: "Augenabstand", eyeShape: "Augenform (geometrisch)", eyeSymmetry: "Augensymmetrie", eyeAspectRatio: "Augen-Seitenverhältnis",
+  canthalTilt: "Kanthale Neigung", eyeSpacing: "Augenabstand", eyeShape: "Augenform (geometrisch)", eyeSymmetry: "Augensymmetrie", eyeAspectRatio: "Augen-Seitenverhältnis",
   browPosition: "Brauenposition", browToEye: "Abstand Braue–Auge", browDensity: "Brauendichte", browShape: "Brauenform (Bogen)", browTilt: "Augenbrauen-Tilt",
   midfaceLength: "Mittelgesichtslänge", midfaceRatio: "Mittelgesichts-Verhältnis", zygomaticWidth: "Jochbeinbreite", cheekboneDefinition: "Sichtbare Wangenknochendefinition", highCheekbones: "Wangenknochenposition (Höhe)", midfaceHarmony: "Mittelgesichtsharmonie", facialWidth: "Gesichts-Breiten-Höhen-Verhältnis",
   jawlineDefinition: "Kieferliniendefinition", jawWidth: "Kieferbreite (bigonial / bizygomatisch)", bigonialWidth: "Bigoniale Breite", gonialAngle: "Gonialwinkel (nur Frontalprojektion)", jawAngularity: "Kieferwinkligkeit (frontal)", jawlineSymmetry: "Kieferliniensymmetrie", chinProjection: "Kinnprojektion", chinWidth: "Kinnbreite (Mund/Kinn)", chinPhiltrum: "Kinn-zu-Philtrum-Verhältnis", lowerThirdProportions: "Proportion des unteren Drittels", mandibularDefinition: "Sichtbare Unterkieferdefinition",
@@ -185,7 +186,7 @@ export function featureLabel(f: FeatureObservation, lang: Lang): string {
 
 const FEATURE_NOTE_DE: Record<NonNullable<FeatureObservation["noteCode"]>, string> = {
   aspectOnly: "Formbeschreibung nur aus dem Seitenverhältnis abgeleitet.",
-  noReference: "Rohmessung; kein Referenzbereich im Material.",
+  noReference: "Rohmessung; kein Referenzbereich in der Quelle.",
   softTissueZygion: "Verwendet die Weichteil-Zygion-Höhe.",
   constructedGonions: "Konstruierte Gonien.",
   needsProfile: "Der echte Gonialwinkel benötigt ein Profilfoto.",
@@ -253,7 +254,7 @@ export function featureSummary(f: FeatureObservation, lang: Lang, symmetryMetric
 
 // ---------------------------------------------------------------- symmetry
 const SYM_LABEL_DE: Record<string, string> = {
-  eyeHeight: "Augenöffnung (R vs L)", pfl: "Lidspaltenlänge (R vs L)", canthalTilt: "Canthal Tilt (R vs L)", canthusHeight: "Höhe medialer Augenwinkel", browHeight: "Höhe Brauenscheitel", browTilt: "Brauen-Tilt (R vs L)",
+  eyeHeight: "Augenöffnung (R vs L)", pfl: "Lidspaltenlänge (R vs L)", canthalTilt: "Kanthale Neigung (R vs L)", canthusHeight: "Höhe medialer Augenwinkel", browHeight: "Höhe Brauenscheitel", browTilt: "Brauenneigung (R vs L)",
   mouthCornerHeight: "Höhe Mundwinkel", mouthCornerWidth: "Mundwinkelabstand zur Mittellinie", noseTip: "Abweichung Nasenspitze von der Mittellinie", alar: "Flügelbasis-Abstand zur Mittellinie", chin: "Kinnabweichung von der Mittellinie", gonionWidth: "Gonion-Abstand zur Mittellinie", gonionHeight: "Gonion-Höhe", zygion: "Wangenbreite zur Mittellinie",
 };
 
@@ -284,6 +285,10 @@ export function warningTexts(r: AnalysisResult, lang: Lang): string[] {
         return `${p.n} auswertbare Verhältnis(se) haben geringe Konfidenz.`;
       case "noHairline":
         return "Haaransatz nicht verfügbar: Drittel, TFWHR, LFF und FWHF werden nicht ausgewertet.";
+      case "hairlineCovered":
+        return `Haaransatz von Haaren verdeckt: Der sichtbare Übergang ergibt ein oberes Drittel von nur ${p.share} % (natürlicher Bereich ab etwa 23 %); Drittel, Stirn, TFWHR, LFF und Augen–Mund-Länge werden nicht ausgewertet.`;
+      case "hairlineLow":
+        return `Der gesetzte Haaransatz ergibt ein oberes Drittel von nur ${p.share} % – prüfen, ob Haare die Stirn verdecken.`;
       case "corrected":
         return `Manuell korrigiert: ${p.n} Landmark(s)${p.axis ? `, Referenzachse ${p.axis > 0 ? "+" : ""}${Number(p.axis).toFixed(1).replace(".", ",")}°` : ""}. Die Ergebnisse hängen von der manuellen Platzierung ab.`;
       case "smile":

@@ -49,5 +49,17 @@
 * **Noise model from two faces only**; between-photo variation of the same person is not covered.
 * **Ideal example is not photorealistic**; the re-detection residual stays ≈ 4 % IPD.
 * **No population calibration**: PSL = index ÷ 10 is a conformity score, not a percentile.
-* **Reference ranges** that every test face misses on the same side are excluded (JWHR, ET, DEV CT/ET, ICD/N); more faces could reveal further mismatches or re-admit them with corrected constructions.
+* **Reference ranges** that every test face misses on the same side are excluded (JWHR, ET, DEV CT/ET, ICD/N, GS); more faces could reveal further mismatches or re-admit them with corrected constructions.
 * **Battle page "crash" (user report, 2026-11-08) — fixed.** Cause: browsers (Chrome, Edge) machine-translated the English UI into German, replacing text nodes behind React's back; the next update (photo added, box ticked) threw "Failed to execute 'removeChild' on 'Node'" and the page fell over (reproduced with a simulated translation). Fix: `<html translate="no" class="notranslate">` + `<meta name="google" content="notranslate">`, German UI by default for German browsers on the first visit, `<html lang>` kept in sync with the app language, and `lib/dom-guard.ts` so that a forced translation or a DOM-rewriting extension can no longer crash React. Regression test in `tests/e2e-static/browser-edition.spec.ts`. Earlier mitigations stay (serialised photo preparation, crash-safe setup, error boundary). Still open: decoding very large photos (24–48 MP) at reduced size directly.
+
+## Audit 2026-11-09 — open after the fixes
+
+* **Eyelid millimetres may be biased low.** MRD1 + MRD2 (total lid opening) comes out at 5.0–8.6 mm on the test faces against a clinical ≈ 9–10 mm, and iris diameter / IPD is 0.190–0.197 instead of ≈ 0.186. MRD1 is therefore penalised on most faces. Needs validation against measured eyelids before the eyelid ranges can be trusted.
+* **Alar width (mesh 48/278) may be too wide on real photos.** Nose-to-face width is 29–31 % on all real test photos (range 24–26 %), nose height-to-width below range on all faces. Check the alar landmark choice against anthropometric alar width before changing ranges.
+* **Steep criteria vs. landmark noise.** A 1–3 px landmark difference (mirror, rotation, downscale) moves single criteria by 0.5–2.9 points (lip proportions, canthal tilt, MRD1, lip–chin height); the overall score moves ≤ 0.2. The Monte-Carlo σ covers this, but single criterion scores should be read with their σ.
+* **Partial criteria.** A criterion is scored from the inputs that remain (e.g. face shape from DEV_BIT_BIG alone when the hairline is cut off) — no penalty for the missing inputs.
+* **Brow apex** (mesh 63/105/66, argmax) jumps on flat brows; only a descriptive label and one vertical symmetry metric depend on it.
+* **Hairline on grey/white hair** can stop at the start of a soft skin-to-hair fade (too low, too favourable forehead and face-shape values).
+* **Mentocervical angle.** Sources differ on which side of the intersection of G–Pg and Me–C the 80–95° norm refers to; the implementation keeps the angle between the facial ray G→Pg and the submental ray Me→C.
+* **Decimal separator.** Numbers are shown with a decimal point in both languages; German prose texts partly use commas. A full switch to German decimal commas needs a central number formatter for all ~90 numeric outputs.
+* **Head posture in profile photos** is not corrected automatically (natural head position is unknown); the app warns (`headTilted`) and offers the manual reference axis.

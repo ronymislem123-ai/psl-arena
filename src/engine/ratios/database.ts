@@ -126,7 +126,7 @@ export const RATIO_DEFINITIONS: RatioDefinition[] = [
     landmarks: ["pupil_R", "pupil_L", "brow_lower_mid_R", "brow_lower_mid_L", "palpebrale_sup_R", "palpebrale_inf_R", "palpebrale_sup_L", "palpebrale_inf_L"],
     t1: { min: 90, max: 98 }, status: "incomplete",
     methodology: "Not measured: the literal formula in the text does not reproduce the stated target range, so the exact convention requires the visual template.",
-    limitations: ["Measurement convention incomplete in the provided material; not scored."],
+    limitations: ["Measurement convention incomplete in the source (community guide); not scored."],
     sensitivity: { expression: ["brows", "eyes"] },
   }),
   def({
@@ -153,7 +153,7 @@ export const RATIO_DEFINITIONS: RatioDefinition[] = [
     landmarks: ["alare_R", "alare_L"],
     t1: { min: 85, max: 95 }, status: "incomplete",
     methodology: "Not measured: the angle construction is only defined by the visual template.",
-    limitations: ["Angle construction incomplete in the provided material; not scored."],
+    limitations: ["Angle construction incomplete in the source (community guide); not scored."],
   }),
   def({
     id: "JFA", number: 12, name: "Jaw Frontal Angle", abbreviation: "JFA", category: "jawline", unit: "degrees",
@@ -161,7 +161,7 @@ export const RATIO_DEFINITIONS: RatioDefinition[] = [
     landmarks: ["gonion_R", "gonion_L", "menton"],
     t1: { min: 85, max: 95 }, status: "incomplete",
     methodology: "Not measured: the exact angle construction requires the visual template.",
-    limitations: ["Angle construction incomplete in the provided material; not scored."],
+    limitations: ["Angle construction incomplete in the source (community guide); not scored."],
   }),
   def({
     id: "DEV_IAA_JFA", number: 13, name: "IAA/JFA Deviation", abbreviation: "DEV IAA/JFA", category: "jawline", unit: "degrees",
@@ -298,7 +298,7 @@ export const RATIO_DEFINITIONS: RatioDefinition[] = [
     landmarks: ["nasion", "alare_R", "alare_L"],
     t1: { min: 2.0, max: 2.15 }, status: "incomplete",
     methodology: "Not measured: the end points are not fully defined in the text.",
-    limitations: ["End points incomplete in the provided material; not scored."],
+    limitations: ["End points incomplete in the source (community guide); not scored."],
   }),
   def({
     id: "N_BYZGO", number: 28, name: "Nose Width to Bizygomatic Width", abbreviation: "N/BYZGO", category: "nose", unit: "percent",
@@ -438,7 +438,7 @@ export const RATIO_DEFINITIONS: RatioDefinition[] = [
     formula: "not defined in the material",
     landmarks: [],
     t1: { min: 2.9, max: 3.6 }, status: "incomplete",
-    methodology: "Not measured: the measurement method is not defined in the provided material.",
+    methodology: "Not measured: the measurement method is not defined in the source (community guide).",
     limitations: ["Undefined measurement; not scored."],
   }),
 ];

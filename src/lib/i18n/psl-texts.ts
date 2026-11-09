@@ -3,6 +3,12 @@ import { AREA_META, CRITERION_BY_ID, type CriterionId, type RubricArea } from "@
 import type { ScaleIssue } from "@/engine/psl/scale";
 import { DEFAULT_CATEGORIES } from "@/engine/tournament/categories";
 import type { Lang } from "./index";
+import { ADDITIONAL_BY_ID, RATIO_BY_ID } from "@/engine/ratios/database";
+import { SIDE_BY_ID, type SideMeasurementId } from "@/engine/side-view";
+import type { AdditionalMeasurementId, RatioId } from "@/engine/types";
+import { additionalText, ratioText } from "./ratio-texts";
+import { sideMeasurementText } from "./side-texts";
+import { symmetryMetricLabelById } from "./engine-text";
 import { CRITERION_DETAILS_DE } from "./criterion-details-de";
 
 export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition: string }> = {
@@ -24,7 +30,7 @@ export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition:
   facialFifths: { name: "Gesichtsfünftel", definition: "Abweichung der fünf horizontalen Fünftel von gleicher Breite (neoklassischer Kanon)." },
   jawWidth: { name: "Kieferbreite", definition: "Bigoniale Breite relativ zur bizygomatischen Breite." },
   jawHeightRatio: { name: "Kiefer-Breiten-Höhen-Verhältnis", definition: "Bigoniale Breite über Untergesichtshöhe (Rubrik 1.0; in 2.0 entfernt, weil die rekonstruierte Konstruktion den Referenzbereich nicht reproduziert)." },
-  jawAngularityFrontal: { name: "Kieferwinkligkeit (frontal)", definition: "Frontale Projektion des Kieferwinkels." },
+  jawAngularityFrontal: { name: "Kieferwinkligkeit (frontal)", definition: "Frontale Projektion des Kieferwinkels (Rubrik 2.0–2.1; seit 2.2 nur angezeigt, nicht bewertet, weil alle Testgesichter über dem Referenzbereich liegen – die Netz-Konvention weicht von der Quelle ab)." },
   gonialAngle: { name: "Kieferwinkel (Profil)", definition: "Weichteil-Kieferwinkel zwischen Ast und Kieferkörper." },
   mandibularPlane: { name: "Unterkieferebene (Profil)", definition: "Neigung der Weichteil-Kieferlinie (Gonion → Menton) gegenüber der Referenzhorizontalen." },
   midfaceProjection: { name: "Mittelgesichtsprojektion (Profil)", definition: "Vorlage des Subnasale gegenüber der Glabella-Vertikalen." },
@@ -68,11 +74,12 @@ export const AREA_TEXTS_DE: Record<RubricArea, { name: string; description: stri
 
 /** German reasons for the measures that are shown but not scored (rubric 2.0). */
 export const DESCRIPTIVE_REASONS_DE: Record<string, string> = {
-  FWHR: "Die Referenzrichtung widerspricht der Evidenz: Ein höheres FWHR wird als weniger attraktiv bewertet (Geniole et al. 2015, r̄ = −0,26); es folgt zudem dem BMI und verschiebt sich mit dem Kameraabstand um ~5 %.",
-  JWHR: "Rekonstruierte Konvention: Alle 6 Testgesichter (4 Fotos, 2 KI-Gesichter) liegen oberhalb des Bereichs (Median 4,5 Streuungseinheiten, Werte 2,5–2,8 statt 1,85–1,95); die Quelle muss eine andere Konstruktion verwendet haben.",
-  ET: "Alle 6 Testgesichter haben eine negative Brauenneigung (−2 bis −7°) gegenüber dem Bereich 5–13°: Die Winkelkonvention der Quelle (Brauenkopf → Scheitel?) unterscheidet sich von der hier verwendeten Linie Kopf → Ende.",
-  DEV_CT_ET: "Differenz von kanthaler Neigung und Brauenneigung; übernimmt die abweichende Brauen-Konvention.",
-  ICD_N: "Alle 6 Testgesichter liegen unter dem Bereich 1,0–1,1 (Median −3,0 Einheiten). Die Flügelbreite relativ zum inneren Augenwinkelabstand unterscheidet sich zudem systematisch zwischen Bevölkerungsgruppen (Farkas et al. 2005); ein einzelner enger Bereich ist keine faire Referenz.",
+  FWHR: "Nicht bewertet, weil die Studienlage der Referenz widerspricht: Ein höheres Breiten-Höhen-Verhältnis wird im Mittel als weniger attraktiv eingeschätzt (Geniole et al. 2015). Es hängt außerdem vom Körpergewicht und vom Kameraabstand ab.",
+  JWHR: "Nicht bewertet: Mit dieser Messweise liegen alle geprüften Gesichter über dem Referenzbereich – die Quelle hat offenbar anders gemessen, ein Vergleich wäre unfair.",
+  ET: "Nicht bewertet: Mit dieser Messweise (Linie Brauenkopf → Brauenende) liegen alle geprüften Gesichter unter dem Referenzbereich – die Quelle hat den Winkel offenbar anders definiert.",
+  DEV_CT_ET: "Nicht bewertet: Differenz aus kanthaler Neigung und Brauenneigung; übernimmt die abweichende Brauen-Messweise.",
+  ICD_N: "Nicht bewertet: Alle geprüften Gesichter liegen unter dem Referenzbereich, und das Verhältnis unterscheidet sich systematisch zwischen Bevölkerungsgruppen (Farkas et al. 2005) – ein einzelner enger Bereich wäre keine faire Referenz.",
+  GS: "Nicht bewertet: Das Gesichtsnetz rundet die Kieferecke ab, deshalb liegt der frontale Kieferwinkel bei allen geprüften Gesichtern über dem Referenzbereich (meist 145–160°).",
 };
 
 export function descriptiveReason(id: string, fallback: string, lang: Lang): string {
@@ -109,4 +116,25 @@ export function categoryName(id: string, fallback: string, lang: Lang): string {
 }
 export function scaleIssueText(issue: ScaleIssue, t: (k: string, v?: Record<string, string | number>) => string): string {
   return t(`scales.issue.${issue.code}`, issue.params ?? {});
+}
+
+/**
+ * Readable name of a criterion input: used inputs are stored as "CT", "EML",
+ * "sym:eyeHeight", "side:FCA", "visual:<provider>" or "self-assessment"; missing ones as
+ * hierarchy keys "r:CT", "a:EML", "s:eyeHeight", "p:FCA", "v:eyeShape".
+ */
+export function criterionInputLabel(key: string, lang: Lang): string {
+  const de = lang === "de";
+  const [prefix, rest] = key.includes(":") ? [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)] : ["", key];
+  if (key === "self-assessment") return de ? "Selbsteinschätzung" : "self-assessment";
+  if (prefix === "visual" || prefix === "v") return de ? "visuelles Modell" : "vision model";
+  if (prefix === "side" || prefix === "p") {
+    const d = SIDE_BY_ID[rest as SideMeasurementId];
+    return d ? `${sideMeasurementText(d.id, lang).name} (${de ? "Profil" : "profile"})` : rest;
+  }
+  if (prefix === "sym" || prefix === "s") return symmetryMetricLabelById(rest, lang, rest);
+  const id = rest;
+  if (RATIO_BY_ID[id as RatioId]) return `${RATIO_BY_ID[id as RatioId].abbreviation} · ${ratioText(id as RatioId, lang).name}`;
+  if (ADDITIONAL_BY_ID[id as AdditionalMeasurementId]) return additionalText(id as AdditionalMeasurementId, lang).name;
+  return id;
 }

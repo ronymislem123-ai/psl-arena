@@ -1,13 +1,28 @@
-# PSL rating rubric (version 2.1.0)
+# PSL rating rubric (version 2.2.0)
 
 The AI PSL Rater and the frontal analysis share one scoring model: measures
 (frontal ratios, symmetry metrics, two derived frontal measures, profile
-measurements, optional vision-model assessments) → **42 criteria** (one anatomical trait
+measurements, optional vision-model assessments) → **41 criteria** (one anatomical trait
 each) → **7 categories** → overall index 0–100 → PSL 0–10. The rubric is versioned
 (`RUBRIC_VERSION` in `src/engine/psl/rubric.ts`); every rating stores the version,
 calibration, minimum coverage and a snapshot of the scale. Ratings of rubric 1.0.0
 keep rendering with their own criteria and areas (`LEGACY_CRITERIA`, legacy
 `AREA_META` entries).
+
+**2.2.0 (2026-11-09, engine 2.1.0):** the frontal gonial slope (GS) is shown but not
+scored — all six test faces lie above its 138–143° range (146–153°; the mesh contour
+smooths the jaw corner), the same construct-mismatch rule as for JWHR and the brow
+tilt; its criterion `jawAngularityFrontal` became a legacy criterion (41 criteria).
+Engine 2.1.0: the zygion is the interpolated widest level of the face contour
+(parabola through neighbouring contour widths) instead of an argmax over three fixed
+pairs, which flipped the cheekbone position between ≈ 10 and ≈ 2 on 1 % width
+differences; an estimated hairline whose upper third is more than 3 SD below the
+reference (≈ 23 %) is treated as covered by hair and not used (thirds, forehead,
+TFWHR, LFF and eye–mouth length become "not determinable — hairline covered"); the
+Monte-Carlo samples are centred on the point index of each measure, so the tier
+uncertainty is no longer inflated by the uncorrected symmetry samples; a non-neutral
+expression caps the analysis reliability; "no-defect" criteria (scleral show) are not
+listed as strengths.
 
 **2.1.0 (2026-11-08):** upper lid position (MRD1) and scleral show are now
 *measured* from the iris and lid contours of the mesh (millimetres via the iris
@@ -144,7 +159,7 @@ strict; ratios that some faces meet stay scored.
    The PSL value is therefore a **geometric conformity score**, not a population
    percentile.
 6. **Coverage** = category-weighted share of the non-visual criteria that were
-   assessable. Frontal photo with hairline ≈ 0.81, with a side view ≈ 1.0. Below the
+   assessable. Frontal photo with hairline ≈ 0.79 (test faces), with a side view ≈ 0.9–1.0. Below the
    minimum coverage (default 0.7) the score is *provisional*.
 7. **σ, precision, tier.** σ_PSL = SD of the overall score over the stored
    Monte-Carlo samples of every frontal measure (correlated landmark noise) and the

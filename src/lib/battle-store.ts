@@ -54,6 +54,8 @@ interface BattleSetup {
   setTrichion: (side: Side, p: Point) => void;
   confirmTrichion: (side: Side) => void;
   resetTrichion: (side: Side) => void;
+  /** the hairline is hidden (fringe, hat): use no hairline at all */
+  hideTrichion: (side: Side) => void;
   setNeck: (side: Side, pts: { right: Point; left: Point } | null) => void;
   setNeckPlacing: (side: Side, v: boolean) => void;
   setCorrecting: (side: Side, v: boolean) => void;
@@ -106,6 +108,9 @@ function toSaved(slot: SlotState): SavedSlot | undefined {
 }
 
 export function createSetupStore(persistKey?: string) {
+  // every user action that replaces a slot bumps its generation; a restore that started
+  // earlier must not overwrite a photo the user picked while it was loading
+  const gen = { a: 0, b: 0 };
   const store = create<BattleSetup>()((set, get) => ({
   a: emptySlot(),
   b: emptySlot(),
@@ -122,11 +127,12 @@ export function createSetupStore(persistKey?: string) {
     for (const side of ["a", "b"] as const) {
       const sv = saved[side];
       if (!sv || get()[side].status !== "empty") continue;
+      const g = ++gen[side];
       set((s) => ({ [side]: { ...s[side], status: "loading", fileName: sv.fileName } }));
       try {
         const blob = await dataUrlToBlob(sv.dataUrl);
         const prep = await queued(() => prepareImage(blob, sv.fileName ?? "photo.jpg"));
-        if (get()[side].status !== "loading") continue; // replaced or cleared meanwhile
+        if (gen[side] !== g || get()[side].status !== "loading") continue; // replaced or cleared meanwhile
         if (prep.faces.length === 0) {
           set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
           continue;
@@ -137,7 +143,7 @@ export function createSetupStore(persistKey?: string) {
             status: "ready",
             prep,
             faceIndex: Math.min(Math.max(0, sv.faceIndex), prep.faces.length - 1),
-            label: sv.label,
+            label: s[side].label || sv.label,
             trichion: sv.trichionSet ? sv.trichion : undefined,
             trichionConfirmed: sv.trichionConfirmed,
             neck: sv.neck,
@@ -149,6 +155,7 @@ export function createSetupStore(persistKey?: string) {
         }));
         get().recompute(side);
       } catch (e) {
+        if (gen[side] !== g) continue;
         set((s) => ({ [side]: { ...s[side], status: "error", error: e instanceof Error ? e.message : String(e), prep: null } }));
       }
     }
@@ -157,10 +164,11 @@ export function createSetupStore(persistKey?: string) {
   initConfig: (cfg) => set((s) => ({ config: { ...s.config, ...cfg } })),
 
   loadFile: async (side, file) => {
+    const g = ++gen[side];
     set((s) => ({ [side]: { ...s[side], status: "loading", error: undefined, prep: null, preview: null, fileName: file.name } }));
     try {
       const prep = await queued(() => prepareImage(file, file.name));
-      if (get()[side].fileName !== file.name || get()[side].status !== "loading") return; // superseded by a newer pick
+      if (gen[side] !== g || get()[side].status !== "loading") return; // superseded by a newer pick
       if (prep.faces.length === 0) {
         set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
         return;
@@ -168,11 +176,15 @@ export function createSetupStore(persistKey?: string) {
       set((s) => ({ [side]: { ...s[side], status: "ready", prep, faceIndex: 0, trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, corrections: noCorrections(), correcting: false, label: s[side].label || (side === "a" ? "Person 1" : "Person 2") } }));
       get().recompute(side);
     } catch (e) {
+      if (gen[side] !== g) return;
       set((s) => ({ [side]: { ...s[side], status: "error", error: e instanceof Error ? e.message : String(e), prep: null } }));
     }
   },
 
-  clear: (side) => set({ [side]: emptySlot() }),
+  clear: (side) => {
+    gen[side]++;
+    set({ [side]: emptySlot() });
+  },
   setLabel: (side, label) => set((s) => ({ [side]: { ...s[side], label } })),
   setFaceIndex: (side, i) => {
     set((s) => ({ [side]: { ...s[side], faceIndex: i, trichion: undefined, trichionConfirmed: false, neck: null, corrections: noCorrections(), correcting: false } }));
@@ -191,6 +203,10 @@ export function createSetupStore(persistKey?: string) {
   },
   resetTrichion: (side) => {
     set((s) => ({ [side]: { ...s[side], trichion: undefined, trichionConfirmed: false } }));
+    get().recompute(side);
+  },
+  hideTrichion: (side) => {
+    set((s) => ({ [side]: { ...s[side], trichion: null, trichionConfirmed: false } }));
     get().recompute(side);
   },
   setNeck: (side, pts) => {
@@ -256,7 +272,11 @@ export function createSetupStore(persistKey?: string) {
     }
   },
 
-  reset: () => set({ a: emptySlot(), b: emptySlot(), consent: { rights: false, adults: false }, submitting: false, submitError: null, restored: false }),
+  reset: () => {
+    gen.a++;
+    gen.b++;
+    set({ a: emptySlot(), b: emptySlot(), consent: { rights: false, adults: false }, submitting: false, submitError: null, restored: false });
+  },
   }));
 
   if (persistKey && typeof window !== "undefined") {

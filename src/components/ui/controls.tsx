@@ -109,8 +109,8 @@ export function StatTile({ label, value, sub, tone = "accent", icon }: { label: 
     <div className="glass rounded-2xl p-4 flex items-start gap-3">
       {icon && <div className={cn("mt-0.5 shrink-0", `text-${tone}`)}>{icon}</div>}
       <div className="min-w-0">
-        <div className="text-[11px] uppercase tracking-[0.16em] text-fg-2">{label}</div>
-        <div className="font-display text-2xl font-semibold num mt-1">{value}</div>
+        <div className="text-[11px] uppercase tracking-[0.16em] text-fg-2 hyphens-auto [overflow-wrap:anywhere]">{label}</div>
+        <div className="font-display text-2xl font-semibold num mt-1 [overflow-wrap:anywhere]">{value}</div>
         {sub && <div className="text-xs text-fg-3 mt-0.5">{sub}</div>}
       </div>
     </div>

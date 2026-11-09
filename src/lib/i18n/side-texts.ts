@@ -158,7 +158,7 @@ export const SIDE_MEASUREMENT_TEXTS_DE: Record<SideMeasurementId, SideMeasuremen
     name: "Kinnposition (Null-Meridian)", description: "Horizontale Lage des Kinns relativ zur Vertikalen durch das Nasion.",
     methodology: "Vorwärtiger Versatz des Pogonion gegenüber der Vertikalen durch das Nasion in Prozent der Höhe Nasion–Menton (positiv = Kinn vorn).",
     limitations: ["Nur beschreibend; nicht bewertet.", LIM_VERTICAL_DE, LIM_MANUAL_DE],
-    reference: "Null-Meridian nach Gonzalez-Ulloa: Vertikale durch das Nasion; kein Zahlenziel im Material.",
+    reference: "Null-Meridian nach Gonzalez-Ulloa: Vertikale durch das Nasion; kein Zahlenziel in der Quelle.",
   },
   MPA: {
     name: "Unterkieferebenen-Winkel (Weichteil)", description: "Neigung des Unterkieferrands gegenüber der Horizontalen; hohe Werte = steiler (langer, zurückliegender) Unterkiefer, niedrige = flacher.",
@@ -219,7 +219,7 @@ export const SIDE_ASSUMPTION_TEXTS: Record<Lang, Record<SideAssumptionCode, stri
     frankfortHorizontal: "The soft-tissue Frankfort horizontal (tragion → orbitale) is the horizontal reference for the Z angle, the height ratios and the chin meridian; it lies a few degrees from the bony Frankfort plane.",
     manualAxis: "The reference axis was rotated manually; the Z angle, the height ratios and the chin meridian are measured against it.",
     proxies: "The posterior ramus is approximated by the gonion–tragion line and the columella by the pronasale–subnasale line.",
-    separateFromFrontal: "The gonial angle uses the range of the provided guide; all other ranges are published literature norms. Nothing here enters the 42-ratio frontal score.",
+    separateFromFrontal: "The gonial angle uses the range of the community guide; all other ranges are published literature norms. None of it enters the frontal index of the photo analysis; in the PSL rating these measures feed the profile criteria.",
   },
   de: {
     manualPlacement: "Die Landmarks wurden manuell gesetzt; die Präzision hängt von der Platzierung ab (die σ-Werte zeigen die Empfindlichkeit).",
@@ -228,7 +228,7 @@ export const SIDE_ASSUMPTION_TEXTS: Record<Lang, Record<SideAssumptionCode, stri
     frankfortHorizontal: "Die Weichteil-Frankfurter-Horizontale (Tragion → Orbitale) ist die horizontale Referenz für Z-Winkel, Höhenverhältnisse und Kinnmeridian; sie weicht um wenige Grad von der knöchernen Frankfurter Ebene ab.",
     manualAxis: "Die Referenzachse wurde manuell gedreht; Z-Winkel, Höhenverhältnisse und Kinnmeridian werden daran gemessen.",
     proxies: "Der aufsteigende Ast wird durch die Linie Gonion–Tragion, der Nasensteg durch Pronasale–Subnasale angenähert.",
-    separateFromFrontal: "Der Kieferwinkel nutzt den Bereich des bereitgestellten Leitfadens; alle anderen Bereiche sind publizierte Literaturnormen. Nichts davon fließt in den 42-Verhältnis-Frontalscore ein.",
+    separateFromFrontal: "Der Kieferwinkel nutzt den Bereich des Community-Leitfadens; alle anderen Bereiche sind publizierte Literaturnormen. Nichts davon fließt in den Frontal-Index der Fotoanalyse ein; in der PSL-Bewertung bilden diese Maße die Profilkriterien.",
   },
 };
 

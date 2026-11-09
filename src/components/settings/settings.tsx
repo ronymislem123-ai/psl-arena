@@ -107,7 +107,7 @@ export function SettingsView({ account }: { account: AccountInfo | null }) {
           <CardHeader title={t("settings.about")} />
           <CardBody className="text-sm text-fg-2 space-y-2">
             <div className="font-mono text-xs">
-              {BRAND.name} v{BRAND.version} · engine {ENGINE_VERSION} · MediaPipe Face Landmarker (478 points) · runs in-browser
+              {BRAND.name} v{BRAND.version} · engine {ENGINE_VERSION} · {t("settings.aboutDetector")}
             </div>
             <p>{t("settings.ethics")}</p>
             <p className="text-xs text-fg-3">{t("settings.referenceNote")}</p>

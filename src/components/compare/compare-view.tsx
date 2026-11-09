@@ -18,7 +18,7 @@ import { cn, fmt } from "@/lib/utils";
 import type { RatingRecord } from "@/server/repos-psl";
 import { paths } from "@/lib/paths";
 
-const signed = (v: number | null) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}`);
+const signed = (v: number | null) => (v == null ? "—" : fmt.signed(v, 2));
 const deltaClass = (v: number | null) => (v == null || Math.abs(v) < 0.05 ? "text-fg-3" : v > 0 ? "text-mint" : "text-[#ff8fa3]");
 
 export function CompareView({ records }: { records: RatingRecord[] }) {
@@ -34,7 +34,7 @@ export function CompareView({ records }: { records: RatingRecord[] }) {
         title={t("compare.title")}
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
-            <Badge tone={c.comparable ? "mint" : "amber"}>{c.comparable ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {c.comparable ? t("compare.comparable") : t("compare.notComparable")}</Badge>
+            <Badge tone={c.comparable ? "mint" : "amber"}>{c.comparable ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {c.comparable ? t(c.warnings.length ? "compare.comparableWithNotes" : "compare.comparable") : t("compare.notComparable")}</Badge>
             <Badge tone="cyan">{t("compare.commonCriteria", { n: c.commonCriteria })}</Badge>
           </span>
         }
@@ -102,7 +102,7 @@ export function CompareView({ records }: { records: RatingRecord[] }) {
         <CardHeader title={t("compare.areas")} />
         <CardBody className="overflow-x-auto">
           <table className="w-full text-sm" data-testid="compare-areas">
-            <thead className="text-fg-3 uppercase tracking-wider text-[10px]"><tr><th className="text-left py-2">{t("compare.areas")}</th>{c.items.map((it, i) => <th key={it.id} className="text-right py-2">{i === 0 ? t("compare.reference") : `${t("compare.delta")} ${i + 1}`}</th>)}<th className="text-right py-2">{t("compare.spread")}</th></tr></thead>
+            <thead className="text-fg-3 uppercase tracking-wider text-[10px]"><tr><th className="text-left py-2">{t("compare.areas")}</th>{c.items.map((it, i) => <th key={it.id} className="text-right py-2">{i === 0 ? `${it.label} · ${t("compare.reference")}` : `${it.label} · Δ`}</th>)}<th className="text-right py-2">{t("compare.spread")}</th></tr></thead>
             <tbody>
               {c.areas.map((a) => (
                 <tr key={a.id} className="border-t border-line"><td className="py-1.5">{areaName(a.id, lang)}</td>{a.values.map((v, i) => <td key={i} className="py-1.5 text-right font-mono num">{formatPsl(v)} {i > 0 && <span className={cn("text-xs", deltaClass(a.deltas[i]))}>({signed(a.deltas[i])})</span>}</td>)}<td className="py-1.5 text-right font-mono text-xs text-fg-3">{a.spread == null ? "—" : a.spread.toFixed(2)}</td></tr>

@@ -26,6 +26,8 @@ import { useSessionImage } from "@/lib/session-images";
 import { imageUrl } from "@/lib/api";
 import { cn, fmt, scoreLabel, scoreTone } from "@/lib/utils";
 import { paths } from "@/lib/paths";
+import { evidenceOf, isUnscored } from "@/engine/scoring/measurement";
+import { formatPsl } from "@/engine/psl/rating";
 import { ApiLink } from "@/components/shared/api-link";
 
 type Tab = "overview" | "ratios" | "landmarks" | "symmetry" | "features" | "quality";
@@ -44,7 +46,7 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
           <span className="flex flex-wrap gap-2 items-center">
             <Badge tone={levelTone(result.quality.level)}>{t("common.quality")}: {t(`quality.${result.quality.level}`)}</Badge>
             {result.corrections && <Badge tone="rose" data-testid="corrected-badge">{t("analysis.corrected", { n: result.corrections.landmarks.length })}{result.corrections.axisAdjustDeg ? ` · ${result.corrections.axisAdjustDeg > 0 ? "+" : ""}${result.corrections.axisAdjustDeg.toFixed(1)}°` : ""}</Badge>}
-            <Badge tone="cyan">{t("common.coverage")}: {result.coverage.evaluable}/{result.coverage.total}</Badge>
+            <Badge tone="cyan">{t("analysis.ratiosBadge", { n: result.coverage.evaluable, total: result.coverage.total })}</Badge>
             <Badge tone="accent">{t("common.confidence")}: {fmt.pct(result.scores.confidence)}</Badge>
             <Link href={paths.profile(profileId)} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("nav.profiles")} →</Link>
             <Link href={`/compare?mode=analyses&analyses=${analysisId}`} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">{t("compareAnalyses.title")} →</Link>
@@ -83,7 +85,7 @@ function ImagePanel({ result, src, width, height, layer, showMesh, onSelect, sel
       <LandmarkCanvas imageSrc={src} width={width} height={height} result={result} layer={layer} showMesh={showMesh} onSelect={onSelect} selectedId={selectedId} />
       {!src && (
         <div className="rounded-lg border border-dashed border-line-strong px-3 py-2 text-xs text-fg-3">
-          {t("profiles.noImage")} — {t("analysis.wireframe")}. {t("battle.storeImagesHint")}
+          {t("profiles.noImage")} — {t("analysis.wireframe")}. {t("analysis.noImageHint")}
         </div>
       )}
     </div>
@@ -95,7 +97,8 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
   const s = result.scores;
   const warnings = warningTexts(result, lang);
   const inT1 = result.ratios.filter((r) => r.inT1).map((r) => RATIO_BY_ID[r.id]);
-  const notable = result.ratios.filter((r) => r.availability === "available" && r.inT1 === false && (r.index ?? 100) < 50).sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).slice(0, 8);
+  // only scored ratios: descriptive ones (contradicted evidence, construct mismatch) are no deviations of the face
+  const notable = result.ratios.filter((r) => r.availability === "available" && r.inT1 === false && (r.index ?? 100) < 50 && !isUnscored(evidenceOf(r.id).status)).sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).slice(0, 8);
   const uncertain = result.ratios.filter((r) => r.availability === "available" && r.uncertain);
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -128,22 +131,9 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
               <ScoreRing value={s.overall} size={160} stroke={10} label={t("analysis.overall")} digits={1} />
               <div className="flex-1 w-full space-y-3">
                 <div className="font-display text-xl font-semibold">{scoreLabel(s.overall, t)}</div>
+                <div className="text-xs text-fg-2" data-testid="overall-note">{t("analysis.overallNote", { psl: s.overall == null ? "—" : formatPsl(s.overall / 10) })}</div>
                 <div className="text-xs text-fg-3">
                   {s.rubric ? t("analysis.overallFormula2", { p: s.rubric.p, penalty: (s.rubric.compensationPenalty ?? 0).toFixed(1) }) : t("analysis.overallFormula")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    [t("analysis.harmony"), s.harmony],
-                    [t("analysis.proportion"), s.proportion],
-                    [t("analysis.structure"), s.structure],
-                    [t("analysis.symmetryScore"), s.symmetry],
-                  ].map(([l, v]) => (
-                    <div key={l as string} className="rounded-xl border border-line bg-bg-1/50 p-3">
-                      <div className="text-[10px] uppercase tracking-wider text-fg-3">{l}</div>
-                      <div className="font-display text-2xl font-semibold num">{fmt.score(v as number | null, 1)}</div>
-                      <Progress value={v as number | null} tone={scoreTone(v as number | null)} className="mt-1.5" />
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -151,7 +141,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
         </Card>
         {s.rubric && (
           <Card>
-            <CardHeader title={t("analysis.rubricCategories")} subtitle={t("analysis.rubricCategoriesSub", { coverage: Math.round(s.rubric.coverage * 100) })} />
+            <CardHeader title={t("analysis.rubricCategories", { version: s.rubric.version })} subtitle={t("analysis.rubricCategoriesSub", { coverage: Math.round(s.rubric.coverage * 100) })} />
             <CardBody className="space-y-2.5" data-testid="rubric-categories">
               {RUBRIC_AREAS.map((a) => {
                 const v = s.rubric!.categories[a] ?? null;
@@ -166,6 +156,26 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
             </CardBody>
           </Card>
         )}
+        <details className="glass rounded-2xl group" data-testid="legacy-figures">
+          <summary className="cursor-pointer select-none px-5 py-4">
+            <span className="font-display font-semibold">{t("analysis.legacyTitle")}</span>
+            <span className="block text-xs text-fg-3 mt-0.5">{t("analysis.legacySub")}</span>
+          </summary>
+          <div className="px-5 pb-5 space-y-5">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    [t("analysis.harmony"), s.harmony],
+                    [t("analysis.proportion"), s.proportion],
+                    [t("analysis.structure"), s.structure],
+                    [t("analysis.symmetryScore"), s.symmetry],
+                  ].map(([l, v]) => (
+                    <div key={l as string} className="rounded-xl border border-line bg-bg-1/50 p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-fg-3">{l}</div>
+                      <div className="font-display text-2xl font-semibold num">{fmt.score(v as number | null, 1)}</div>
+                      <Progress value={v as number | null} tone={scoreTone(v as number | null)} className="mt-1.5" />
+                    </div>
+                  ))}
+                </div>
         <Card>
           <CardHeader title={t("analysis.overview")} subtitle={t("analysis.categoryIndices")} />
           <CardBody className="space-y-2.5">
@@ -189,7 +199,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
               <Stat label={t("analysis.coverageAdjusted")} value={result.original.coverageAdjustedT1Percent == null ? "—" : `${result.original.coverageAdjustedT1Percent.toFixed(0)} %`} />
               <Stat label={t("analysis.originalPercent")} value={result.original.originalPercent == null ? t("analysis.notComputable") : `${result.original.originalPercent.toFixed(0)} %`} />
             </div>
-            <p className="mt-3 text-xs text-fg-3">{result.original.originalPercentNote}</p>
+            <p className="mt-3 text-xs text-fg-3">{result.original.originalPercent != null ? t("analysis.originalAll") : t("analysis.originalMissing", { max: result.original.theoreticalMax, missing: result.coverage.total - result.coverage.evaluable, undetermined: result.original.undeterminedTierCount ?? 0 })}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge tone="mint">{t("analysis.evaluable")}: {result.coverage.evaluable}</Badge>
               <Badge tone="amber">{t("analysis.unavailable")}: {result.coverage.unavailable}</Badge>
@@ -199,6 +209,8 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
             </div>
           </CardBody>
         </Card>
+          </div>
+        </details>
         <div className="grid gap-5 md:grid-cols-3">
           <ListCard title={t("analysis.strengths")} items={inT1.map((d) => `${d.abbreviation} · ${ratioText(d.id, lang).name}`)} tone="mint" />
           <ListCard title={t("analysis.notable")} items={notable.map((r) => `${RATIO_BY_ID[r.id].abbreviation} ${formatValue(r.value, RATIO_BY_ID[r.id].unit)} (T1 ${formatT1(RATIO_BY_ID[r.id])})`)} tone="amber" />
@@ -284,8 +296,9 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
             {rows.map((r) => {
               const d = RATIO_BY_ID[r.id];
               const avail = r.availability === "available";
+              const unscored = isUnscored(evidenceOf(r.id).status);
               return (
-                <tr key={r.id} className="border-t border-line hover:bg-white/3 cursor-pointer" onClick={() => setOpen(r)} title={avail ? undefined : unavailableText(r, lang)}>
+                <tr key={r.id} className="border-t border-line hover:bg-white/3 cursor-pointer" data-unscored={unscored ? "true" : undefined} onClick={() => setOpen(r)} title={avail ? undefined : unavailableText(r, lang)}>
                   <td className="py-2 font-mono text-xs text-fg-3">{d.number}</td>
                   <td className="py-2">
                     <div className="flex items-center gap-2">
@@ -300,13 +313,17 @@ function RatioTable({ result, src, width, height }: { result: AnalysisResult; sr
                   </td>
                   <td className="py-2 pl-4 font-mono text-xs text-fg-2">{formatT1(d)}</td>
                   <td className="py-2 pl-4">
-                    {avail ? r.tier ? <Badge tone="mint">{r.tier} +{r.tierPoints}</Badge> : <Badge tone="amber">{t("analysis.outsideT1")}</Badge> : <Badge tone="muted">{r.availability === "excluded" ? t("analysis.excluded") : "n/a"}</Badge>}
+                    {avail && unscored ? <Badge tone="muted">{t("analysis.reliability.status.descriptive")}</Badge> : avail ? r.tier ? <Badge tone="mint">{r.tier} +{r.tierPoints}</Badge> : <Badge tone="amber">{t("analysis.outsideT1")}</Badge> : <Badge tone="muted">{r.availability === "excluded" ? t("analysis.excluded") : t("score.na")}</Badge>}
                   </td>
                   <td className="py-2 pl-4">
-                    <div className="flex items-center gap-2">
-                      <Progress value={r.index} tone={scoreTone(r.index)} animate={false} className="w-20" />
-                      <span className="font-mono text-xs num w-7 text-right">{fmt.score(r.index)}</span>
-                    </div>
+                    {unscored ? (
+                      <span className="font-mono text-xs text-fg-3" title={t("analysis.reliability.status.descriptive")}>—</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Progress value={r.index} tone={scoreTone(r.index)} animate={false} className="w-20" />
+                        <span className="font-mono text-xs num w-7 text-right">{fmt.score(r.index)}</span>
+                      </div>
+                    )}
                   </td>
                   <td className={cn("py-2 text-right font-mono text-xs num", r.uncertain && avail && "text-amber")}>{avail ? fmt.pct(r.confidence) : "—"}</td>
                 </tr>
@@ -399,16 +416,16 @@ function Landmarks({ result, src, width, height }: { result: AnalysisResult; src
         </CardBody>
       </Card>
       <Card>
-        <CardHeader title={sel ? landmarkDisplayLabel(sel, lang) : t("analysis.landmarks")} subtitle={sel ? `${sel.source} · ${sel.precision} · ${fmt.pct(sel.confidence)}${landmarkNote(sel.noteCode, lang, sel.note) ? ` · ${landmarkNote(sel.noteCode, lang, sel.note)}` : ""}` : `${result.landmarks.length} ${t("analysis.semanticLandmarks")} · ${t("analysis.roll")} ${result.mesh.rollDeg.toFixed(1)}°`} />
+        <CardHeader title={sel ? landmarkDisplayLabel(sel, lang) : t("analysis.landmarks")} subtitle={sel ? `${t(`analysis.lmSource.${sel.source}`)} · ${t(`analysis.lmPrecision.${sel.precision}`)} · ${fmt.pct(sel.confidence)}${landmarkNote(sel.noteCode, lang, sel.note) ? ` · ${landmarkNote(sel.noteCode, lang, sel.note)}` : ""}` : `${result.landmarks.length} ${t("analysis.semanticLandmarks")} · ${t("analysis.roll")} ${result.mesh.rollDeg.toFixed(1)}°`} />
         <CardBody>
           <div className="max-h-[520px] overflow-y-auto scrollbar-thin divide-y divide-line">
             {result.landmarks.map((l) => (
               <button key={l.id} onClick={() => setSel(l)} className={cn("w-full text-left py-2 flex items-center justify-between gap-2 text-xs hover:bg-white/3 px-1 -mx-1 rounded", sel?.id === l.id && "bg-accent/10")}>
                 <span className="truncate">
-                  {landmarkDisplayLabel(l, lang)} <span className="text-fg-3">· {l.region}</span>
+                  {landmarkDisplayLabel(l, lang)} <span className="text-fg-3">· {t(`analysis.region.${l.region}`)}</span>
                 </span>
                 <span className="font-mono text-fg-3 shrink-0">
-                  {l.raw.x.toFixed(0)},{l.raw.y.toFixed(0)} · {l.source[0]}/{l.precision[0]} · {fmt.pct(l.confidence)}
+                  <span title={`${t(`analysis.lmSource.${l.source}`)} · ${t(`analysis.lmPrecision.${l.precision}`)}`}>{l.raw.x.toFixed(0)},{l.raw.y.toFixed(0)} · {t(`analysis.lmSource.${l.source}`)} · {fmt.pct(l.confidence)}</span>
                 </span>
               </button>
             ))}

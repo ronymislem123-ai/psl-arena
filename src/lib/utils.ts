@@ -5,9 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const fixed = (v: number, digits: number) => {
+  const s = v.toFixed(digits);
+  return Number(s) === 0 ? (0).toFixed(digits) : s;
+};
+
 export const fmt = {
-  score: (v: number | null | undefined, digits = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toFixed(digits)),
-  pct: (v: number | null | undefined, digits = 0) => (v == null || !Number.isFinite(v) ? "—" : `${(v * 100).toFixed(digits)} %`),
+  score: (v: number | null | undefined, digits = 0) => (v == null || !Number.isFinite(v) ? "—" : fixed(v, digits)),
+  pct: (v: number | null | undefined, digits = 0) => (v == null || !Number.isFinite(v) ? "—" : `${fixed(v * 100, digits)}\u00a0%`),
   date: (iso: string, locale = "en") => {
     try {
       return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
@@ -15,7 +20,11 @@ export const fmt = {
       return iso;
     }
   },
-  signed: (v: number, digits = 0) => `${v > 0 ? "+" : ""}${v.toFixed(digits)}`,
+  /** signed difference; values that round to zero get no sign ("0.00", not "+0.00" or "-0.00") */
+  signed: (v: number, digits = 0) => {
+    const s = fixed(v, digits);
+    return Number(s) > 0 ? `+${s}` : s;
+  },
 };
 
 export function scoreTone(v: number | null | undefined): "mint" | "cyan" | "accent" | "amber" | "rose" | "muted" {

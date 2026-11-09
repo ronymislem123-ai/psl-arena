@@ -4,6 +4,7 @@
 import { alignMesh, buildLandmarks } from "./landmarks/mesh-map";
 import { computeAdditional } from "./ratios/additional";
 import { computeAppearance } from "./appearance";
+import { checkHairline } from "./hairline-check";
 import { CATEGORY_ORDER, RATIO_BY_ID } from "./ratios/database";
 import { expectedIndex } from "./scoring/measurement";
 import { evaluateRatios } from "./ratios/evaluate";
@@ -17,7 +18,8 @@ import { REPEATABILITY_SAFETY } from "./landmarks/repeatability";
 import { estimateUncertainty, type CoreScores } from "./scoring/uncertainty";
 import type { AnalysisConfig, AnalysisInput, AnalysisResult, CategoryId } from "./types";
 
-export const ENGINE_VERSION = "2.0.0";
+import { ENGINE_VERSION } from "./version";
+export { ENGINE_VERSION };
 
 export const DEFAULT_CONFIG: AnalysisConfig = {
   includeReconstructed: true,
@@ -79,7 +81,11 @@ export function coreScores(input: AnalysisInput): CoreScores {
 }
 
 export function analyzeFace(rawInput: AnalysisInput): AnalysisResult {
-  const input: AnalysisInput = { ...rawInput, config: { ...DEFAULT_CONFIG, ...rawInput.config } };
+  let input: AnalysisInput = { ...rawInput, config: { ...DEFAULT_CONFIG, ...rawInput.config } };
+  // hair over the forehead: an estimated hairline far below any natural position is not used
+  const hair = checkHairline(input.mesh, input.trichion?.point);
+  if (hair.covered && input.trichion?.source === "estimated") input = { ...input, trichion: null, hairlineCovered: { share: hair.share! } };
+  const hairlineLow = hair.covered && input.trichion?.source === "manual" ? hair.share! : null;
   const c = computeCore(input);
   const coverage = computeCoverage(c.ratios);
   const original = computeOriginalScoring(c.ratios);
@@ -133,9 +139,16 @@ export function analyzeFace(rawInput: AnalysisInput): AnalysisResult {
     warnings.push(`${coverage.uncertain} evaluable ratio(s) have low confidence.`);
     warningCodes.push({ code: "uncertainRatios", params: { n: coverage.uncertain } });
   }
-  if (!c.map.trichion) {
+  if (input.hairlineCovered) {
+    warnings.push(`Hairline covered by hair: the skin/hair transition gives an upper third of only ${input.hairlineCovered.share.toFixed(0)} % (natural range starts near 23 %); thirds, forehead, TFWHR, LFF and eye–mouth length are not evaluated.`);
+    warningCodes.push({ code: "hairlineCovered", params: { share: Math.round(input.hairlineCovered.share) } });
+  } else if (!c.map.trichion) {
     warnings.push("Hairline not available: thirds, TFWHR, LFF and FWHF are not evaluated.");
     warningCodes.push({ code: "noHairline" });
+  }
+  if (hairlineLow != null) {
+    warnings.push(`The placed hairline gives an upper third of only ${hairlineLow.toFixed(0)} % — check that hair does not cover the forehead.`);
+    warningCodes.push({ code: "hairlineLow", params: { share: Math.round(hairlineLow) } });
   }
   const corrected = c.list.filter((l) => l.corrected).map((l) => l.id);
   const axisAdjustDeg = clampAxis(input.corrections?.axisAdjustDeg);

@@ -25,7 +25,7 @@ All measurements are taken in the **roll-normalised frame** (rotation about the 
 | glabella | 9 | medium | mid-brow reference for the thirds |
 | menton | 152 | high | |
 | chin corner R/L | 176 / 400 | medium | lateral edges of the chin pad, below the mouth corners |
-| zygion R/L | widest of the contour pairs (127/356), (234/454), (93/323) | low | soft-tissue stand-in for the zygomatic arch |
+| zygion R/L | widest level of the face contour: best of the pairs (127/356), (234/454), (93/323), interpolated with its neighbours (162/389 … 132/361) by a parabola through the widths (engine 2.1) | low | soft-tissue stand-in for the zygomatic arch; the interpolation removes the jumps of the old argmax |
 | frontotemporale R/L | 21 / 251 | low | temple contour at brow level |
 | gonion R/L | intersection of the ramus line (fit through 93,132,58 / 323,361,288) and the body line (150,136,172 / 379,365,397); fallback 58/288 | low | soft-tissue silhouette, wider than the bony gonion |
 | trichion | image scan (skin→hair transition above mesh point 10) or manual | low (estimated) / medium (confirmed) | hairline is not part of the mesh |
@@ -85,7 +85,7 @@ Status: **D** = defined in the material · **R** = reconstructed convention (sco
 Every definition also stores: unit, formula text, methodology, landmark inputs, tolerance (see SCORING.md), dependency weight, sensitivity flags (yaw, expression regions, depth, hairline), limitations and the source note. `GET /api/ratios` returns the full database.
 
 ### Known systematic effects of the mesh conventions
-* **GS** (frontal gonial projection) is larger than the lateral gonial angle and the mesh smooths the jaw corner: expect ≈145–160° for most faces.
+* **GS** (frontal gonial projection) is larger than the lateral gonial angle and the mesh smooths the jaw corner: expect ≈145–160° for most faces. Since rubric 2.2 it is therefore shown but not scored (construct mismatch: all six test faces lie above 138–143°).
 * **BIG/bigonial** follows the soft-tissue silhouette (wider than caliper go–go). The guide's photo-based T1 (85–92 %) matches this convention.
 * **Alar width** depends on the chosen alar landmark (±8 % between 48/278 and 129/358). Nose ratios (N/H, ICD/N, N/BYZGO) inherit that.
 * **Brow tilt** uses the mesh brow contour ends; tails hidden by hair/grooming reduce accuracy.

@@ -161,6 +161,70 @@ describe("automatic profile landmarks — real segmentation of a rendered 3D hea
   }
 });
 
+describe("automatic profile landmarks — tipped head", () => {
+  it("warns when the head is tipped (render pitched by 12°) and stays quiet for an upright head", () => {
+    const upright = detectProfileLandmarks(segInput("side-seg-r_90.json"));
+    const pitched = detectProfileLandmarks(segInput("side-seg-r_100m12.json"));
+    expect(upright.issues.map((i) => i.code)).not.toContain("headTilted");
+    const w = pitched.issues.find((i) => i.code === "headTilted");
+    expect(w?.severity).toBe("warning");
+    expect(w?.params?.deg).toBeGreaterThan(12);
+  });
+});
+
+describe("automatic profile landmarks — hair in front of the forehead", () => {
+  const HAIR = 1;
+  const base = segInput("side-seg-r_90.json");
+  const r0 = detectProfileLandmarks(base);
+  const sc = base.scale ?? 1;
+  const toMask = (p: { x: number; y: number }) => ({ x: p.x / sc - 0.5, y: p.y / sc - 0.5 });
+  const G = toMask(r0.points.glabella!);
+  const N = toMask(r0.points.nasion!);
+  const P = toMask(r0.points.pronasale!);
+  const nose = Math.hypot(P.x - N.x, P.y - N.y); // ≈ 4.8 cm
+  const paint = (inp: ProfileMaskInput, f: (x: number, y: number) => boolean, fg: boolean) => {
+    const { width: w, height: h } = inp;
+    const fgOut = Float32Array.from(inp.foreground);
+    const cat = Uint8Array.from(inp.categories!);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (f(x, y)) {
+      if (fg) fgOut[y * w + x] = 1;
+      if (fg || fgOut[y * w + x] >= 0.5) cat[y * w + x] = HAIR;
+    }
+    return { ...inp, foreground: fgOut, categories: cat };
+  };
+  const catAt = (inp: ProfileMaskInput, p: { x: number; y: number }, inward: number) => {
+    const m = toMask(p);
+    return inp.categories![Math.round(m.y) * inp.width + Math.round(m.x - inward)];
+  };
+
+  it("a hair curl in front of the brow does not become the glabella", () => {
+    // curl: a disc of hair attached to the forehead, reaching about 1.7 cm in front of it just above the glabella
+    const c = { x: G.x + 0.15 * nose, y: G.y - 0.12 * nose };
+    const rad = 0.2 * nose;
+    const inp = paint(base, (x, y) => (x - c.x) ** 2 + (y - c.y) ** 2 <= rad * rad, true);
+    const r = detectProfileLandmarks(inp);
+    expect(r.ok, JSON.stringify({ issues: r.issues, diag: r.diag })).toBe(true);
+    if (r.points.glabella) expect(catAt(inp, r.points.glabella, 0.05 * nose)).not.toBe(HAIR);
+    else expect(r.issues.map((i) => i.code)).toContain("hairOverForehead");
+    expect(Math.hypot(r.points.nasion!.x / sc - N.x - 0.5, r.points.nasion!.y / sc - N.y - 0.5)).toBeLessThan(0.1 * nose);
+  });
+
+  it("hair covering the whole forehead: glabella not determinable, the rest of the profile is measured", () => {
+    // fringe down to just above the nasion, protruding in front of the forehead
+    const yHair = N.y - 0.2 * nose;
+    const inp = paint(base, (x, y) => y < yHair && x > G.x - 0.6 * nose && x < G.x + 0.25 * nose, true);
+    const r = detectProfileLandmarks(inp);
+    expect(r.ok).toBe(true);
+    expect(r.points.glabella).toBeUndefined();
+    expect(r.issues.map((i) => i.code)).toContain("hairOverForehead");
+    const s = analyzeSideView(r.points, { placement: "automatic" });
+    expect(s.analyzable).toBe(true);
+    const m = (id: string) => s.measurements.find((x) => x.id === id)!;
+    for (const id of ["FCA", "LFH", "MFP", "CHP", "NFA"]) expect(m(id).value, id).toBeNull();
+    for (const id of ["NLA", "CMA", "ZANG"]) expect(m(id).value, id).not.toBeNull();
+  });
+});
+
 describe("automatic profile landmarks — unusable inputs", () => {
   it("rejects an empty mask", () => {
     const r = detectProfileLandmarks({ width: 50, height: 50, foreground: new Float32Array(2500) });

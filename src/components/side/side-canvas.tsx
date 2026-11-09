@@ -6,7 +6,7 @@
  * around the pointer so that points can be set to the pixel.
  */
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent, type PointerEvent as RPointerEvent } from "react";
-import { SIDE_BY_ID, SIDE_LANDMARK_ORDER, formatSideValue, type SideLandmarkId, type SideMeasurementId, type SidePoints, type SideViewResult } from "@/engine/side-view";
+import { SIDE_BY_ID, SIDE_LANDMARK_ORDER, faceHeightOf, formatSideValue, type SideLandmarkId, type SideMeasurementId, type SidePoints, type SideViewResult } from "@/engine/side-view";
 import { intersectLines } from "@/engine/geometry";
 import type { Point } from "@/engine/types";
 import { useT } from "@/lib/i18n";
@@ -52,7 +52,7 @@ export function SideCanvas({ src, width, height, points, result, highlight, edit
   const S = Math.max(width, height);
   const dot = S / 230;
   const fs = S / 46;
-  const faceH = points.glabella && points.menton ? Math.abs(points.glabella.y - points.menton.y) : S * 0.4;
+  const faceH = faceHeightOf(points) || S * 0.4;
 
   useEffect(() => {
     const el = svgRef.current;

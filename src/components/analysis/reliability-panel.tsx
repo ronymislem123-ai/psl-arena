@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { analysisReliability, RELIABILITY_LEVELS, type MeasureQualityRow, type ReliabilityLevel } from "@/engine/quality/reliability";
 import type { AdditionalMeasurementId, AnalysisResult, RatioId } from "@/engine/types";
 import { useT } from "@/lib/i18n";
+import { KeepGreek } from "@/components/ui/keep-greek";
 import { symmetryMetricLabelById } from "@/lib/i18n/engine-text";
 import { additionalText, landmarkLabel, ratioText } from "@/lib/i18n/ratio-texts";
 import { cn, fmt } from "@/lib/utils";
@@ -64,14 +65,14 @@ export function ReliabilityPanel({ result, className }: { result: AnalysisResult
           <table className="w-full text-xs" data-testid="measure-quality-table">
             <thead className="text-fg-3 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="text-left py-2">{t("analysis.reliability.col.measure")}</th>
-                <th className="text-right py-2">{t("analysis.reliability.col.value")}</th>
-                <th className="text-center py-2">{t("analysis.reliability.col.detection")}</th>
-                <th className="text-left py-2 pl-2">{t("analysis.reliability.col.weakest")}</th>
-                <th className="text-right py-2">λ</th>
-                <th className="text-right py-2">{t("common.confidence")}</th>
-                <th className="text-left py-2 pl-3">{t("analysis.reliability.col.influences")}</th>
-                <th className="text-left py-2 pl-3">{t("analysis.reliability.col.status")}</th>
+                <th className="text-left py-2"><KeepGreek text={t("analysis.reliability.col.measure")} /></th>
+                <th className="text-right py-2"><KeepGreek text={t("analysis.reliability.col.value")} /></th>
+                <th className="text-center py-2"><KeepGreek text={t("analysis.reliability.col.detection")} /></th>
+                <th className="text-left py-2 pl-2"><KeepGreek text={t("analysis.reliability.col.weakest")} /></th>
+                <th className="text-right py-2"><span className="normal-case">λ</span></th>
+                <th className="text-right py-2"><KeepGreek text={t("common.confidence")} /></th>
+                <th className="text-left py-2 pl-3"><KeepGreek text={t("analysis.reliability.col.influences")} /></th>
+                <th className="text-left py-2 pl-3"><KeepGreek text={t("analysis.reliability.col.status")} /></th>
               </tr>
             </thead>
             <tbody>

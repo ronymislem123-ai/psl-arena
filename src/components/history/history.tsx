@@ -61,7 +61,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
             ) : (
               <ul className="divide-y divide-line">
                 {battles.map((b) => (
-                  <li key={b.id} className="flex items-center gap-3 py-3">
+                  <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
                     <div className="flex -space-x-2">
                       <FaceThumb imageId={b.imageAId} label={b.labelA} size={44} />
                       <FaceThumb imageId={b.imageBId} label={b.labelB} size={44} />
@@ -74,16 +74,18 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                         {fmt.date(b.createdAt, lang)} · {t("common.engine")} {b.engineVersion} · ±{b.margin.toFixed(1)}
                       </div>
                     </div>
-                    <div className="font-mono text-sm num">
-                      {fmt.score(b.overallA, 1)} : {fmt.score(b.overallB, 1)}
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                      <div className="font-mono text-sm num whitespace-nowrap">
+                        {fmt.score(b.overallA, 1)} : {fmt.score(b.overallB, 1)}
+                      </div>
+                      <VerdictBadge verdict={b.verdict} labelA={b.labelA} labelB={b.labelB} />
+                      <Link href={paths.battle(b.id)}>
+                        <Button size="sm" variant="outline">{t("common.open")}</Button>
+                      </Link>
+                      <Button size="sm" variant="ghost" onClick={() => delB(b.id)} aria-label={t("common.delete")}>
+                        <Trash2 size={14} />
+                      </Button>
                     </div>
-                    <VerdictBadge verdict={b.verdict} labelA={b.labelA} labelB={b.labelB} />
-                    <Link href={paths.battle(b.id)}>
-                      <Button size="sm" variant="outline">{t("common.open")}</Button>
-                    </Link>
-                    <Button size="sm" variant="ghost" onClick={() => delB(b.id)}>
-                      <Trash2 size={14} />
-                    </Button>
                   </li>
                 ))}
               </ul>
@@ -137,7 +139,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                   <li key={tr.id} className="flex items-center gap-3 py-3">
                     <div className="min-w-0 flex-1">
                       <Link href={paths.tournament(tr.id)} className="font-medium hover:text-accent">{tr.name}</Link>
-                      <div className="text-xs text-fg-3">{fmt.date(tr.updatedAt, lang)} · {t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} {t("tournaments.participants").toLowerCase()} · v{tr.version}</div>
+                      <div className="text-xs text-fg-3">{fmt.date(tr.updatedAt, lang)} · {t(`tournaments.formats.${tr.format}`)} · {t("tournaments.nParticipants", { n: tr.participantCount })} · v{tr.version}</div>
                     </div>
                     <Badge tone={tr.status === "completed" ? "mint" : tr.status === "running" ? "cyan" : tr.status === "paused" ? "amber" : "muted"}>{t(`tournaments.status.${tr.status}`)}</Badge>
                     <span className="text-xs text-fg-2 hidden sm:inline truncate max-w-[30%]">{tr.winnerNames.join(", ")}</span>
@@ -190,7 +192,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
             ) : (
               <>
               <div className="flex items-center justify-between gap-2 pb-3 text-xs text-fg-3">
-                <span>{t("historyPsl.selectHint")}</span>
+                <span>{t("historyPsl.selectHintAnalyses")}</span>
                 <Link href={selectedA.length >= 2 ? `/compare?mode=analyses&analyses=${selectedA.join(",")}` : "#"}><Button size="sm" variant="outline" disabled={selectedA.length < 2} data-testid="history-compare-analyses">{t("historyPsl.compareSelected", { n: selectedA.length })}</Button></Link>
               </div>
               <ul className="divide-y divide-line" data-testid="analyses-history">

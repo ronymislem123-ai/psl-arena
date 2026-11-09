@@ -180,7 +180,7 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
           <Card>
             <CardHeader title={`${t("tournaments.categories")} & ${t("tournaments.weights")}`} subtitle={t("tournaments.categoryWeightHint")} action={<Button size="sm" variant="ghost" onClick={() => setCfg({ categories: DEFAULT_CATEGORIES.map((c) => ({ ...c, criteria: [...c.criteria] })), decisiveCategoryId: "overallFace" })}>{t("tournaments.resetCategories")}</Button>} />
             <CardBody className="space-y-2">
-              <p className="text-xs text-fg-3">{t("tournaments.weightSum", { sum: weightSum })}</p>
+              <p className="text-xs text-fg-3">{t("tournaments.weightSum", { sum: Number(weightSum.toFixed(2)) })}</p>
               <ul className="divide-y divide-line" data-testid="categories">
                 {config.categories.map((c) => (
                   <li key={c.id} className="flex items-center gap-2 py-2">
@@ -217,8 +217,8 @@ export function TournamentWizard({ latest, scales, existing }: { latest: RatingS
               {error && <div className="rounded-lg bg-rose-soft border border-rose/30 px-3 py-2 text-xs text-[#ff8fa3]" role="alert">{error}</div>}
               <div className="flex flex-wrap gap-2">
                 <Badge tone="cyan">{t(`tournaments.formats.${config.format}`)}</Badge>
-                <Badge tone="muted">{parts.length} {t("tournaments.participants").toLowerCase()}</Badge>
-                <Badge tone="muted">{config.categories.length} {t("tournaments.categories").toLowerCase()}</Badge>
+                <Badge tone="muted">{t("tournaments.nParticipants", { n: parts.length })}</Badge>
+                <Badge tone="muted">{t("tournaments.nCategories", { n: config.categories.length })}</Badge>
               </div>
               <Button className="w-full" size="lg" disabled={!ready} loading={busy} onClick={submit} data-testid="tournament-create">
                 <Trophy size={18} /> {existing ? t("tournaments.saveDraft") : busy ? t("tournaments.creating") : t("tournaments.create")}

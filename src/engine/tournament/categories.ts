@@ -9,7 +9,7 @@ import type { TournamentCategory, TournamentConfig } from "./types";
  */
 export const DEFAULT_CATEGORIES: TournamentCategory[] = [
   { id: "overallFace", name: "Best Overall Face", criteria: [], overall: true, weight: 1, builtIn: true },
-  { id: "jawline", name: "Best Jawline", criteria: [{ id: "jawWidth", weight: 5 }, { id: "jawAngularityFrontal", weight: 2 }, { id: "gonialAngle", weight: 3 }, { id: "jawlineDefinition", weight: 1 }], weight: 0, builtIn: true },
+  { id: "jawline", name: "Best Jawline", criteria: [{ id: "jawWidth", weight: 5 }, { id: "gonialAngle", weight: 3 }, { id: "jawlineDefinition", weight: 1 }], weight: 0, builtIn: true },
   { id: "cheekbones", name: "Best Cheekbones", criteria: [{ id: "cheekbonePosition", weight: 2 }, { id: "cheekboneProjection", weight: 2 }], weight: 0, builtIn: true },
   { id: "eyeArea", name: "Best Eye Area", criteria: [], area: "eye", weight: 0, builtIn: true },
   { id: "harmony", name: "Best Facial Harmony", criteria: [{ id: "facialThirds", weight: 2 }, { id: "eyeMouthLength", weight: 2 }, { id: "facialFifths", weight: 1 }, { id: "faceShape", weight: 2 }, { id: "profileConvexity", weight: 2 }, { id: "lowerFaceHarmony", weight: 2 }], weight: 0, builtIn: true },

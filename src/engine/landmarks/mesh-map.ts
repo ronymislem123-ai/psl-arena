@@ -81,6 +81,27 @@ export const ZYGION_CANDIDATES: [number, number][] = [
   [234, 454],
   [93, 323],
 ];
+/** Face-contour levels from the temple down to the jaw (R, L): the candidates plus one neighbour above and below. */
+export const ZYGION_LEVELS: [number, number][] = [[162, 389], ...ZYGION_CANDIDATES, [132, 361]];
+
+/**
+ * Zygion stand-in: the widest level of the face contour, interpolated between contour
+ * levels. A plain argmax over three fixed contour pairs jumps between levels whose
+ * widths differ by only ~1 % but whose heights differ a lot (cheekbone position flipped
+ * between ≈ 10 and ≈ 2); a parabola through the widths of the best level and its two
+ * neighbours gives a continuous apex instead (offset limited to half a level).
+ */
+export function zygionApex(A: Point[]): { level: number; t: number; right: (P: Point[]) => Point; left: (P: Point[]) => Point } {
+  const W = ZYGION_LEVELS.map(([r, l]) => dist(A[r], A[l]));
+  let k = 1;
+  for (let i = 2; i <= ZYGION_LEVELS.length - 2; i++) if (W[i] > W[k]) k = i;
+  const den = W[k - 1] - 2 * W[k] + W[k + 1];
+  const d = den < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (W[k - 1] - W[k + 1])) / den)) : 0;
+  const j = d >= 0 ? k + 1 : k - 1;
+  const t = Math.abs(d);
+  const lerp = (P: Point[], a: number, b: number): Point => ({ x: P[a].x + t * (P[b].x - P[a].x), y: P[a].y + t * (P[b].y - P[a].y) });
+  return { level: k, t, right: (P) => lerp(P, ZYGION_LEVELS[k][0], ZYGION_LEVELS[j][0]), left: (P) => lerp(P, ZYGION_LEVELS[k][1], ZYGION_LEVELS[j][1]) };
+}
 export const RAMUS_R = [93, 132, 58];
 export const RAMUS_L = [323, 361, 288];
 export const BODY_R = [150, 136, 172];
@@ -344,24 +365,17 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   addIdx("frontotemporale_R", "Frontotemporale (right)", "forehead", "right", "low", "Temple contour at brow level (mesh 21).", "frontotemporale");
   addIdx("frontotemporale_L", "Frontotemporale (left)", "forehead", "left", "low", "Temple contour at brow level (mesh 251).", "frontotemporale");
 
-  // zygion: widest contour pair between lateral orbit and ear level
-  let best = ZYGION_CANDIDATES[0];
-  let bestW = -1;
-  for (const pair of ZYGION_CANDIDATES) {
-    const w = dist(A[pair[0]], A[pair[1]]);
-    if (w > bestW) {
-      bestW = w;
-      best = pair;
-    }
-  }
-  add("zygion_R", "Zygion (right, soft-tissue stand-in)", "cheek", "right", "low", "model", A[best[0]], R[best[0]], {
-    meshIndex: best[0],
-    note: "Widest point of the face contour; soft-tissue approximation of the zygomatic arch.",
+  // zygion: widest level of the face contour between lateral orbit and ear level (interpolated)
+  const zy = zygionApex(A);
+  const zyIdx = ZYGION_LEVELS[zy.level];
+  add("zygion_R", "Zygion (right, soft-tissue stand-in)", "cheek", "right", "low", "model", zy.right(A), zy.right(R), {
+    meshIndex: zyIdx[0],
+    note: "Widest level of the face contour (interpolated between contour points); soft-tissue approximation of the zygomatic arch.",
     noteCode: "zygion",
   });
-  add("zygion_L", "Zygion (left, soft-tissue stand-in)", "cheek", "left", "low", "model", A[best[1]], R[best[1]], {
-    meshIndex: best[1],
-    note: "Widest point of the face contour; soft-tissue approximation of the zygomatic arch.",
+  add("zygion_L", "Zygion (left, soft-tissue stand-in)", "cheek", "left", "low", "model", zy.left(A), zy.left(R), {
+    meshIndex: zyIdx[1],
+    note: "Widest level of the face contour (interpolated between contour points); soft-tissue approximation of the zygomatic arch.",
     noteCode: "zygion",
   });
 

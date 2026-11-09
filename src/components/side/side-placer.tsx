@@ -192,7 +192,7 @@ export function SidePlacer() {
     try {
       const res = await api.createSideAnalysis({
         profileId: profileId === "new" ? undefined : profileId,
-        profileLabel: profileId === "new" ? label.trim() || undefined : undefined,
+        profileLabel: profileId === "new" ? label.trim() || t("common.unnamedProfile") : undefined,
         imageDataUrl: storeImage ? img.dataUrl : undefined,
         storeImage,
         consent: { rightsConfirmed: true, adultsConfirmed: true },
@@ -341,8 +341,8 @@ export function SidePlacer() {
                 )}
                 {!detecting && auto && auto.result.issues.some((i) => i.severity === "warning") && (
                   <ul className="space-y-1">
-                    {auto.result.issues.filter((i) => i.severity === "warning").map((i) => (
-                      <li key={i.code} className="flex gap-2 text-xs text-amber"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> {t(`side.auto.issue.${i.code}`)}</li>
+                    {auto.result.issues.filter((i) => i.severity === "warning").map((i, k) => (
+                      <li key={`${i.code}-${k}`} className="flex gap-2 text-xs text-amber"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> {t(`side.auto.issue.${i.code}`, i.params ?? {})}</li>
                     ))}
                   </ul>
                 )}

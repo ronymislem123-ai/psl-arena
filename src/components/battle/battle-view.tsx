@@ -61,21 +61,21 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
       <Card strong>
         <CardHeader title={t("battle.reveal")} subtitle={verdictReason(battle, lang)} />
         <CardBody className="space-y-5">
-          <div className="flex items-center justify-around">
+          <div className="flex flex-wrap items-center justify-around gap-x-3 gap-y-4">
             <div className="text-center">
-              <ScoreRing value={battle.overallA} size={120} tone={battle.verdict === "A" ? "mint" : "accent"} digits={1} label={a.label} animate={false} />
+              <ScoreRing value={battle.overallA} size={104} tone={battle.verdict === "A" ? "mint" : "accent"} digits={1} label={a.label} animate={false} />
             </div>
-            <div className="text-center">
+            <div className="text-center order-last w-full sm:order-none sm:w-auto min-w-0">
               <div className="font-display text-2xl font-bold">{verdictText}</div>
               <div className="font-mono text-xs text-fg-3 mt-1">
-                {t("battle.overallDiff")} {battle.diff == null ? "—" : fmt.signed(battle.diff, 1)} · {t("battle.margin")} ±{battle.margin.toFixed(1)}
+                {t("battle.overallDiff")} {battle.diff == null || battle.overallA == null || battle.overallB == null ? "—" : fmt.signed(Number(battle.overallB.toFixed(1)) - Number(battle.overallA.toFixed(1)), 1)} · {t("battle.margin")} ±{battle.margin.toFixed(1)}
               </div>
               <div className="font-mono text-xs text-fg-3">
-                {t("battle.rounds")} {battle.roundWinsA} – {battle.roundWinsB} ({battle.roundDraws} {t("battle.draw").toLowerCase()})
+                {t("battle.rounds")} {battle.roundWinsA} – {battle.roundWinsB} ({t("battle.nDraws", { n: battle.roundDraws })})
               </div>
             </div>
             <div className="text-center">
-              <ScoreRing value={battle.overallB} size={120} tone={battle.verdict === "B" ? "mint" : "violet"} digits={1} label={b.label} animate={false} />
+              <ScoreRing value={battle.overallB} size={104} tone={battle.verdict === "B" ? "mint" : "violet"} digits={1} label={b.label} animate={false} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs">
@@ -112,7 +112,7 @@ function Summary({ battle, a, b }: { battle: BattleResult; a: ArenaSide; b: Aren
                     <td className={cn("py-2 text-right num font-mono", r.winner === "B" && "text-mint")}>{fmt.score(r.b)}</td>
                     <td className="py-2 text-right text-xs text-fg-3 font-mono">±{r.margin.toFixed(1)}</td>
                     <td className="py-2 text-right text-xs">
-                      <Badge tone={r.winner === "draw" ? "cyan" : r.winner === "n/a" ? "muted" : "mint"}>{r.winner === "A" ? a.label : r.winner === "B" ? b.label : r.winner === "draw" ? t("battle.draw") : "n/a"}</Badge>
+                      <Badge tone={r.winner === "draw" ? "cyan" : r.winner === "n/a" ? "muted" : "mint"}>{r.winner === "A" ? a.label : r.winner === "B" ? b.label : r.winner === "draw" ? t("battle.draw") : t("score.na")}</Badge>
                     </td>
                   </tr>
                 ))}

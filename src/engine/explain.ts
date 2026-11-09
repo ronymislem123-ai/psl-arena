@@ -14,11 +14,17 @@ export interface RatioExplanation {
   landmarkLabels: string[];
 }
 
+/** toFixed without a negative zero ("-0.0") for values that round to zero. */
+export function fixed(v: number, digits: number): string {
+  const s = v.toFixed(digits);
+  return Number(s) === 0 ? (0).toFixed(digits) : s;
+}
+
 export function formatValue(v: number | null | undefined, unit: "percent" | "ratio" | "degrees"): string {
   if (v == null || !Number.isFinite(v)) return "—";
-  if (unit === "percent") return `${v.toFixed(1)} %`;
-  if (unit === "degrees") return `${v.toFixed(1)}°`;
-  return v.toFixed(2);
+  if (unit === "percent") return `${fixed(v, 1)}\u00a0%`;
+  if (unit === "degrees") return `${fixed(v, 1)}°`;
+  return fixed(v, 2);
 }
 
 export function formatT1(def: { t1: { min: number | null; max: number | null }; unit: "percent" | "ratio" | "degrees" }): string {
@@ -59,7 +65,7 @@ export function explainRatio(result: RatioResult, landmarks: SemanticLandmark[])
     points: result.tierNote,
     index:
       result.index != null
-        ? `Harmony index ${result.index.toFixed(0)}/100: 100 inside T1, halving for every tolerance unit (${formatValue(def.tolerance, def.unit)}) outside.`
+        ? `Harmony index ${result.index.toFixed(0)}/100: 100 inside T1; outside, a Gaussian fall-off in units of the natural spread (${formatValue(def.tolerance, def.unit)}): 61 at one unit, 14 at two — averaged over the measurement uncertainty of the value.`
         : "No index (not evaluable).",
     formulaWithValues: inter ? `${def.formula} → ${inter}` : def.formula,
     landmarkLabels: lmLabels,

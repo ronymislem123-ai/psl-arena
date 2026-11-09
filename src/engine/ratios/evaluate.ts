@@ -73,7 +73,7 @@ export function evaluateRatios(map: LandmarkMap, quality: QualityReport, config:
       intermediate: {},
     };
     if (def.status === "incomplete") {
-      return { ...base, unavailableReason: "Measurement convention is incomplete in the provided material; not measured and not scored.", unavailableCode: "incomplete", tierNote: "Not scored (incomplete definition).", tierCode: "notScoredIncomplete" };
+      return { ...base, unavailableReason: "Measurement convention is incomplete in the source (community guide); not measured and not scored.", unavailableCode: "incomplete", tierNote: "Not scored (incomplete definition).", tierCode: "notScoredIncomplete" };
     }
     const missing = def.landmarks.filter((id) => !map[id]);
     if (missing.length) {

@@ -14,7 +14,7 @@ const scale = snapshotScale(buildStandardScale());
 
 describe("rubric definition", () => {
   it("category weights sum to 100 and every active category has criteria", () => {
-    expect(RUBRIC_VERSION).toBe("2.1.0");
+    expect(RUBRIC_VERSION).toBe("2.2.0");
     expect(totalWeight()).toBe(100);
     expect(RUBRIC_AREAS).toEqual(["eye", "proportions", "bone", "nose", "mouth", "symmetry", "forehead"]);
     for (const a of RUBRIC_AREAS) {
@@ -121,7 +121,7 @@ describe("rating engine on real fixtures", () => {
 
   it("rates a frontal analysis with documented coverage and a tier on the scale", () => {
     const r = rateFace({ frontal, scale });
-    expect(r.rubricVersion).toBe("2.1.0");
+    expect(r.rubricVersion).toBe("2.2.0");
     expect(r.score).not.toBeNull();
     expect(r.score!).toBeGreaterThan(0);
     expect(r.score!).toBeLessThan(10);
@@ -151,7 +151,7 @@ describe("rating engine on real fixtures", () => {
     expect(r.aggregation!.compensationPenalty!).toBeGreaterThanOrEqual(0);
     // the frontal analysis reports the same model
     expect(frontal.scores.overall).toBeCloseTo(pm, 9);
-    expect(frontal.scores.rubric!.version).toBe("2.1.0");
+    expect(frontal.scores.rubric!.version).toBe("2.2.0");
     // Monte-Carlo σ through the whole aggregation, and the precision it justifies
     expect(r.aggregation!.mcSamples).toBe(frontal.config.uncertaintySamples);
     expect(r.scoreSigma!).toBeGreaterThan(0);

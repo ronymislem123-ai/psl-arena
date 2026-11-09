@@ -24,7 +24,7 @@ const worse = (a: ReliabilityLevel, b: ReliabilityLevel) => (RANK[a] >= RANK[b] 
 
 export const SIGMA_THRESHOLDS_PSL = { veryHigh: 0.25, high: 0.4, moderate: 0.6 } as const;
 
-export type ReliabilityReasonCode = "unusable" | "sigma" | "noUncertainty" | "qualityAcceptable" | "qualityPoor" | "hairlineEstimated" | "noHairline" | "lowCoverage" | "yaw" | "corrected";
+export type ReliabilityReasonCode = "unusable" | "sigma" | "noUncertainty" | "qualityAcceptable" | "qualityPoor" | "hairlineEstimated" | "noHairline" | "lowCoverage" | "yaw" | "expression" | "corrected";
 export interface ReliabilityReason {
   code: ReliabilityReasonCode;
   /** level this condition limits the analysis to (null = information only) */
@@ -130,7 +130,14 @@ export function analysisReliability(r: AnalysisResult): AnalysisReliability {
   for (const a of r.additional) {
     const key = `a:${a.id}`;
     if (!CRITERION_OF.has(key)) continue;
-    const lm: SemanticLandmarkId[] = a.id === "EML" ? ["pupil_R", "pupil_L", "stomion", "trichion", "menton"] : ["zygion_R", "zygion_L", "exocanthion_R", "endocanthion_R", "endocanthion_L", "exocanthion_L"];
+    const lm: SemanticLandmarkId[] =
+      a.id === "EML"
+        ? ["pupil_R", "pupil_L", "stomion", "trichion", "menton"]
+        : a.id === "MRD1"
+          ? ["pupil_R", "pupil_L", "palpebrale_sup_R", "palpebrale_sup_L"]
+          : a.id === "SSI"
+            ? ["pupil_R", "pupil_L", "palpebrale_inf_R", "palpebrale_inf_L"]
+            : ["zygion_R", "zygion_L", "exocanthion_R", "endocanthion_R", "endocanthion_L", "exocanthion_L"];
     const inf: Influence[] = a.id === "EML" && trichion?.source === "estimated" ? ["hairline"] : [];
     rows.push(rowFor(key, "additional", a.id, lm, a.value, null, a.confidence, a.availability === "available" && a.value != null ? "scored" : "unavailable", inf));
   }
@@ -163,6 +170,11 @@ export function analysisReliability(r: AnalysisResult): AnalysisReliability {
   else if (trichion.source === "estimated") cap("hairlineEstimated", "high");
   if (r.coverage.fraction < 0.6) cap("lowCoverage", "moderate", { pct: Math.round(r.coverage.fraction * 100) });
   if (yaw > 15) cap("yaw", "moderate", { yaw });
+  // a smile, squint or open mouth changes mouth width, lip heights, eye opening and the
+  // chin contour far beyond landmark noise; the σ above does not see it
+  const exprPct = Math.round((1 - e.neutrality) * 100);
+  if (e.neutrality < 0.2) cap("expression", "low", { pct: exprPct });
+  else if (e.neutrality < 0.45 || e.smile > 0.45) cap("expression", "moderate", { pct: exprPct });
   if (r.corrections) cap("corrected", null, { n: r.corrections.landmarks.length });
 
   const psl = calibrate(r.scores.overall);

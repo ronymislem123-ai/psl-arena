@@ -14,6 +14,7 @@ import { SideCanvas } from "@/components/side/side-canvas";
 import { formatSideRange, formatSideValue, SIDE_BY_ID, SIDE_DEFINITIONS, type SideMeasurementId, type SideMeasurementResult } from "@/engine/side-view";
 import { api, imageUrl } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { KeepGreek } from "@/components/ui/keep-greek";
 import { SIDE_ASSUMPTION_TEXTS, SIDE_ISSUE_TEXTS, SIDE_SOURCE_TEXTS, sideLandmarkText, sideMeasurementText } from "@/lib/i18n/side-texts";
 import { useSessionImage } from "@/lib/session-images";
 import { cn, fmt, scoreLabel, scoreTone } from "@/lib/utils";
@@ -51,7 +52,8 @@ export function SideResult({ record }: { record: SideAnalysisRecord }) {
               {t("side.facing")}: {t(r.facing === "left" ? "side.facingLeft" : "side.facingRight")}
             </Badge>
             <Badge tone="accent">
-              {r.scoredCount} {t("side.scored")} · {r.measurements.length - r.scoredCount} {t("side.descriptive")}
+              {r.scoredCount} {t("side.scored")} · {r.measurements.filter((m) => m.value != null && !SIDE_BY_ID[m.id]?.range).length} {t("side.descriptive")}
+              {r.measurements.some((m) => m.value == null) && ` · ${r.measurements.filter((m) => m.value == null).length} ${t("side.notDeterminable")}`}
             </Badge>
             {r.scoreSigma != null && <Badge tone="muted">σ {r.scoreSigma.toFixed(1)}</Badge>}
             <Link href={paths.profile(record.profileId)} className="text-xs text-fg-2 hover:text-fg-0 underline underline-offset-2">
@@ -136,12 +138,12 @@ export function SideResult({ record }: { record: SideAnalysisRecord }) {
               <table className="w-full text-sm" data-testid="side-table">
                 <thead className="text-fg-3 uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="text-left py-2">{t("side.columns.measurement")}</th>
-                    <th className="text-right py-2">{t("side.columns.value")}</th>
-                    <th className="text-right py-2">{t("side.columns.sigma")}</th>
-                    <th className="text-right py-2">{t("side.columns.range")}</th>
-                    <th className="text-left py-2 pl-3">{t("side.columns.source")}</th>
-                    <th className="text-right py-2">{t("side.columns.index")}</th>
+                    <th className="text-left py-2"><KeepGreek text={t("side.columns.measurement")} /></th>
+                    <th className="text-right py-2"><KeepGreek text={t("side.columns.value")} /></th>
+                    <th className="text-right py-2"><KeepGreek text={t("side.columns.sigma")} /></th>
+                    <th className="text-right py-2"><KeepGreek text={t("side.columns.range")} /></th>
+                    <th className="text-left py-2 pl-3"><KeepGreek text={t("side.columns.source")} /></th>
+                    <th className="text-right py-2"><KeepGreek text={t("side.columns.index")} /></th>
                   </tr>
                 </thead>
                 <tbody>

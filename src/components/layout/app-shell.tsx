@@ -1,4 +1,5 @@
 "use client";
+import { ENGINE_VERSION } from "@/engine/version";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -91,7 +92,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{t("browser.edition")}</div>
-                <div className="text-[11px] text-fg-3 truncate">{t("browser.localData")}</div>
+                <div className="text-[11px] text-fg-3 leading-snug">{t("browser.localData")}</div>
               </div>
             </Link>
           </div>
@@ -112,7 +113,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: ShellU
             </div>
           </div>
         )}
-        <div className="px-5 py-3 border-t border-line text-[11px] text-fg-3 font-mono">v{BRAND.version} · engine local</div>
+        <div className="px-5 py-3 border-t border-line text-[11px] text-fg-3 font-mono">v{BRAND.version} · {t("common.engine")} {ENGINE_VERSION}</div>
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">

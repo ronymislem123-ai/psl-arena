@@ -17,14 +17,18 @@
  *   same construct and form one criterion;
  * - new criterion `eyeMouthLength` (Pallett et al. 2010, the one length ratio with
  *   published preference data).
- * Criteria of 1.0.0 that no longer exist stay in LEGACY_CRITERIA so that stored
- * ratings keep rendering.
+ * 2.2.0: the frontal gonial slope (GS) is shown but not scored — all six test faces lie
+ * above its 138–143° range (the mesh smooths the jaw corner, docs/RATIOS.md), the same
+ * construct-mismatch rule as for JWHR and the brow tilt; its criterion
+ * `jawAngularityFrontal` became a legacy criterion.
+ * Criteria that no longer exist stay in LEGACY_CRITERIA so that stored ratings keep
+ * rendering.
  */
 import type { AdditionalMeasurementId, RatioId, SemanticLandmarkId } from "../types";
 import type { SideMeasurementId } from "../side-view";
 import { evidenceOf } from "../scoring/measurement";
 
-export const RUBRIC_VERSION = "2.1.0";
+export const RUBRIC_VERSION = "2.2.0";
 
 export type RubricArea = "eye" | "proportions" | "bone" | "nose" | "mouth" | "symmetry" | "forehead" | /* 1.0 only */ "midface" | "harmony";
 /** Active categories of rubric 2.0, in display order. */
@@ -121,8 +125,8 @@ export const LANDMARK_RELIABILITY: Partial<Record<SemanticLandmarkId, number>> =
 /** Pallett et al. 2010 length ratio: (pupil line → mouth) / (hairline → chin); preferred .36–.37, SD .017. */
 export const EYE_MOUTH_LENGTH = { min: 0.36, max: 0.37, s: 0.017 } as const;
 
-const LIM_T1 = "Scored against the reference ranges of the frontal ratio database (docs/RATIOS.md), in units of the natural between-person spread.";
-const LIM_PROFILE = "Needs a side-view analysis (automatic from a profile photo, optionally corrected; docs/SIDE_VIEW.md).";
+const LIM_T1 = "Scored against the reference ranges of the frontal ratio database, in units of the natural between-person spread.";
+const LIM_PROFILE = "Needs a side-view analysis (automatic from a profile photo, optionally corrected).";
 const LIM_VISUAL = "Not scorable from 2D landmarks (no reference ranges); scored by a vision model (visual impression, not a measurement) when one is set up and the user consented to sending the photo, or by the user's self-assessment (half weight), otherwise reported as not assessable.";
 const LIM_EYELID = "Eyelid margins and iris from the face mesh with iris refinement (the iris diameter, 11.7 mm on average, sets the millimetre scale; Rüfer et al. 2005); lash shadows and make-up shift the lid margin.";
 const LIM_JAW = "Frontal jaw landmarks are soft-tissue constructions with low reliability (2D bigonial width ICC .16, Lim et al. 2022); weighted accordingly.";
@@ -134,7 +138,7 @@ export const CRITERIA: CriterionDefinition[] = [
   c({ id: "canthalTilt", area: "eye", name: "Canthal tilt", definition: "Inclination of the intercanthal axis (lateral canthus relative to the medial canthus).", method: "geometric", view: "frontal", inputs: { ratios: ["CT"] }, requirements: "Frontal photo, eyes open, yaw ≤ 15°.", limitations: [LIM_T1, "Squinting and residual pitch change the measured tilt."] }),
   c({ id: "eyeSpacing", area: "eye", name: "Eye spacing", definition: "Inter-pupillary, outer-canthal and intercanthal distances relative to the face and the fissure.", method: "geometric", view: "frontal", inputs: { ratios: ["ESR", "ICD", "OCD"] }, requirements: "Frontal photo with visible canthi.", limitations: [LIM_T1, "The interpupillary/face-width ratio is the one measure here with published preference data (Pallett et al. 2010)."] }),
   c({ id: "fissureProportions", area: "eye", name: "Fissure proportions", definition: "Eye aspect ratio and fissure length relative to the face width.", method: "geometric", view: "frontal", inputs: { ratios: ["EAR", "PFL_BYZGO"] }, requirements: "Neutral expression, eyes open.", limitations: [LIM_T1, "Eye opening changes with expression and fatigue."] }),
-  c({ id: "browArea", area: "eye", name: "Brow length", definition: "Brow length relative to the inter-pupillary distance. Brow tilt and its agreement with the canthal tilt are shown but not scored (angle convention does not match the reference, docs/SYSTEM_AUDIT.md).", method: "geometric", view: "frontal", inputs: { ratios: ["EBL"] }, requirements: "Brows visible (no fringe).", limitations: [LIM_T1, "Grooming changes brow ends."] }),
+  c({ id: "browArea", area: "eye", name: "Brow length", definition: "Brow length relative to the inter-pupillary distance. Brow tilt and its agreement with the canthal tilt are shown but not scored (angle convention does not match the reference).", method: "geometric", view: "frontal", inputs: { ratios: ["EBL"] }, requirements: "Brows visible (no fringe).", limitations: [LIM_T1, "Grooming changes brow ends."] }),
   c({ id: "upperLidExposure", area: "eye", name: "Upper lid position (MRD1)", definition: "Margin–reflex distance 1: distance from the iris centre to the upper lid margin in millimetres (iris diameter = 11.7 mm). Normal 4–5 mm; lower values mean a low (hooded/ptotic) lid, higher values a retracted lid with superior scleral show. The visible pretarsal skin (lid crease) is not a mesh landmark and is not measured.", method: "geometric", view: "frontal", inputs: { additional: ["MRD1"] }, requirements: "Frontal photo, eyes open, gaze straight ahead.", limitations: [LIM_EYELID, "Normal range 4–5 mm (Putterman 2012; Bacharach et al. 2016)."] }),
   c({ id: "scleralShow", area: "eye", name: "Scleral show", definition: "Visible sclera between the lower edge of the iris and the lower lid margin, in millimetres (iris diameter = 11.7 mm). The lower lid normally rests at the inferior limbus (no inferior scleral show); more than 1 mm is regarded as lower-lid retraction.", method: "geometric", view: "frontal", inputs: { additional: ["SSI"] }, requirements: "Frontal photo, relaxed gaze straight ahead.", limitations: [LIM_EYELID, "Reference: lower lid at the inferior limbus, scleral show > 1 mm = retraction (Bartley 1996)."] }),
   c({ id: "eyeShape", area: "eye", name: "Eye shape", definition: "Overall fissure shape (almond, round, hooded …) as a visual impression.", method: "visual", view: "frontal", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL] }),
@@ -150,7 +154,6 @@ export const CRITERIA: CriterionDefinition[] = [
   c({ id: "lowerFaceHarmony", area: "proportions", name: "Lower-face height (profile)", definition: "Lower face height share (Sn–Me / G–Me) in the anatomical reference frame.", method: "profile", view: "profile", inputs: { side: ["LFH"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE] }),
   // B — bone structure
   c({ id: "jawWidth", area: "bone", name: "Jaw width", definition: "Bigonial width relative to the bizygomatic width.", method: "geometric", view: "frontal", inputs: { ratios: ["BIG"] }, requirements: "Jawline visible (no beard/hair over the angles).", limitations: [LIM_T1, LIM_JAW] }),
-  c({ id: "jawAngularityFrontal", area: "bone", name: "Jaw angularity (frontal)", definition: "Frontal projection of the jaw angle (gonial slope).", method: "geometric", view: "frontal", inputs: { ratios: ["GS"] }, requirements: "Frontal photo.", limitations: [LIM_T1, LIM_JAW, "Frontal projection only; not the true gonial angle."] }),
   c({ id: "chinWidthShape", area: "bone", name: "Chin width", definition: "Mouth width relative to the chin width.", method: "geometric", view: "frontal", inputs: { ratios: ["M_C"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Reconstructed chin corners."] }),
   c({ id: "cheekbonePosition", area: "bone", name: "Cheekbone position", definition: "Height of the widest facial point relative to the midface.", method: "geometric", view: "frontal", inputs: { ratios: ["CBS"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Soft-tissue contour stands in for the zygomatic arch (2D bizygomatic ICC .66, Lim et al. 2022)."] }),
   c({ id: "gonialAngle", area: "bone", name: "Gonial angle (profile)", definition: "Soft-tissue gonial angle between ramus and mandibular body.", method: "profile", view: "profile", inputs: { side: ["GA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Soft-tissue proxy with the tragion as ramus reference."] }),
@@ -183,6 +186,7 @@ export const CRITERIA: CriterionDefinition[] = [
 
 /** Rubric 1.0 criteria that no longer exist (rendering of stored ratings only). */
 export const LEGACY_CRITERIA: CriterionDefinition[] = [
+  { id: "jawAngularityFrontal", area: "bone", name: "Jaw angularity (frontal)", definition: "Frontal projection of the jaw angle (gonial slope; rubric 2.0–2.1, shown but not scored since 2.2 because every test face lies above the reference range — the mesh convention differs from the source's).", method: "geometric", view: "frontal", weight: 1, inputs: { ratios: ["GS"] }, requirements: "Frontal photo.", limitations: [], legacy: true },
   { id: "fwhr", area: "midface", name: "Facial width-to-height", definition: "Bizygomatic width over brow-to-upper-lip height (rubric 1.0; shown but not scored since 2.0).", method: "geometric", view: "frontal", weight: 3, inputs: { ratios: ["FWHR"] }, requirements: "Frontal photo.", limitations: [], legacy: true },
   { id: "jawHeightRatio", area: "bone", name: "Jaw width-to-height", definition: "Bigonial width over the lower-face height (rubric 1.0; removed in 2.0 because the reconstructed construction does not reproduce the reference range).", method: "geometric", view: "frontal", weight: 2, inputs: { ratios: ["JWHR"] }, requirements: "—", limitations: [], legacy: true },
   { id: "areaBalance", area: "harmony", name: "Balance across areas", definition: "Spread of the area scores (rubric 1.0; removed because it rewarded uniformly weak faces).", method: "derived", view: "any", weight: 7, inputs: { derived: "areaBalance" }, requirements: "—", limitations: [], legacy: true },
@@ -192,7 +196,7 @@ export const LEGACY_CRITERIA: CriterionDefinition[] = [
 export const CRITERION_BY_ID = Object.fromEntries([...LEGACY_CRITERIA, ...CRITERIA].map((x) => [x.id, x])) as Record<CriterionId, CriterionDefinition>;
 
 /** Measures that are reported but deliberately not scored (with the reason). */
-export const DESCRIPTIVE_RATIOS: { id: RatioId; reason: string }[] = (["FWHR", "JWHR", "ET", "DEV_CT_ET", "ICD_N"] as RatioId[]).map((id) => ({ id, reason: evidenceOf(id).note }));
+export const DESCRIPTIVE_RATIOS: { id: RatioId; reason: string }[] = (["FWHR", "JWHR", "ET", "DEV_CT_ET", "ICD_N", "GS"] as RatioId[]).map((id) => ({ id, reason: evidenceOf(id).note }));
 
 /**
  * Calibration (overall index 0–100 → PSL 0–10): linear, PSL = index / 10.

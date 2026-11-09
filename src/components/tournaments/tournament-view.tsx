@@ -91,8 +91,8 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
             <Badge tone={STATUS_TONE[tr.status]} data-testid="tournament-status">{t(`tournaments.status.${tr.status}`)}</Badge>
-            <Badge tone="muted">{tr.participants.length} {t("tournaments.participants").toLowerCase()}</Badge>
-            <Badge tone="muted">{tr.config.categories.length} {t("tournaments.categories").toLowerCase()}</Badge>
+            <Badge tone="muted">{t("tournaments.nParticipants", { n: tr.participants.length })}</Badge>
+            <Badge tone="muted">{t("tournaments.nCategories", { n: tr.config.categories.length })}</Badge>
             {tr.description && <span className="text-xs text-fg-2">{tr.description}</span>}
           </span>
         }

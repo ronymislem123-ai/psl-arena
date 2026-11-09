@@ -23,7 +23,7 @@
 import type { Point } from "./types";
 import type { SideLandmarkId, SidePointSet, SidePointSource } from "./side-view";
 
-export const SIDE_AUTO_VERSION = "1.0.0";
+export const SIDE_AUTO_VERSION = "1.1.0";
 
 /** Multiclass selfie segmenter labels (MediaPipe selfie_multiclass_256x256). */
 export const SEG_LABELS = { background: 0, hair: 1, bodySkin: 2, faceSkin: 3, clothes: 4, others: 5 } as const;
@@ -51,12 +51,25 @@ export type AutoIssueCode =
   | "neckNotFound"
   | "lipsMerged"
   | "gonionNotFound"
+  | "hairOverForehead"
+  | "headTilted"
   | "offContourPoints";
 
 export interface AutoIssue {
   code: AutoIssueCode;
   severity: "error" | "warning" | "info";
+  params?: Record<string, number>;
 }
+
+/**
+ * Typical forward lean of the glabella → subnasale line against the true vertical in
+ * natural head position: the subnasale lies ≈ 6 mm ahead of the glabella vertical
+ * (Legan & Burstone 1980) over a G–Sn height of ≈ 63 mm → ≈ 5°. The automatic
+ * analysis measures against the image vertical, so a lean far from this means the head
+ * is tipped up or down and every measure taken against the vertical is shifted.
+ */
+export const TYPICAL_FACE_LEAN_DEG = 5;
+export const HEAD_TILT_WARN_DEG = 8;
 
 export interface AutoProfileResult {
   version: string;
@@ -415,6 +428,26 @@ export function detectProfileLandmarks(input: ProfileMaskInput): AutoProfileResu
   const ds = step; // arc length per sample
   const L = (len: number) => Math.max(1, Math.round(len / ds)); // samples for a length (mask px)
 
+  // ---- hair on the silhouette: with the multiclass model, curls or a fringe in front of
+  // the forehead belong to the hair class. Hair is never a nasal tip or a glabella.
+  const hairy = (i: number): boolean => {
+    if (!cat) return false;
+    let hair = 0;
+    let n = 0;
+    for (const depth of [0.25, 0.5]) {
+      const cx = Math.round(arc[i].x - ax * depth * cm);
+      const cy = Math.round(arc[i].y);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || y < 0 || x >= w || y >= h || !mask[y * w + x]) continue;
+        n++;
+        if (cat[y * w + x] === SEG_LABELS.hair) hair++;
+      }
+    }
+    return n > 0 && hair / n >= 0.5;
+  };
+
   // ---- pronasale: the anterior extreme that stands out on both sides (nose); lips and
   // chin stand out only below (lips) or above (chin turning into the neck)
   const win = L(3 * cm);
@@ -432,7 +465,7 @@ export function detectProfileLandmarks(input: ProfileMaskInput): AutoProfileResu
   let hi = arc.findIndex((p) => p.y >= yFaceEnd - 4 * cm);
   if (hi < 0) hi = arc.length - 1;
   if (lo < 0 || hi - lo < 10) return fail("noNose", { facing });
-  const iPrn = argBest(lo, hi, (i) => (A[i] >= A[Math.max(0, i - 1)] && A[i] >= A[Math.min(arc.length - 1, i + 1)] ? prom(i) : -Infinity));
+  const iPrn = argBest(lo, hi, (i) => (!hairy(i) && A[i] >= A[Math.max(0, i - 1)] && A[i] >= A[Math.min(arc.length - 1, i + 1)] ? prom(i) : -Infinity));
   const prnProm = prom(iPrn);
   Object.assign(diag, { lo, hi, iPrn, yPrn: Y[iPrn], prnProm, facing });
   if (!(prnProm > 0.4 * cm)) return fail("noNose", { facing, contour: arc.filter((_, i) => i % 4 === 0).map(toImg) });
@@ -452,25 +485,50 @@ export function detectProfileLandmarks(input: ProfileMaskInput): AutoProfileResu
   };
   const nLo = iUp(9 * cm);
   const nHi = iUp(1.6 * cm);
-  let best = { n: -1, g: -1, depth: -Infinity };
-  for (let iN = nLo; iN <= nHi; iN++) {
-    // glabella candidate: most anterior point 0.4–3 cm above this nasion
-    let gLo = iN;
-    for (let i = iN; i >= 0; i--) if (Y[i] <= Y[iN] - 3 * cm) { gLo = i; break; }
-    let gHi = iN;
-    for (let i = iN; i >= 0; i--) if (Y[i] <= Y[iN] - 0.4 * cm) { gHi = i; break; }
-    if (gHi <= gLo) continue;
-    const iG = argBest(gLo, gHi, (i) => A[i]);
-    // depth of the nasion behind the chord glabella → nasal tip (positive = posterior)
-    const ref = Math.sign(lineDistance({ x: (arc[iG].x + arc[iPrn].x) / 2 - ax, y: (arc[iG].y + arc[iPrn].y) / 2 }, arc[iG], arc[iPrn])) || 1;
-    const d = ref * lineDistance(arc[iN], arc[iG], arc[iPrn]);
-    if (d > best.depth) best = { n: iN, g: iG, depth: d };
+  const search = (skinOnly: boolean) => {
+    let best = { n: -1, g: -1, depth: -Infinity };
+    for (let iN = nLo; iN <= nHi; iN++) {
+      if (skinOnly && hairy(iN)) continue;
+      // glabella candidate: most anterior point 0.4–3 cm above this nasion
+      let gLo = iN;
+      for (let i = iN; i >= 0; i--) if (Y[i] <= Y[iN] - 3 * cm) { gLo = i; break; }
+      let gHi = iN;
+      for (let i = iN; i >= 0; i--) if (Y[i] <= Y[iN] - 0.4 * cm) { gHi = i; break; }
+      if (gHi <= gLo) continue;
+      const iG = argBest(gLo, gHi, (i) => (skinOnly && hairy(i) ? -Infinity : A[i]));
+      if (skinOnly && hairy(iG)) continue;
+      // depth of the nasion behind the chord glabella → nasal tip (positive = posterior)
+      const ref = Math.sign(lineDistance({ x: (arc[iG].x + arc[iPrn].x) / 2 - ax, y: (arc[iG].y + arc[iPrn].y) / 2 }, arc[iG], arc[iPrn])) || 1;
+      const d = ref * lineDistance(arc[iN], arc[iG], arc[iPrn]);
+      if (d > best.depth) best = { n: iN, g: iG, depth: d };
+    }
+    return best;
+  };
+  let best = search(true);
+  // the brow region is hair-free but no glabella candidate qualifies (hair in front of
+  // the forehead): the nasion is still taken from the deepest point, the glabella is
+  // not determinable
+  let glabellaOnHair = false;
+  if (best.n < 0 || best.depth <= 0) {
+    const anyBest = search(false);
+    if (anyBest.n >= 0 && cat && hairy(anyBest.g)) glabellaOnHair = true;
+    if (best.n < 0) best = anyBest;
   }
   if (best.n < 0) return fail("noNose", { facing });
+  if (hairy(best.n)) return fail("hairOverForehead", { facing });
+  // a skin-only maximum right below hair that keeps rising into the hair is cut off by
+  // the hair, not the true most prominent point
+  if (!glabellaOnHair && cat) {
+    const j = best.g - L(0.3 * cm);
+    if (j >= 0 && hairy(j) && A[j] >= A[best.g] - 0.05 * cm) glabellaOnHair = true;
+  }
   idx.nasion = best.n;
-  idx.glabella = best.g;
   conf.nasion = clamp01(best.depth / (0.5 * cm));
-  conf.glabella = clamp01(best.depth / (0.5 * cm)) * 0.9;
+  if (glabellaOnHair || hairy(best.g)) issues.push({ code: "hairOverForehead", severity: "warning" });
+  else {
+    idx.glabella = best.g;
+    conf.glabella = clamp01(best.depth / (0.5 * cm)) * 0.9;
+  }
 
   // ---- local scale for the lower face: the soft-tissue nasal length N–Prn (≈ 4.8 cm in
   // adults, Farkas 1994) is closer to the lips and chin than the head length
@@ -504,12 +562,14 @@ export function detectProfileLandmarks(input: ProfileMaskInput): AutoProfileResu
   const iX = Math.min(arc.length - 1, iPrn + L(3 * cm));
   const sn0 = deepest(arc, iPrn, iX, ax, 1).i;
   if (sn0 < 0) return fail("chinNotFound", { facing, scalePx: cm * scale });
-  const G = arc[idx.glabella!];
-  const dv = { x: arc[sn0].x - G.x, y: arc[sn0].y - G.y };
+  // (without a glabella — hair in front of the forehead — the image vertical is used)
+  const G = idx.glabella != null ? arc[idx.glabella] : null;
+  const dv = G ? { x: arc[sn0].x - G.x, y: arc[sn0].y - G.y } : { x: 0, y: 1 };
   const dl = Math.hypot(dv.x, dv.y) || 1;
   // the image vertical (natural head position) unless the head is clearly tilted (> 10°)
   const tiltDeg = (Math.atan2(ax * dv.x, dv.y) * 180) / Math.PI;
   diag.faceTiltDeg = tiltDeg;
+  if (G && Math.abs(tiltDeg - TYPICAL_FACE_LEAN_DEG) > HEAD_TILT_WARN_DEG) issues.push({ code: "headTilted", severity: "warning", params: { deg: Math.round(tiltDeg) } });
   const down = Math.abs(tiltDeg) > 10 ? { x: dv.x / dl, y: dv.y / dl } : { x: 0, y: 1 };
   let ant = { x: -down.y, y: down.x };
   if ((arc[iPrn].x - arc[sn0].x) * ant.x + (arc[iPrn].y - arc[sn0].y) * ant.y < 0) ant = { x: -ant.x, y: -ant.y };

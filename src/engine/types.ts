@@ -569,6 +569,7 @@ export type QualityIssueKey =
   | "faceCutOff"
   | "multipleFaces"
   | "hairlineNotFound"
+  | "hairlineCovered"
   | "selfie";
 
 export interface QualityIssue {
@@ -590,6 +591,8 @@ export interface QualityIssue {
     | "mouth-open"
     | "eyes-closed"
     | "hairline-not-found"
+    | "hairline-covered"
+    | "hairline-low"
     | "selfie-perspective"
     | "face-cut-off" | "lighting" | "compression" | "editing";
   severity: "info" | "warning" | "error";
@@ -719,6 +722,8 @@ export interface AnalysisInput {
   mesh: Point[];
   /** Estimated / manual extra points (raw pixel coords). */
   trichion?: { point: Point; source: "estimated" | "manual"; confidence: number } | null;
+  /** set by analyzeFace: an estimated hairline was discarded because hair covers the forehead (upper-third share, %) */
+  hairlineCovered?: { share: number } | null;
   neck?: { right: Point; left: Point; source: "manual" } | null;
   /**
    * engine 2.0: manual corrections — semantic landmarks moved by the user (raw
@@ -787,7 +792,7 @@ export interface AnalysisResult {
   corrections?: { landmarks: SemanticLandmarkId[]; axisAdjustDeg: number } | null;
   warnings: string[];
   /** Language-neutral warnings (UI translates). */
-  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "smile" | "corrected"; params?: Record<string, number> }[];
+  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "hairlineCovered" | "hairlineLow" | "smile" | "corrected"; params?: Record<string, number> }[];
 }
 
 // ---------------------------------------------------------------------------

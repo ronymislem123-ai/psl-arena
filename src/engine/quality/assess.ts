@@ -172,7 +172,8 @@ export function assessQuality(input: AnalysisInput, map: LandmarkMap, rollDeg: n
     issues.push({ key: "faceCutOff", code: "face-cut-off", severity: "warning", message: "The face touches the image border; the hairline or chin may be cut off." });
   }
   if (rq.faceCount > 1) issues.push({ key: "multipleFaces", params: { n: rq.faceCount }, code: "multiple-faces", severity: "info", message: `${rq.faceCount} faces detected; the selected face is analysed.` });
-  if (!input.trichion) issues.push({ key: "hairlineNotFound", code: "hairline-not-found", severity: "warning", message: "The hairline could not be estimated. Place it manually to enable hairline-based ratios (thirds, TFWHR, LFF, FWHF)." });
+  if (input.hairlineCovered) issues.push({ key: "hairlineCovered", params: { share: Math.round(input.hairlineCovered.share) }, code: "hairline-covered", severity: "warning", message: `Hair seems to cover the forehead (the visible transition gives an upper third of only ${Math.round(input.hairlineCovered.share)} %). Hairline-based ratios are not evaluated; place the hairline manually only if it is visible.` });
+  else if (!input.trichion) issues.push({ key: "hairlineNotFound", code: "hairline-not-found", severity: "warning", message: "The hairline could not be estimated. Place it manually to enable hairline-based ratios (thirds, TFWHR, LFF, FWHF)." });
   if (captureDistance === "selfie" && !capture.distanceCm) issues.push({ key: "selfie", code: "selfie-perspective", severity: "info", message: "Close-range (selfie) perspective enlarges the nose and narrows the face; depth-sensitive ratios carry reduced confidence." });
 
   // capture conditions: they lower the reliability of affected measurements, never the face score

@@ -77,11 +77,11 @@ export function AwardsCard({ awards, entered = 0 }: { awards: Award[]; entered?:
       <CardHeader title={t("awards.title")} icon={<AwardIcon size={18} className="text-amber" />} subtitle={entered > 0 ? t("awards.stats") : undefined} />
       <CardBody className="space-y-4">
         {entered > 0 && (
-          <div className="grid grid-cols-3 gap-2 text-center" data-testid="award-stats">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center" data-testid="award-stats">
             {[["entered", stats.tournamentsEntered], ["overallWins", stats.overallWins], ["championships", stats.championships], ["categoryWins", stats.categoryWins], ["distinct", stats.distinctCategories], ["withAward", stats.tournamentsWithAward]].map(([k, v]) => (
-              <div key={k as string} className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase tracking-wider text-fg-3 leading-tight">{t(`awards.${k}`)}</div><div className="font-display text-lg num">{v as number}</div></div>
+              <div key={k as string} className="min-w-0 rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase tracking-wider text-fg-3 leading-tight break-words hyphens-auto">{t(`awards.${k}`)}</div><div className="font-display text-lg num">{v as number}</div></div>
             ))}
-            {stats.mostWonCategory && <div className="col-span-3 text-xs text-fg-2">{t("awards.mostWon")}: {categoryName(stats.mostWonCategory.id, stats.mostWonCategory.name, lang)} ({stats.mostWonCategory.count}×)</div>}
+            {stats.mostWonCategory && <div className="col-span-full text-xs text-fg-2">{t("awards.mostWon")}: {categoryName(stats.mostWonCategory.id, stats.mostWonCategory.name, lang)} ({stats.mostWonCategory.count}×)</div>}
           </div>
         )}
         <div className="flex flex-wrap gap-1.5" data-testid="achievements">

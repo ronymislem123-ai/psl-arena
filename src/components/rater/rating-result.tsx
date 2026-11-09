@@ -17,10 +17,15 @@ import { Progress } from "@/components/ui/progress";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { formatPsl, type CriterionScore } from "@/engine/psl/rating";
 import { CRITERION_BY_ID } from "@/engine/psl/rubric";
+import { DEFAULT_TOURNAMENT_CONFIG } from "@/engine/tournament/categories";
+import { RATIO_BY_ID } from "@/engine/ratios/database";
+import { formatValue } from "@/engine/explain";
+import type { RatioId } from "@/engine/types";
+import { ratioText } from "@/lib/i18n/ratio-texts";
 import { formatTierRange } from "@/engine/psl/scale";
 import { api, imageUrl } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { areaDescription, areaName, criterionDefinition, criterionLimitations, criterionName, criterionRequirements, descriptiveReason } from "@/lib/i18n/psl-texts";
+import { areaDescription, areaName, criterionDefinition, criterionInputLabel, criterionLimitations, criterionName, criterionRequirements, descriptiveReason } from "@/lib/i18n/psl-texts";
 import { buildReportText, reportLines } from "@/lib/psl-report";
 import { useSessionImage } from "@/lib/session-images";
 import { cn, fmt, scoreTone } from "@/lib/utils";
@@ -67,7 +72,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
   return (
     <div className="space-y-6 print:space-y-4" data-testid="rating-result">
       <PageHeader
-        kicker={`${t("rater.result.title")} · ${fmt.date(record.createdAt, lang)} · ${t("rater.result.rubric")} ${r.rubricVersion} · ${t("rater.result.scaleUsed")}: ${r.scale.name} v${r.scale.version}`}
+        kicker={`${t("rater.result.title")} · ${fmt.date(record.createdAt, lang)} · ${t("rater.result.rubric")} ${r.rubricVersion} · ${t("rater.result.scaleUsed")}: ${r.scale.name}\u00a0v${r.scale.version}`}
         title={record.profileLabel}
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
@@ -97,7 +102,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
       <Card strong>
         <CardBody className="pt-5">
           <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <FaceThumb imageId={record.profileImageId} src={src} label={record.profileLabel} size={96} className="rounded-2xl" />
               <ScoreRing value={r.score} max={scoreMax} size={150} stroke={10} label={t("rater.result.score")} digits={decimals} tone={r.score == null ? "muted" : undefined} animate />
             </div>
@@ -116,7 +121,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
               {r.areas.map((a) => (
                 <div key={a.id} title={areaDescription(a.id, lang)}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-fg-1">{areaName(a.id, lang)} <span className="text-fg-3">· {isV2 ? `${a.weight} % · ` : ""}{Math.round(a.coverage * 100)} %</span></span>
+                    <span className="text-fg-1">{areaName(a.id, lang)} <span className="text-fg-3">· {isV2 ? `${t("rater.result.areaWeight", { w: a.weight })} · ` : ""}{t("rater.result.areaCoverage", { c: Math.round(a.coverage * 100) })}</span>{a.score != null && a.coverage < DEFAULT_TOURNAMENT_CONFIG.minCategoryCoverage && <span className="text-amber" data-testid={`area-low-${a.id}`}> · {t("rater.result.areaLowCoverage")}</span>}</span>
                     <span className="font-mono num">{formatPsl(a.score)}{a.sigma != null && <span className="text-fg-3 text-[10px]"> ±{a.sigma.toFixed(1)}</span>}</span>
                   </div>
                   <Progress value={a.score == null ? 0 : (a.score / scoreMax) * 100} tone={pslTone(a.score)} className="mt-1" />
@@ -184,14 +189,14 @@ export function RatingResult({ record }: { record: RatingRecord }) {
                 <th className="text-left py-2">{t("rater.result.areas")}</th>
                 <th className="text-right py-2">{isV2 ? t("rater.result.reliability") : t("rater.result.weight")}</th>
                 <th className="text-right py-2 pl-3">{t("rater.result.score")}</th>
-                <th className="text-left py-2 pl-3">{t("analysis.detail.reliability")}</th>
+                <th className="text-left py-2 pl-3">{t("rater.result.sourceHeader")}</th>
                 <th className="text-right py-2 pl-3">{t("rater.result.confidence")}</th>
               </tr>
             </thead>
             <tbody>
               {areaOrder.flatMap((area) => r.criteria.filter((c) => c.area === area)).map((c) => (
                 <tr key={c.id} className={cn("border-t border-line cursor-pointer hover:bg-white/3", !c.assessable && "opacity-70")} onClick={() => setOpen(c)} data-testid={`criterion-${c.id}`}>
-                  <td className="py-2 pr-2"><div className="font-medium">{criterionName(c.id, lang)}</div><div className="text-[11px] text-fg-3">{CRITERION_BY_ID[c.id].method}</div></td>
+                  <td className="py-2 pr-2"><div className="font-medium">{criterionName(c.id, lang)}</div><div className="text-[11px] text-fg-3">{t(`rater.result.method.${CRITERION_BY_ID[c.id].method}`)}</div></td>
                   <td className="py-2 text-xs text-fg-2">{areaName(c.area, lang)}</td>
                   <td className="py-2 text-right font-mono text-xs text-fg-2">{isV2 ? (c.reliability != null ? c.reliability.toFixed(2) : "—") : c.weight}</td>
                   <td className="py-2 pl-3 text-right">
@@ -202,7 +207,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
                     )}
                     <AppearanceInline measures={r.appearance} criterion={c.id} />
                   </td>
-                  <td className="py-2 pl-3"><Badge tone={SOURCE_TONE[c.source]}>{t(`rater.result.source.${c.source}`)}</Badge></td>
+                  <td className="py-2 pl-3">{c.assessable ? <Badge tone={SOURCE_TONE[c.source]}>{t(`rater.result.source.${c.source}`)}</Badge> : <span className="text-xs text-fg-3">—</span>}</td>
                   <td className="py-2 pl-3 text-right font-mono text-xs text-fg-2">{c.assessable ? fmt.pct(c.confidence) : "—"}</td>
                 </tr>
               ))}
@@ -217,9 +222,9 @@ export function RatingResult({ record }: { record: RatingRecord }) {
           <CardBody>
             <ul className="space-y-2 text-sm" data-testid="rating-descriptive">
               {r.descriptive.map((d) => (
-                <li key={d.id} className="flex gap-3">
-                  <span className="font-mono text-xs w-24 shrink-0 text-fg-1">{d.id}{d.value != null && <span className="text-fg-3"> · {d.value.toFixed(2)}</span>}</span>
-                  <span className="text-xs text-fg-2">{descriptiveReason(d.id, d.reason, lang)}</span>
+                <li key={d.id} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                  <span className="text-xs sm:w-40 sm:shrink-0 text-fg-1">{RATIO_BY_ID[d.id as RatioId] ? ratioText(d.id as RatioId, lang).name : d.id}{d.value != null && <span className="text-fg-3 font-mono"> · {RATIO_BY_ID[d.id as RatioId] ? formatValue(d.value, RATIO_BY_ID[d.id as RatioId].unit) : d.value.toFixed(2)}</span>}</span>
+                  <span className="min-w-0 text-xs text-fg-2">{descriptiveReason(d.id, d.reason, lang)}</span>
                 </li>
               ))}
             </ul>
@@ -236,12 +241,19 @@ export function RatingResult({ record }: { record: RatingRecord }) {
               <Section title={t("analysis.detail.limitations")}>
                 <ul className="list-disc pl-5 space-y-1">{criterionLimitations(open.id, lang).map((l, i) => <li key={i}>{l}</li>)}</ul>
               </Section>
-              <Section title={t("analysis.detail.landmarks")}>
-                <div className="flex flex-wrap gap-1">{open.usedInputs.map((u) => <Badge key={u} tone="mint">{u === "self-assessment" ? t("rater.result.source.self-assessment") : u}</Badge>)}{open.missingInputs.map((u) => <Badge key={u} tone="muted">{u}</Badge>)}</div>
-              </Section>
+              {open.usedInputs.length > 0 && (
+                <Section title={t("rater.result.inputsUsed")}>
+                  <div className="flex flex-wrap gap-1" data-testid="inputs-used">{open.usedInputs.map((u) => <Badge key={u} tone="mint">{criterionInputLabel(u, lang)}</Badge>)}</div>
+                </Section>
+              )}
+              {open.missingInputs.length > 0 && (
+                <Section title={t("rater.result.inputsMissing")}>
+                  <div className="flex flex-wrap gap-1" data-testid="inputs-missing">{open.missingInputs.map((u) => <Badge key={u} tone="muted">{criterionInputLabel(u, lang)}</Badge>)}</div>
+                </Section>
+              )}
             </div>
             <div className="space-y-3">
-              <div className="glass rounded-xl p-4"><div className="text-[11px] uppercase tracking-wider text-fg-2">{t("rater.result.score")}</div><div className="font-display text-3xl num mt-1">{open.assessable ? formatPsl(open.score) : "—"}</div>{open.index != null && <div className="text-xs text-fg-3">index {open.index.toFixed(0)}/100</div>}</div>
+              <div className="glass rounded-xl p-4"><div className="text-[11px] uppercase tracking-wider text-fg-2">{t("rater.result.score")}</div><div className="font-display text-3xl num mt-1">{open.assessable ? formatPsl(open.score) : "—"}</div>{open.index != null && <div className="text-xs text-fg-3">{t("rater.result.indexOf", { v: open.index.toFixed(0) })}</div>}</div>
               <div className="glass rounded-xl p-4"><div className="text-[11px] uppercase tracking-wider text-fg-2">{isV2 ? t("rater.result.reliability") : t("rater.result.weight")}</div><div className="font-display text-3xl num mt-1">{isV2 ? (open.reliability != null ? open.reliability.toFixed(2) : "—") : open.weight}</div><div className="text-xs text-fg-3">{areaName(open.area, lang)}{isV2 && ` · ${t("rater.result.categoryWeight")} ${r.areas.find((a) => a.id === open.area)?.weight ?? 0} %`}</div></div>
               {!open.assessable && <div className="text-xs text-amber">{t(`rater.result.reason.${open.notAssessableCode ?? "inputsUnavailable"}`)}</div>}
               {open.source === "self-assessment" && open.assessable && (

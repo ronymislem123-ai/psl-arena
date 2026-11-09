@@ -40,7 +40,7 @@ export function TournamentsList({ tournaments }: { tournaments: TournamentSummar
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <Link href={paths.tournament(tr.id)} className="font-display text-lg font-semibold hover:text-accent block truncate">{tr.name}</Link>
-                  <div className="text-xs text-fg-3">{t(`tournaments.formats.${tr.format}`)} · {tr.participantCount} {t("tournaments.participants").toLowerCase()} · v{tr.version} · {fmt.date(tr.updatedAt, lang)}</div>
+                  <div className="text-xs text-fg-3">{t(`tournaments.formats.${tr.format}`)} · {t("tournaments.nParticipants", { n: tr.participantCount })} · v{tr.version} · {fmt.date(tr.updatedAt, lang)}</div>
                 </div>
                 <Badge tone={STATUS_TONE[tr.status]}>{t(`tournaments.status.${tr.status}`)}</Badge>
               </div>

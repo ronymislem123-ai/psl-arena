@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Eye, ImagePlus, PenLine, ScanFace, ShieldCheck, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, ImagePlus, PenLine, ScanFace, ShieldCheck, XCircle } from "lucide-react";
 import { UploadSlot } from "@/components/battle/upload-slot";
 import { PageHeader } from "@/components/layout/app-shell";
 import { ScaleBar } from "@/components/psl/tier-badge";
@@ -141,7 +141,7 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
         let side: { id: string; profileId: string } | null = null;
         if (sideUsable && sideImg && sideRun) {
           const sr = await api.createSideAnalysis({
-            profileLabel: slot.label.trim() || undefined,
+            profileLabel: slot.label.trim() || t("common.unnamedProfile"),
             imageDataUrl: s.config.storeImages ? sideImg.dataUrl : undefined,
             storeImage: s.config.storeImages,
             consent: { rightsConfirmed: true, adultsConfirmed: true },
@@ -251,6 +251,9 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
                       ) : (
                         <div className="flex items-center gap-1 text-[#ff8fa3]"><XCircle size={14} /> {t("side.auto.failed")}: {sideRun.result.issues.filter((i) => i.severity === "error").map((i) => t(`side.auto.issue.${i.code}`)).join(" ")}</div>
                       )}
+                      {sideUsable && sideRun.result.issues.filter((i) => i.severity === "warning").map((i) => (
+                        <div key={i.code} className="flex items-start gap-1 text-amber" data-testid={`side-warning-${i.code}`}><AlertTriangle size={14} className="shrink-0 mt-px" /> {t(`side.auto.issue.${i.code}`, i.params ?? {})}</div>
+                      ))}
                       {sideUsable && <div className="text-fg-3">{t("rater.sideAutoNote")}</div>}
                     </div>
                   </div>

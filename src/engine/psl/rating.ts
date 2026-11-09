@@ -6,6 +6,7 @@
  * is shared with the frontal analysis.
  */
 import type { AnalysisResult, QualityLevel } from "../types";
+import { RATIO_BY_ID } from "../ratios/database";
 import { SIDE_BY_ID, toleranceFor, type SideViewResult } from "../side-view";
 import { createRng, gaussian, stddev } from "../geometry";
 import { plateauIndex } from "../scoring/measurement";
@@ -59,6 +60,8 @@ export type NotAssessableCode =
   | "visualNotAssessable"
   | "profileNotDeterminable"
   | "inputsUnavailable"
+  | "hairlineCovered"
+  | "hairlineMissing"
   | "notEnoughAreas"
   | "frontalUnusable";
 export type CriterionSource = "frontal" | "profile" | "mixed" | "visual-model" | "self-assessment" | "derived";
@@ -165,6 +168,9 @@ function sideMeasures(side: SideViewResult | null | undefined, into: MeasureMap)
   }
 }
 
+/** Criteria that only detect a defect: full marks are the normal case, not a strength. */
+export const NO_DEFECT_CRITERIA: ReadonlySet<CriterionId> = new Set<CriterionId>(["scleralShow"]);
+
 /** Self-assessments count with half confidence and half reliability (subjective, not reproducible). */
 export const SELF_ASSESSMENT_WEIGHTING = { confidence: 0.5, reliability: 0.5 } as const;
 
@@ -199,6 +205,13 @@ export function rateFace(input: RatingInput): RatingResult {
   sideMeasures(side, measures);
   visualMeasures(visual, input.selfAssessment, measures);
   const h = aggregateHierarchy(measures);
+  // criteria whose frontal inputs all depend on the hairline (thirds, forehead, eye–mouth length)
+  const hairlineCode: NotAssessableCode = frontal.warningCodes?.some((w) => w.code === "hairlineCovered") ? "hairlineCovered" : "hairlineMissing";
+  const needsHairline = (def: (typeof CRITERIA)[number]) => {
+    const r = def.inputs.ratios ?? [];
+    const add = def.inputs.additional ?? [];
+    return (r.length > 0 || add.length > 0) && r.every((id) => RATIO_BY_ID[id]?.sensitivity?.hairline) && add.every((id) => id === "EML");
+  };
 
   const criteria: CriterionScore[] = CRITERIA.map((def, i) => {
     const a = h.criteria[i];
@@ -209,7 +222,7 @@ export function rateFace(input: RatingInput): RatingResult {
         visualStatus === "used" ? "visualNotAssessable" : visualStatus === "noConsent" ? "visualNoConsent" : visualStatus === "noImage" ? "visualNoImage" : visualStatus === "failed" ? "visualFailed" : "visualNotConfigured";
       const needsProfile = def.method === "profile" || (def.inputs.side?.length && !(def.inputs.ratios ?? []).some((r) => measures.has(`r:${r}`)));
       const code: NotAssessableCode =
-        def.method === "visual" ? visualCode : needsProfile && side?.analyzable ? "profileNotDeterminable" : needsProfile ? "requiresProfile" : "inputsUnavailable";
+        def.method === "visual" ? visualCode : needsProfile && side?.analyzable ? "profileNotDeterminable" : needsProfile ? "requiresProfile" : needsHairline(def) && !frontal.landmarks.some((l) => l.id === "trichion") ? hairlineCode : "inputsUnavailable";
       return { ...base, assessable: false, notAssessableCode: code, index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
     }
     const source: CriterionSource = a.fromVisual ? "visual-model" : a.fromSelf ? "self-assessment" : a.fromFrontal && a.fromProfile ? "mixed" : a.fromProfile ? "profile" : "frontal";
@@ -224,6 +237,15 @@ export function rateFace(input: RatingInput): RatingResult {
   const catSamples: Record<string, number[]> = {};
   if (samples && n > 1) {
     const rng = createRng(frontal.config.seed ^ 0x5eed);
+    // centre each measure's samples on its point index: the stored samples are raw
+    // landmark-noise replays (e.g. symmetry without the noise-floor correction that the
+    // point value has), so only their spread is used, not their offset
+    const shift: Record<string, number> = {};
+    for (const [k, arr] of Object.entries(samples)) {
+      const base = measures.get(k);
+      const vals = arr.filter((v): v is number => v != null);
+      if (base && vals.length) shift[k] = base.index - vals.reduce((x, y) => x + y, 0) / vals.length;
+    }
     for (let s = 0; s < n; s++) {
       const mm: MeasureMap = new Map(measures);
       for (const [k, arr] of Object.entries(samples)) {
@@ -231,7 +253,7 @@ export function rateFace(input: RatingInput): RatingResult {
         if (!base) continue;
         const v = arr[s];
         if (v == null) mm.delete(k);
-        else mm.set(k, { ...base, index: v });
+        else mm.set(k, { ...base, index: Math.max(0, Math.min(100, v + (shift[k] ?? 0))) });
       }
       if (side?.analyzable) {
         for (const m of side.measurements) {
@@ -283,7 +305,9 @@ export function rateFace(input: RatingInput): RatingResult {
   }
 
   const assessed = criteria.filter((c) => c.assessable && c.score != null).sort((a, b) => b.score! - a.score!);
-  const strengths = assessed.filter((c) => c.score! >= 6.5).slice(0, 4).map((c) => ({ id: c.id, score: c.score! }));
+  // "no defect" criteria (e.g. no scleral show below the iris) reach 10 on almost every
+  // face; they lower a score when the defect is present but are no strength
+  const strengths = assessed.filter((c) => c.score! >= 6.5 && !NO_DEFECT_CRITERIA.has(c.id)).slice(0, 4).map((c) => ({ id: c.id, score: c.score! }));
   const lowerRated = [...assessed].reverse().filter((c) => c.score! < 5).slice(0, 4).map((c) => ({ id: c.id, score: c.score! }));
   const notAssessable = criteria.filter((c) => !c.assessable).map((c) => ({ id: c.id, code: c.notAssessableCode ?? ("inputsUnavailable" as const) }));
 

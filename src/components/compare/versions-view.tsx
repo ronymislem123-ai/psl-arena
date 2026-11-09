@@ -63,7 +63,7 @@ export function VersionsCompareView({ tournaments, tournamentId, versions, optio
         <div className="space-y-5" data-testid="versions-diff">
           <div className="flex flex-wrap gap-2 text-xs">
             {[diff.a, diff.b].map((v, i) => (
-              <Badge key={i} tone={i === 0 ? "muted" : "cyan"}>v{v.version} · {t(`tournaments.status.${v.status}`)} · {v.participants} {t("tournaments.participants").toLowerCase()}{v.completedAt ? ` · ${fmt.date(v.completedAt, lang)}` : ""}</Badge>
+              <Badge key={i} tone={i === 0 ? "muted" : "cyan"}>v{v.version} · {t(`tournaments.status.${v.status}`)} · {t("tournaments.nParticipants", { n: v.participants })}{v.completedAt ? ` · ${fmt.date(v.completedAt, lang)}` : ""}</Badge>
             ))}
             {options.filter((o) => o.id === selA || o.id === selB).filter((o) => o.id !== "current").map((o) => (
               <Link key={o.id} href={paths.tournamentVersion(tournamentId, o.id)} className="underline underline-offset-2 text-fg-2 hover:text-fg-0">{t("compareVersions.openArchived")} (v{o.version}) →</Link>

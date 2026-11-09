@@ -5,8 +5,8 @@
  */
 import type { CriterionId } from "@/engine/psl/rubric";
 
-const LIM_T1 = "Bewertet gegen die Referenzbereiche der Frontal-Verhältnisdatenbank (docs/RATIOS.md), in Einheiten der natürlichen Streuung zwischen Personen.";
-const LIM_PROFILE = "Benötigt eine Seitenansicht-Analyse (automatisch aus einem Profilfoto, optional korrigiert; docs/SIDE_VIEW.md).";
+const LIM_T1 = "Bewertet gegen die Referenzbereiche der Frontal-Verhältnisdatenbank, in Einheiten der natürlichen Streuung zwischen Personen.";
+const LIM_PROFILE = "Benötigt eine Seitenansicht-Analyse (automatisch aus einem Profilfoto, optional korrigiert).";
 const LIM_VISUAL = "Aus 2D-Landmarks nicht bewertbar (keine Referenzbereiche); bewertet durch ein visuelles Modell (visueller Eindruck, keine Messung), wenn eines eingerichtet ist und dem Senden des Fotos zugestimmt wurde, oder durch die eigene Selbsteinschätzung (halbe Gewichtung); sonst als nicht beurteilbar ausgewiesen.";
 const LIM_EYELID = "Lidränder und Iris aus dem Gesichtsnetz mit Iris-Verfeinerung (der Irisdurchmesser, im Mittel 11,7 mm, legt den Millimetermaßstab fest; Rüfer et al. 2005); Wimpernschatten und Make-up verschieben den Lidrand.";
 const LIM_JAW = "Frontale Kieferpunkte sind Weichteilkonstruktionen mit geringer Zuverlässigkeit (2D-Bigonialbreite ICC .16, Lim et al. 2022); entsprechend gewichtet.";
@@ -31,7 +31,6 @@ export const CRITERION_DETAILS_DE: Record<CriterionId, { requirements: string; l
   profileConvexity: { requirements: REQ_SIDE, limitations: [LIM_PROFILE] },
   lowerFaceHarmony: { requirements: REQ_SIDE, limitations: [LIM_PROFILE] },
   jawWidth: { requirements: "Kieferlinie sichtbar (kein Bart/Haar über den Kieferwinkeln).", limitations: [LIM_T1, LIM_JAW] },
-  jawAngularityFrontal: { requirements: "Frontalfoto.", limitations: [LIM_T1, LIM_JAW, "Nur die frontale Projektion, nicht der echte Kieferwinkel."] },
   chinWidthShape: { requirements: "Frontalfoto.", limitations: [LIM_T1, "Rekonstruierte Kinnecken."] },
   cheekbonePosition: { requirements: "Frontalfoto.", limitations: [LIM_T1, "Die Weichteilkontur steht stellvertretend für den Jochbogen (2D-bizygomatisch ICC .66, Lim et al. 2022)."] },
   gonialAngle: { requirements: REQ_SIDE, limitations: [LIM_PROFILE, "Weichteil-Näherung mit dem Tragion als Bezug für den Unterkieferast."] },
@@ -57,6 +56,7 @@ export const CRITERION_DETAILS_DE: Record<CriterionId, { requirements: string; l
   foreheadHeight: { requirements: "Haaransatz sichtbar/bestätigt.", limitations: [LIM_T1, "Der Haaransatz wird aus dem Farbwechsel geschätzt oder manuell gesetzt; automatische Haaransatz-Punkte haben große Fehler."] },
   foreheadWidth: { requirements: "Schläfen sichtbar (kein Haar über den Schläfen).", limitations: [LIM_T1, "Schläfen-Konturpunkte sind Weichteil-Stellvertreter."] },
   // rubric 1.0 (only for stored ratings)
+  jawAngularityFrontal: { requirements: "Frontalfoto.", limitations: [] },
   fwhr: { requirements: "Frontalfoto.", limitations: [] },
   jawHeightRatio: { requirements: "—", limitations: [] },
   areaBalance: { requirements: "—", limitations: [] },

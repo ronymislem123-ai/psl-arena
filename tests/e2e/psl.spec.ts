@@ -131,7 +131,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await expect(page.getByText("Overall assessment")).toBeVisible();
     await expect(page.getByText("Analysis quality")).toBeVisible();
     await expect(page.getByText(/does not determine a person/)).toBeVisible();
-    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(42);
+    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(41); // rubric 2.2
     await expect(page.getByTestId("scale-marker")).toBeVisible();
     await expect(page.getByTestId("rating-areas")).toBeVisible();
     await page.waitForTimeout(1500);
@@ -144,7 +144,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     expect(a.score).toBeLessThan(10);
     // the stored rating carries the scale snapshot and rubric version
     const rec = (await (await page.request.get(`/api/ratings/${a.id}`)).json()).rating;
-    expect(rec.rubricVersion).toBe("2.1.0");
+    expect(rec.rubricVersion).toBe("2.2.0");
     expect(rec.scaleSnapshot.tiers.length).toBe(21);
     expect(rec.result.criteria.filter((c: { assessable: boolean }) => c.assessable).length).toBeGreaterThan(20);
     expect(rec.result.notAssessable.some((n: { code: string }) => n.code === "requiresProfile")).toBe(true);
@@ -252,6 +252,35 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await expect(page.getByTestId("appearance-detail")).toContainText(/not scored/);
     await shot(page, "56c-self-assessment-dialog");
     await page.keyboard.press("Escape");
+  });
+
+  test("rater: a photo picked while the saved setup is still being restored is not overwritten by it", async ({ page }) => {
+    test.setTimeout(240_000);
+    await signIn(page);
+    await page.goto("/rater");
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "portrait-a.jpg"));
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+    await page.getByPlaceholder("e.g. Alex").fill("First Person");
+    await page.waitForTimeout(800); // the setup is saved (debounced) for a crash-safe reload
+    // reload: the saved photo is restored in the background — pick another photo right away
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "portrait-b.jpg"));
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
+    await page.waitForTimeout(2500); // give a stale restore time to (wrongly) win
+    await page.getByPlaceholder("e.g. Alex").fill("Second Person");
+    const boxes = page.locator('input[type="checkbox"]');
+    for (let i = 0; i < (await boxes.count()); i++) {
+      const text = await boxes.nth(i).evaluate((el) => (el.closest("label")?.textContent ?? "").trim());
+      if (/right to use|adult/i.test(text) && !(await boxes.nth(i).isChecked())) await boxes.nth(i).check();
+    }
+    await page.getByTestId("rate-button").click();
+    await page.waitForURL(/\/rater\/rate_/, { timeout: 120_000 });
+    const rec = (await (await page.request.get(`/api/ratings/${page.url().split("/").pop()}`)).json()).rating;
+    expect(rec.profileLabel).toBe("Second Person");
+    const ana = (await (await page.request.get(`/api/analyses/${rec.analysisId}`)).json()).analysis;
+    // portrait-b is 970 × 2204 (working copy ≤ 1600 px high), portrait-a 910 × 1137
+    expect(ana.imageHeight).toBe(1600);
   });
 
   test("tournaments: ranking tournament with duplicate ratings, category winners, knockout with manual tie decision, reopen/version, mobile", async ({ page, browser }) => {

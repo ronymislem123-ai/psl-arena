@@ -43,7 +43,7 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
                   {p.label}
                 </Link>
                 <div className="text-xs text-fg-3">
-                  {p.analysisCount} {t("profiles.analyses")} · {p.latestAt ? fmt.date(p.latestAt, lang) : "—"}
+                  {t(p.analysisCount === 1 ? "profiles.oneAnalysis" : "profiles.nAnalyses", { n: p.analysisCount })} · {p.latestAt ? fmt.date(p.latestAt, lang) : "—"}
                 </div>
                 <div className="mt-1 font-display text-xl num">{fmt.score(p.latestOverall, 1)}</div>
                 <div className="mt-2 flex gap-1">
@@ -111,7 +111,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
             </span>
           )
         }
-        subtitle={`${profile.analysisCount} ${t("profiles.analyses")} · ${t("common.createdAt")} ${fmt.date(profile.createdAt, lang)}`}
+        subtitle={`${t(profile.analysisCount === 1 ? "profiles.oneAnalysis" : "profiles.nAnalyses", { n: profile.analysisCount })} · ${t("common.createdAt")} ${fmt.date(profile.createdAt, lang)}`}
         action={
           <div className="flex gap-2">
             <Link href={`/rater?profile=${profile.id}`}><Button size="sm">{t("dashboardPsl.rate")}</Button></Link>

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ImagePlus, Info, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, levelTone } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import { cn, fmt } from "@/lib/utils";
 export function UploadSlot({ side, store = useBattleSetup, title: titleOverride }: { side: Side; store?: SetupStore; title?: string }) {
   const { t, lang } = useT();
   const slot = store((s) => s[side]);
-  const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, setNeck, setNeckPlacing, setCorrecting, moveLandmark, setAxisAdjust, resetCorrections } = store();
+  const { loadFile, clear, setLabel, setFaceIndex, setTrichion, confirmTrichion, resetTrichion, hideTrichion, setNeck, setNeckPlacing, setCorrecting, moveLandmark, setAxisAdjust, resetCorrections } = store();
   const showMeshDefault = useSettings((s) => s.showMeshByDefault);
   const [layer, setLayer] = useState<LayerId>("landmarks");
   const [showMesh, setShowMesh] = useState(showMeshDefault);
@@ -27,13 +27,10 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const onFiles = useCallback(
-    (files: FileList | null) => {
-      const f = files?.[0];
-      if (f) void loadFile(side, f);
-    },
-    [loadFile, side],
-  );
+  const onFiles = (files: FileList | null) => {
+    const f = files?.[0];
+    if (f) void loadFile(side, f);
+  };
 
   const title = titleOverride ?? (side === "a" ? t("common.person1") : t("common.person2"));
   const accent = side === "a" ? "text-accent" : "text-violet";
@@ -100,6 +97,9 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
   const q = preview?.quality;
   const est = prep.hairline[slot.faceIndex];
   const hasTrichion = !!preview?.landmarks.find((l) => l.id === "trichion");
+  const hairCovered = preview?.warningCodes?.find((w) => w.code === "hairlineCovered");
+  const hairLow = preview?.warningCodes?.find((w) => w.code === "hairlineLow");
+  const hairHidden = slot.trichion === null;
   const nCorrected = Object.keys(slot.corrections.landmarks ?? {}).length;
 
   return (
@@ -176,8 +176,14 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
             <Badge tone="mint">
               <CheckCircle2 size={12} /> {t("upload.hairlineConfirmed")}
             </Badge>
+          ) : hairHidden ? (
+            <Badge tone="muted">{t("upload.hairlineHidden")}</Badge>
+          ) : hairCovered ? (
+            <Badge tone="amber" data-testid={`hairline-covered-${side}`}>
+              <AlertTriangle size={12} /> {t("upload.hairlineCovered")}
+            </Badge>
           ) : hasTrichion ? (
-            <Badge tone="amber">{est ? `est. ${(est.confidence * 100).toFixed(0)} %` : "manual"}</Badge>
+            <Badge tone="amber">{slot.trichion ? t("upload.hairlinePlaced") : t("upload.hairlineEstimated", { pct: ((est?.confidence ?? 0) * 100).toFixed(0) })}</Badge>
           ) : (
             <Badge tone="rose">
               <AlertTriangle size={12} /> {t("upload.hairlineMissing")}
@@ -185,12 +191,17 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
           )}
         </div>
         <p className="text-xs text-fg-3">{t("upload.hairlineHint")}</p>
+        {hairCovered && <p className="text-xs text-amber">{t("upload.hairlineCoveredNote", { share: hairCovered.params?.share ?? "?" })}</p>}
+        {hairLow && <p className="text-xs text-amber">{t("upload.hairlineLowNote", { share: hairLow.params?.share ?? "?" })}</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant={slot.trichionConfirmed ? "secondary" : "outline"} onClick={() => confirmTrichion(side)} disabled={!hasTrichion || slot.trichionConfirmed}>
             {t("upload.hairlineConfirm")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => resetTrichion(side)} disabled={!est}>
+          <Button size="sm" variant="ghost" onClick={() => resetTrichion(side)} disabled={!est || slot.trichion === undefined}>
             {t("upload.hairlineReset")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => hideTrichion(side)} disabled={hairHidden} data-testid={`hairline-hide-${side}`}>
+            {t("upload.hairlineHide")}
           </Button>
         </div>
       </div>

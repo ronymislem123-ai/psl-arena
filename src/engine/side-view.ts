@@ -6,7 +6,7 @@
  * placed points. The image vertical is taken as the true vertical (natural head
  * position assumed) — this is stated in every result.
  *
- * Reference ranges: GA uses the range of the provided guide (older reference
+ * Reference ranges: GA uses the range of the community guide (older reference
  * 115–130°). Every other range is a published literature norm and is labelled as
  * such; descriptive measures carry no target and are never scored. Nothing here
  * feeds into the 42-ratio frontal score.
@@ -84,11 +84,13 @@ export type SidePoints = Record<SideLandmarkId, Point>;
 export type SidePointSet = Partial<SidePoints>;
 
 /**
- * Points every analysis needs (the facial midline from glabella to menton). The
- * remaining points (rhinion, alar crease, cervical/neck point, gonion, tragion) are
- * optional: measurements that need a missing point are reported as not determinable.
+ * Points every analysis needs (the facial midline from nasion to menton). The
+ * remaining points (glabella, rhinion, alar crease, cervical/neck point, gonion,
+ * tragion) are optional: measurements that need a missing point are reported as not
+ * determinable. The glabella is optional because hair in front of the forehead can
+ * hide it in a profile photo.
  */
-export const SIDE_CORE_POINTS: SideLandmarkId[] = ["glabella", "nasion", "pronasale", "subnasale", "labrale_sup", "stomion", "labrale_inf", "labiomental", "pogonion", "menton"];
+export const SIDE_CORE_POINTS: SideLandmarkId[] = ["nasion", "pronasale", "subnasale", "labrale_sup", "stomion", "labrale_inf", "labiomental", "pogonion", "menton"];
 
 /** How a point was obtained. */
 export type SidePointSource = "manual" | "contour" | "derived" | "segment";
@@ -478,6 +480,16 @@ function scoreOf(values: RawValues): { score: number | null; scoredCount: number
   return { score: den > 0 ? num / den : null, scoredCount, per };
 }
 
+/**
+ * Glabella–menton height in pixels; without a glabella from the nasion–menton height
+ * (G–Me ≈ 1.1 × N–Me in adults: glabella ≈ 1–1.5 cm above the nasion, N–Me ≈ 12 cm).
+ */
+export function faceHeightOf(P: SidePointSet): number {
+  if (P.glabella && P.menton) return Math.abs(P.glabella.y - P.menton.y);
+  if (P.nasion && P.menton) return 1.1 * Math.abs(P.nasion.y - P.menton.y);
+  return 0;
+}
+
 export function findIssues(P: SidePointSet, facing: "left" | "right"): SideIssue[] {
   const ax = facing === "left" ? -1 : 1;
   const issues: SideIssue[] = [];
@@ -494,7 +506,7 @@ export function findIssues(P: SidePointSet, facing: "left" | "right"): SideIssue
   if ((P.cervical && P.menton && P.cervical.y <= P.menton.y) || (P.neck && P.cervical && P.neck.y <= P.cervical.y)) issues.push({ code: "neckOrder", severity: "error" });
   if (P.tragion && P.glabella && P.labrale_sup && (P.tragion.y < P.glabella.y || P.tragion.y > P.labrale_sup.y)) issues.push({ code: "tragionLevel", severity: "warning" });
   if (P.gonion && P.subnasale && (P.gonion.y < P.subnasale.y || (P.cervical && P.gonion.y > P.cervical.y))) issues.push({ code: "gonionLevel", severity: "warning" });
-  if (P.glabella && P.menton && Math.abs(P.glabella.y - P.menton.y) < 150) issues.push({ code: "lowResolution", severity: "warning" });
+  if (faceHeightOf(P) > 0 && faceHeightOf(P) < 150) issues.push({ code: "lowResolution", severity: "warning" });
   return issues;
 }
 
@@ -507,7 +519,7 @@ export function analyzeSideView(rawPoints: SidePointSet, config: Partial<SideVie
   const ax: 1 | -1 = facing === "left" ? -1 : 1;
   const issues = findIssues(points, facing);
   const analyzable = !issues.some((i) => i.severity === "error");
-  const faceHeightPx = points.glabella && points.menton ? Math.abs(points.glabella.y - points.menton.y) : 0;
+  const faceHeightPx = faceHeightOf(points);
   const placement = cfg.placement ?? "manual";
   const sigmaPx = Math.max(1.5, (placement === "manual" ? 0.004 : 0.006) * faceHeightPx);
   // the Frankfort horizontal needs the tragion; without it the image axes are used
