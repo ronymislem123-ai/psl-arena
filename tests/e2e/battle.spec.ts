@@ -257,6 +257,8 @@ test.describe("PSL ARENA end-to-end", () => {
     await expect(page.getByText(/head is turned/i).first()).toBeVisible();
     await expect(page.getByText("Unusable").first()).toBeVisible();
     await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "unusable");
+    // a rejected photo offers the reference prompt ("Schlechtes Foto? Kein Problem!")
+    await expect(page.getByTestId("slot-a").getByTestId("reference-prompt-open")).toBeVisible();
     await shot(page, "15-rejected-turned-head");
     await expect(page.getByTestId("start-battle")).toBeDisabled();
   });

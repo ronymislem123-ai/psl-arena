@@ -62,7 +62,7 @@ describe("engine properties on random deformations", () => {
       expect(Number.isFinite(o), name).toBe(true);
       expect(o).toBeGreaterThanOrEqual(0);
       expect(o).toBeLessThanOrEqual(100);
-      for (const v of Object.values(a.scores.rubric!.categories)) if (v != null) expect(v >= 0 && v <= 100, name).toBe(true);
+      for (const [k, v] of Object.entries(a.scores.rubric!.categories)) if (v != null) expect(v >= 0 && v <= 100, `${name} ${k} ${v}`).toBe(true);
       expect(a.scores.rubric!.compensationPenalty!).toBeGreaterThanOrEqual(-1e-9);
       const r = rateFace({ frontal: a, scale });
       expect(r.score! >= 0 && r.score! <= 10, name).toBe(true);

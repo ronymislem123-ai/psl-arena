@@ -10,7 +10,7 @@ Tournaments compare profiles that were rated with the **same rubric version**; t
 
 ## Categories
 
-Twelve built-in categories map to rubric criteria (`DEFAULT_CATEGORIES`): Best Overall Face (the rubric's overall score), Jawline, Cheekbones, Eye Area, Facial Harmony, Symmetry, Facial Proportions, Midface, Chin, Profile, Nose Harmony, Overall Bone Structure. Users can remove categories, change weights and add custom categories from any criteria.
+Twelve built-in categories map to rubric criteria (`DEFAULT_CATEGORIES`): Best Overall Face (the rubric's overall score), Jawline, Cheekbones, Eye Area, Facial Harmony, Symmetry, Facial Proportions, Midface, Chin, Lower Third, Nose Harmony, Overall Bone Structure (rubric 3.0: front profile only — the former Profile category was replaced by Lower Third; tournaments accept only ratings of the current rubric). Users can remove categories, change weights and add custom categories from any criteria.
 
 A participant's **category score** is the weighted mean of the assessable criterion scores of that category. If less than `minCategoryCoverage` (default 50 %) of the category's criterion weight is assessable, the participant is *not assessable* in that category (reason `requiresProfile` when the missing criteria are profile criteria). A category is **decidable** only with at least two assessable participants.
 

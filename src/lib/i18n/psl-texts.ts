@@ -46,7 +46,8 @@ export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition:
   mouthWidth: { name: "Mundbreite", definition: "Mundbreite relativ zu IPD, Nase und Kiefer." },
   lipProportions: { name: "Lippenproportionen", definition: "Unter- zu Oberlippenhöhe und Lippen-Breiten-Höhen-Verhältnis." },
   nasolabialAngle: { name: "Nasolabialer Winkel (Profil)", definition: "Winkel zwischen Nasensteg und Oberlippe." },
-  lipChinVertical: { name: "Lippen-Kinn-Höhe", definition: "Unterlippen- und Kinnhöhe relativ zum Philtrum: frontal das Kinn-Philtrum-Verhältnis, im Profil Stm–Me : Sn–Stm (ein Merkmal, beide Ansichten)." },
+  lipChinVertical: { name: "Lippen-Kinn-Höhe", definition: "Unterlippen- und Kinnhöhe relativ zum Philtrum (frontales Kinn-Philtrum-Verhältnis)." },
+  neckWidth: { name: "Halsbreite (frontal)", definition: "Halsbreite relativ zur Gesichtsbreite aus manuell gesetzten Halspunkten." },
   lipShape: { name: "Lippenform", definition: "Form und Fülle des Lippenrots als visueller Eindruck." },
   eyeSymmetry: { name: "Augen- & Brauensymmetrie", definition: "Links-rechts-Übereinstimmung von Augenöffnung, Lidspaltenlänge, kanthaler Neigung, Augenwinkelhöhe, Brauenhöhe und -neigung." },
   noseSymmetry: { name: "Nasensymmetrie", definition: "Nasenspitze und Flügelbasis relativ zur Mittellinie." },
@@ -61,13 +62,18 @@ export const CRITERION_TEXTS_DE: Record<CriterionId, { name: string; definition:
 };
 
 export const AREA_TEXTS_DE: Record<RubricArea, { name: string; description: string }> = {
-  eye: { name: "Augenpartie", description: "Kanthale Neigung, Abstand, Lidspalten-Proportionen, Brauen, Oberlidposition (MRD1) und Sklera-Show; die Augenform nur mit einem visuellen Modell." },
-  proportions: { name: "Gesichtsproportionen", description: "Mittelgesichts-Verhältnis, mittleres und unteres Drittel, Gesichtsform, Augen–Mund-Geometrie und -Längenverhältnis, Untergesicht, Fünftel; Profilkonvexität und Untergesichtshöhe aus dem Profil." },
-  bone: { name: "Knochenstruktur", description: "Kieferbreite, frontaler Kieferwinkel, Kinnbreite, Wangenknochen-Position; Kieferwinkel, Unterkieferebene, Mittelgesichts- und Kinnprojektion sowie Hals-Kinn-Definition aus dem Profil; Wangenknochen-Projektion und Kieferlinie nur mit einem visuellen Modell." },
-  nose: { name: "Nase", description: "Breite und Höhe frontal, Projektion und Winkel aus dem Profil." },
-  mouth: { name: "Lippen & Mund", description: "Mundbreite, Lippenproportionen, Lippen-Kinn-Höhe (frontal und Profil) und nasolabialer Winkel." },
-  symmetry: { name: "Symmetrie", description: "Links-rechts-Übereinstimmung von Augen/Brauen, Nase, Mund und Kiefer/Kinn im lage-normalisierten Bezugssystem." },
-  forehead: { name: "Stirn & Haaransatz", description: "Stirnhöhe (oberes Drittel, Stirn zu Breite) und Stirnbreite (bitemporal); für die Höhe wird der Haaransatz benötigt." },
+  eye: { name: "Augenpartie", description: "Kanthale Neigung, Augenabstand, Lidspalten-Proportionen, Brauenlänge, Oberlidposition (MRD1) und Sklera-Show; die Augenform nur mit visuellem Modell oder Selbsteinschätzung." },
+  harmonySymmetry: { name: "Gesichtsharmonie & Symmetrie", description: "Vertikale und horizontale Proportionen (Drittel, Stirnhöhe, Gesichtsform, Fünftel, Augen–Mund-Länge) und Links-rechts-Symmetrie von Augen/Brauen, Nase, Mund und Kiefer/Kinn." },
+  midfaceFront: { name: "Mittelgesicht", description: "Mittelgesichtshöhe relativ zum Pupillenabstand und Augen-Mund-Augen-Winkel (Kompaktheit des Mittelgesichts)." },
+  nose: { name: "Nase", description: "Nasenflügelbreite relativ zum Gesicht und Nasenhöhe zu -breite, aus der Frontalansicht." },
+  lowerThird: { name: "Unteres Drittel & Kinnform", description: "Oberlippenanteil am unteren Drittel, Kinn-Philtrum-Höhe, Kinnbreite, Mundbreite und Lippenproportionen; die Lippenform nur mit visuellem Modell oder Selbsteinschätzung." },
+  jawline: { name: "Kieferlinie & frontale Unterkieferdefinition", description: "Frontale Kieferbreite relativ zu den Wangenknochen und Halsbreite (manuelle Halspunkte); die Kieferlinien-Definition nur mit visuellem Modell oder Selbsteinschätzung." },
+  cheekbonesWidth: { name: "Wangenknochen & Gesichtsbreite", description: "Höhe der breitesten Gesichtsstelle und Stirn- zu Wangenknochenbreite; die Wangenknochen-Projektion nur als visueller Eindruck (keine 3D-Tiefe aus einem Frontalfoto)." },
+  proportions: { name: "Gesichtsproportionen (Rubrik 2.x)", description: "Bereich der Rubrik 2.x (Front + Profil)." },
+  bone: { name: "Knochenstruktur (Rubrik 2.x)", description: "Bereich der Rubrik 2.x (Front + Profil)." },
+  mouth: { name: "Lippen & Mund (Rubrik 2.x)", description: "Bereich der Rubrik 2.x (Front + Profil)." },
+  symmetry: { name: "Symmetrie (Rubrik 2.x)", description: "Bereich der Rubrik 2.x." },
+  forehead: { name: "Stirn & Haaransatz (Rubrik 2.x)", description: "Bereich der Rubrik 2.x." },
   midface: { name: "Mittelgesicht & Proportionen", description: "Bereich der Rubrik 1.0 (jetzt aufgeteilt in Proportionen, Knochenstruktur und Stirn)." },
   harmony: { name: "Gesichtsharmonie", description: "Bereich der Rubrik 1.0 (ersetzt durch den Balance-Term der Aggregation)." },
 };
@@ -88,7 +94,7 @@ export function descriptiveReason(id: string, fallback: string, lang: Lang): str
 
 export const CATEGORY_NAMES_DE: Record<string, string> = {
   overallFace: "Bestes Gesamtgesicht", jawline: "Beste Kieferlinie", cheekbones: "Beste Wangenknochen", eyeArea: "Beste Augenpartie", harmony: "Beste Gesichtsharmonie", symmetry: "Beste Symmetrie",
-  proportions: "Beste Gesichtsproportionen", midface: "Bestes Mittelgesicht", chin: "Bestes Kinn", profile: "Bestes Profil", noseHarmony: "Beste Nasenharmonie", boneStructure: "Beste Knochenstruktur",
+  proportions: "Beste Gesichtsproportionen", midface: "Bestes Mittelgesicht", chin: "Bestes Kinn", lowerThird: "Bestes unteres Drittel", profile: "Bestes Profil", noseHarmony: "Beste Nasenharmonie", boneStructure: "Beste Knochenstruktur",
 };
 
 export function criterionName(id: CriterionId, lang: Lang): string {

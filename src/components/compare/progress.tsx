@@ -30,10 +30,10 @@ export function RatingTimeline({ records }: { records: RatingRecord[] }) {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
               {[["first", s.first], ["latest", s.latest], ["best", s.best]].map(([k, v]) => (
-                <div key={k as string} className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase tracking-wider text-fg-3">{t(`progress.${k}`)}</div><div className="font-display text-lg num">{formatPsl(v as number | null)}</div></div>
+                <div key={k as string} className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase leading-tight tracking-wider text-fg-3 hyphens-auto [overflow-wrap:anywhere]">{t(`progress.${k}`)}</div><div className="font-display text-lg num">{formatPsl(v as number | null)}</div></div>
               ))}
-              <div className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase tracking-wider text-fg-3">{t("progress.total")}</div><div className={cn("font-display text-lg num", s.totalDelta == null ? "text-fg-3" : s.totalDelta > 0 ? "text-mint" : s.totalDelta < 0 ? "text-[#ff8fa3]" : "")}>{signed(s.totalDelta)}</div></div>
-              <div className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase tracking-wider text-fg-3">{t("progress.meanStep")}</div><div className="font-display text-lg num">{s.meanStep == null ? "—" : s.meanStep.toFixed(2)}</div></div>
+              <div className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase leading-tight tracking-wider text-fg-3 hyphens-auto [overflow-wrap:anywhere]">{t("progress.total")}</div><div className={cn("font-display text-lg num", s.totalDelta == null ? "text-fg-3" : s.totalDelta > 0 ? "text-mint" : s.totalDelta < 0 ? "text-[#ff8fa3]" : "")}>{signed(s.totalDelta)}</div></div>
+              <div className="rounded-lg bg-white/3 p-2"><div className="text-[10px] uppercase leading-tight tracking-wider text-fg-3 hyphens-auto [overflow-wrap:anywhere]">{t("progress.meanStep")}</div><div className="font-display text-lg num">{s.meanStep == null ? "—" : s.meanStep.toFixed(2)}</div></div>
             </div>
             <svg viewBox="0 0 320 90" className="w-full h-24" data-testid="progress-chart">
               {[0, 2.5, 5, 7.5, 10].map((v) => <line key={v} x1={28} x2={316} y1={80 - (v / max) * 72} y2={80 - (v / max) * 72} stroke="#ffffff14" />)}

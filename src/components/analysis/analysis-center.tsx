@@ -12,7 +12,8 @@ import { PageHeader } from "@/components/layout/app-shell";
 import { LandmarkCanvas, LAYERS, type LayerId } from "@/components/viz/landmark-canvas";
 import { CapturePanel } from "@/components/shared/capture-panel";
 import { ADDITIONAL_BY_ID, RATIO_BY_ID, RATIO_DEFINITIONS } from "@/engine/ratios/database";
-import { CATEGORY_WEIGHTS, RUBRIC_AREAS } from "@/engine/psl/rubric";
+import { CATEGORY_WEIGHTS, isFrontOnlyRubric, LEGACY_CATEGORY_WEIGHTS, RUBRIC_AREAS, type RubricArea } from "@/engine/psl/rubric";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { ReliabilityPanel } from "@/components/analysis/reliability-panel";
 import { IdealExampleButton } from "@/components/ideal/ideal-example";
 import { areaDescription, areaName } from "@/lib/i18n/psl-texts";
@@ -44,6 +45,7 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
         title={label}
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
+            <LegacyMethodTag engineVersion={result.engineVersion} />
             <Badge tone={levelTone(result.quality.level)}>{t("common.quality")}: {t(`quality.${result.quality.level}`)}</Badge>
             {result.corrections && <Badge tone="rose" data-testid="corrected-badge">{t("analysis.corrected", { n: result.corrections.landmarks.length })}{result.corrections.axisAdjustDeg ? ` · ${result.corrections.axisAdjustDeg > 0 ? "+" : ""}${result.corrections.axisAdjustDeg.toFixed(1)}°` : ""}</Badge>}
             <Badge tone="cyan">{t("analysis.ratiosBadge", { n: result.coverage.evaluable, total: result.coverage.total })}</Badge>
@@ -95,6 +97,10 @@ function ImagePanel({ result, src, width, height, layer, showMesh, onSelect, sel
 function Overview({ result, src, width, height }: { result: AnalysisResult; src: string | null; width: number; height: number }) {
   const { t, lang } = useT();
   const s = result.scores;
+  // engine/rubric 3.0: front profile only; older analyses keep their stored categories and are marked as the old method
+  const front = isFrontOnlyRubric(s.rubric?.version ?? result.engineVersion);
+  const rubricAreas: RubricArea[] = front ? RUBRIC_AREAS : (Object.keys(s.rubric?.categories ?? {}) as RubricArea[]);
+  const areaWeight = (a: RubricArea) => (front ? CATEGORY_WEIGHTS[a] : LEGACY_CATEGORY_WEIGHTS[a]);
   const warnings = warningTexts(result, lang);
   const inT1 = result.ratios.filter((r) => r.inT1).map((r) => RATIO_BY_ID[r.id]);
   // only scored ratios: descriptive ones (contradicted evidence, construct mismatch) are no deviations of the face
@@ -125,6 +131,12 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
         )}
       </div>
       <div className="space-y-5">
+        {!front && (
+          <div className="flex gap-2.5 rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-fg-1" data-testid="analysis-legacy-note">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" />
+            <p>{t("analysis.legacyMethod", { v: result.engineVersion })}</p>
+          </div>
+        )}
         <Card strong>
           <CardBody className="pt-5">
             <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -133,7 +145,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
                 <div className="font-display text-xl font-semibold">{scoreLabel(s.overall, t)}</div>
                 <div className="text-xs text-fg-2" data-testid="overall-note">{t("analysis.overallNote", { psl: s.overall == null ? "—" : formatPsl(s.overall / 10) })}</div>
                 <div className="text-xs text-fg-3">
-                  {s.rubric ? t("analysis.overallFormula2", { p: s.rubric.p, penalty: (s.rubric.compensationPenalty ?? 0).toFixed(1) }) : t("analysis.overallFormula")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
+                  {s.rubric ? (front ? t("analysis.overallFormula3") : t("analysis.overallFormula2", { p: s.rubric.p, penalty: (s.rubric.compensationPenalty ?? 0).toFixed(1) })) : t("analysis.overallFormula")} · σ {result.uncertainty?.overallSigma.toFixed(1) ?? "—"}
                 </div>
               </div>
             </div>
@@ -141,13 +153,13 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
         </Card>
         {s.rubric && (
           <Card>
-            <CardHeader title={t("analysis.rubricCategories", { version: s.rubric.version })} subtitle={t("analysis.rubricCategoriesSub", { coverage: Math.round(s.rubric.coverage * 100) })} />
+            <CardHeader title={t("analysis.rubricCategories", { version: s.rubric.version })} subtitle={t(front ? "analysis.rubricCategoriesSub3" : "analysis.rubricCategoriesSub", { coverage: Math.round(s.rubric.coverage * 100) })} />
             <CardBody className="space-y-2.5" data-testid="rubric-categories">
-              {RUBRIC_AREAS.map((a) => {
+              {rubricAreas.map((a) => {
                 const v = s.rubric!.categories[a] ?? null;
                 return (
                   <div key={a} className="grid grid-cols-[140px_minmax(0,1fr)_auto] items-center gap-3" title={areaDescription(a, lang)}>
-                    <div className="text-sm">{areaName(a, lang)} <span className="text-[10px] text-fg-3">{CATEGORY_WEIGHTS[a]} %</span></div>
+                    <div className="text-sm">{areaName(a, lang)} {areaWeight(a) != null && <span className="text-[10px] text-fg-3">{areaWeight(a)} %</span>}</div>
                     <Progress value={v} tone={scoreTone(v)} />
                     <div className="text-right font-mono text-xs num w-24 text-fg-2">{fmt.score(v)}{result.uncertainty?.rubricSigma?.[a] != null && <span className="text-fg-3"> ±{result.uncertainty.rubricSigma[a].toFixed(1)}</span>}</div>
                   </div>

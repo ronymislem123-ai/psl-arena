@@ -1,7 +1,6 @@
 "use client";
 import type { AnalysisInput } from "@/engine/types";
-import type { SideLandmarkId, SidePointSet, SidePointSource, SideReference } from "@/engine/side-view";
-import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow, SideAnalysisRecord, SideAnalysisSummary } from "@/server/repos";
+import type { AnalysisRecord, AnalysisSummary, BattleRecord, BattleSummary, ProfileRow } from "@/server/repos";
 import type { RatingRecord, RatingSummary, ScaleInput, ScaleSummary, TournamentRecord, TournamentSummary, TournamentVersionRow } from "@/server/repos-psl";
 import type { PslScale, ScaleExport } from "@/engine/psl/scale";
 import type { TournamentConfig } from "@/engine/tournament/types";
@@ -19,21 +18,6 @@ export const api = {
     consent: { rightsConfirmed: true; adultsConfirmed: true };
     input: AnalysisInput;
   }) => request<{ analysis: AnalysisRecord }>("/api/analyses", { method: "POST", body: JSON.stringify(payload) }),
-  createSideAnalysis: (payload: {
-    profileId?: string;
-    profileLabel?: string;
-    imageDataUrl?: string;
-    storeImage: boolean;
-    consent: { rightsConfirmed: true; adultsConfirmed: true };
-    imageWidth: number;
-    imageHeight: number;
-    points: SidePointSet;
-    reference?: SideReference;
-    placement?: "manual" | "automatic" | "mixed";
-    pointSources?: Partial<Record<SideLandmarkId, SidePointSource>>;
-  }) => request<{ sideAnalysis: SideAnalysisRecord }>("/api/side-analyses", { method: "POST", body: JSON.stringify(payload) }),
-  listSideAnalyses: (profileId?: string) => request<{ sideAnalyses: SideAnalysisSummary[] }>(`/api/side-analyses${profileId ? `?profileId=${profileId}` : ""}`),
-  deleteSideAnalysis: (id: string) => request<{ deleted: boolean }>(`/api/side-analyses/${id}`, { method: "DELETE" }),
   createBattle: (analysisAId: string, analysisBId: string) => request<{ battle: BattleRecord }>("/api/battles", { method: "POST", body: JSON.stringify({ analysisAId, analysisBId }) }),
   listProfiles: () => request<{ profiles: ProfileRow[] }>("/api/profiles"),
   listAnalyses: (profileId?: string) => request<{ analyses: AnalysisSummary[] }>(`/api/analyses${profileId ? `?profileId=${profileId}` : ""}`),
@@ -58,8 +42,6 @@ export const api = {
   createRating: (payload: {
     analysisId?: string;
     newAnalysis?: { profileId?: string; profileLabel?: string; imageDataUrl?: string; storeImage: boolean; input: AnalysisInput };
-    sideAnalysisId?: string | null;
-    useLatestSide?: boolean;
     scaleId?: string;
     minCoverage?: number;
     consent: { rightsConfirmed: true; adultsConfirmed: true };
@@ -70,7 +52,7 @@ export const api = {
   }) => request<{ rating: RatingRecord }>("/api/ratings", { method: "POST", body: JSON.stringify(payload) }),
   rubric: () => request<{ version: string; visualProvider: { configured: boolean; providerId: string | null; model: string | null; criteria: string[]; hint: "notConfigured" | "missingKey" | "browserKey" | null } }>("/api/rubric"),
   deleteRating: (id: string) => request<{ deleted: boolean }>(`/api/ratings/${id}`, { method: "DELETE" }),
-  leaderboards: () => request<{ participants: { id: string; name: string; imageId: string | null; score: number | null; tier: string | null }[]; categories: { id: string; name: string }[]; rankings: CategoryRanking[] }>("/api/leaderboards"),
+  leaderboards: () => request<{ participants: { id: string; name: string; imageId: string | null; score: number | null; tier: string | null }[]; categories: { id: string; name: string }[]; rankings: CategoryRanking[]; legacyExcluded?: number }>("/api/leaderboards"),
   // tournaments
   listTournaments: () => request<{ tournaments: TournamentSummary[] }>("/api/tournaments"),
   getTournament: (id: string) => request<{ tournament: TournamentRecord }>(`/api/tournaments/${id}`),

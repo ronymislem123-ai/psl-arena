@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import Database from "better-sqlite3";
 
 const FIX = join(__dirname, "fixtures");
 const SHOTS = process.env.PSL_SCREENSHOT_DIR ?? join(__dirname, "..", "..", "test-results", "screens");
@@ -15,7 +16,7 @@ async function signIn(page: Page) {
 }
 
 /** Rates a frontal photo through the real UI (in-browser detection) and returns the rating id + score. */
-async function rateUpload(page: Page, file: string, label: string, scaleId?: string, sideFile?: string, beforeRate?: (page: Page) => Promise<void>) {
+async function rateUpload(page: Page, file: string, label: string, scaleId?: string, beforeRate?: (page: Page) => Promise<void>) {
   await page.goto("/rater");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("AI PSL Rater");
   await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
@@ -23,10 +24,6 @@ async function rateUpload(page: Page, file: string, label: string, scaleId?: str
   await page.locator('input[type="file"]').first().setInputFiles(join(FIX, file));
   await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
   await page.getByPlaceholder("e.g. Alex").fill(label);
-  if (sideFile) {
-    await page.getByTestId("rater-side-input").setInputFiles(join(FIX, sideFile));
-    await expect(page.getByTestId("rater-side-state")).toHaveAttribute("data-state", "ok", { timeout: 180_000 });
-  }
   const confirm = page.getByRole("button", { name: "Confirm hairline" });
   if (await confirm.isEnabled()) await confirm.click();
   const boxes = page.locator('input[type="checkbox"]');
@@ -131,7 +128,12 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await expect(page.getByText("Overall assessment")).toBeVisible();
     await expect(page.getByText("Analysis quality")).toBeVisible();
     await expect(page.getByText(/does not determine a person/)).toBeVisible();
-    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(41); // rubric 2.2
+    await expect(page.locator('[data-testid="rating-criteria"] tbody tr')).toHaveCount(32); // rubric 3.0, front profile only
+    await expect(page.getByTestId("rating-score-label")).toHaveText("PSL Score – Front Profile");
+    await expect(page.getByTestId("front-profile-note")).toHaveText("The rating is based solely on the frontal view of the face. Traits that require a lateral perspective are not included in the overall score.");
+    await expect(page.getByTestId("rating-band")).toContainText(/expression/);
+    await expect(page.getByTestId("band-legend")).toContainText("0–2 very weak");
+    await expect(page.getByTestId("rating-legacy-badge")).toHaveCount(0);
     await expect(page.getByTestId("scale-marker")).toBeVisible();
     await expect(page.getByTestId("rating-areas")).toBeVisible();
     await page.waitForTimeout(1500);
@@ -144,10 +146,16 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     expect(a.score).toBeLessThan(10);
     // the stored rating carries the scale snapshot and rubric version
     const rec = (await (await page.request.get(`/api/ratings/${a.id}`)).json()).rating;
-    expect(rec.rubricVersion).toBe("2.2.0");
+    expect(rec.rubricVersion).toBe("3.0.0");
+    expect(rec.sideAnalysisId).toBeNull();
     expect(rec.scaleSnapshot.tiers.length).toBe(21);
     expect(rec.result.criteria.filter((c: { assessable: boolean }) => c.assessable).length).toBeGreaterThan(20);
-    expect(rec.result.notAssessable.some((n: { code: string }) => n.code === "requiresProfile")).toBe(true);
+    expect(rec.result.notAssessable.some((n: { code: string }) => n.code === "requiresProfile")).toBe(false);
+    // the shown score is Σ Sᵢ·Wᵢ over the assessable categories (weights renormalised)
+    const scored = rec.result.areas.filter((x: { score: number | null }) => x.score != null);
+    const w = scored.reduce((sum: number, x: { weight: number }) => sum + x.weight, 0);
+    expect(rec.result.score).toBeCloseTo(scored.reduce((sum: number, x: { weight: number; score: number }) => sum + x.score * x.weight, 0) / w, 6);
+    expect(a.score).toBe(Number(rec.result.score.toFixed(1)));
 
     // repeatability: the same image rated again gives the identical score
     const a2 = await rateUpload(page, "portrait-a.jpg", "Alpha again");
@@ -162,7 +170,7 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     expect(b.score).toBeGreaterThan(0);
     await shot(page, "56-rating-custom-scale");
 
-    // rate a saved analysis (existing mode) and attach no side view
+    // rate a saved analysis (existing mode)
     await page.goto("/rater");
     await page.getByRole("tab", { name: "Rate a saved analysis" }).click();
     await expect(page.getByTestId("rater-analysis")).toBeVisible();
@@ -178,7 +186,8 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.getByTestId("rating-copy").click();
     const text = await page.evaluate(() => navigator.clipboard.readText());
-    expect(text).toMatch(/PSL Score: \d\.\d+( ± \d\.\d+)? \/ 10/);
+    expect(text).toMatch(/PSL Score – Front Profile: \d\.\d( ± \d\.\d+)? \/ 10/);
+    expect(text).toContain("The rating is based solely on the frontal view of the face.");
     expect(text).toMatch(/Tier: /);
     expect(text).toContain("Reasoning:");
     expect(text).toContain("Strengths:");
@@ -193,40 +202,76 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await shot(page, "58-leaderboards");
   });
 
-  test("rater: frontal + profile photo in one step — automatic side view feeds the profile criteria; vision model needs setup and consent", async ({ page }) => {
+  test("rater: front profile only — no side-view upload or route, no profile criteria; vision model needs setup and consent", async ({ page }) => {
     test.setTimeout(420_000);
     await signIn(page);
     await page.goto("/rater");
     await expect(page.getByTestId("rater-vision")).toHaveAttribute("data-configured", "false");
     await expect(page.getByTestId("rater-vision")).toContainText(/No vision model set up/);
-    const r = await rateUpload(page, "portrait-a.jpg", "Full Upload", undefined, "profile-scan.jpg");
+    await expect(page.getByTestId("rater-side-input")).toHaveCount(0);
+    await expect(page.locator('a[href*="side-view"]')).toHaveCount(0);
+    expect((await page.request.get("/side-view")).status()).toBe(404);
+    expect((await page.request.get("/api/side-analyses")).status()).toBe(404);
+    const r = await rateUpload(page, "portrait-a.jpg", "Front Only");
     const rec = (await (await page.request.get(`/api/ratings/${r.id}`)).json()).rating;
-    expect(rec.sideAnalysisId).toMatch(/^side_/);
+    expect(rec.sideAnalysisId).toBeNull();
+    expect(rec.result.quality.sideUsed).toBe(false);
+    const ids = rec.result.criteria.map((c: { id: string }) => c.id);
+    for (const id of ["profileConvexity", "nasolabialAngle", "midfaceProjection", "chinProjection", "neckChinDefinition", "gonialAngle", "noseProjection", "mandibularPlane", "nasalAngles", "lowerFaceHarmony"]) expect(ids, id).not.toContain(id);
+    for (const c of rec.result.criteria) expect(["frontal", "visual-model", "self-assessment"], c.id).toContain(c.source);
+    expect(rec.result.areas.map((x: { id: string; weight: number }) => `${x.id}:${x.weight}`)).toEqual(["eye:20", "harmonySymmetry:20", "midfaceFront:15", "nose:15", "lowerThird:15", "jawline:10", "cheekbonesWidth:5"]);
     const crit = (id: string) => rec.result.criteria.find((c: { id: string }) => c.id === id);
-    for (const id of ["profileConvexity", "nasolabialAngle", "midfaceProjection", "chinProjection", "neckChinDefinition"]) expect(crit(id).assessable, id).toBe(true);
-    expect(crit("chinProjection").source).toMatch(/profile|mixed/);
-    // off-silhouette points are not guessed: gonial angle and nose projection stay not determinable
-    expect(crit("gonialAngle").notAssessableCode).toBe("profileNotDeterminable");
-    expect(crit("noseProjection").notAssessableCode).toBe("profileNotDeterminable");
     // measured eyelid criteria, visual-model criteria clearly marked
     expect(crit("scleralShow").assessable).toBe(true);
     expect(crit("upperLidExposure").assessable).toBe(true);
     expect(crit("eyeShape").notAssessableCode).toBe("visualNotConfigured");
-    expect(rec.result.inputs.sidePlacement).toBe("automatic");
-    expect(rec.result.coverage).toBeGreaterThan(0.85);
-    const side = (await (await page.request.get(`/api/side-analyses/${rec.sideAnalysisId}`)).json()).sideAnalysis;
-    expect(side.profileId).toBe(rec.profileId);
+    expect(rec.result.coverage).toBeGreaterThan(0.9);
+    await expect(page.getByTestId("area-band-eye")).toBeVisible();
     await page.waitForTimeout(1200);
-    await shot(page, "56b-rating-front-and-profile");
+    await shot(page, "56b-rating-front-profile");
     await page.getByTestId("criterion-eyeShape").click();
     await expect(page.getByRole("dialog")).toContainText(/only with a vision model/);
     await page.keyboard.press("Escape");
   });
 
+  test("stored ratings of the old method (rubric 2.x) stay unchanged and are marked, not shown as front-profile scores", async ({ page }) => {
+    test.setTimeout(240_000);
+    await signIn(page);
+    const r = await rateUpload(page, "portrait-b.jpg", "Legacy Person");
+    // simulate a rating stored before 3.0: same record, rubric 2.2.0 and another score
+    const db = new Database(join(process.cwd(), process.env.PSL_ARENA_DATA_DIR ?? ".e2e-data", "psl-arena.sqlite"));
+    const row = db.prepare("SELECT * FROM psl_ratings WHERE id = ?").get(r.id) as Record<string, unknown>;
+    const result = JSON.parse(row.result_json as string);
+    const legacyId = `rate_legacy${Date.now()}`;
+    const legacy = { ...result, rubricVersion: "2.2.0", score: 4.37, quality: { ...result.quality, sideUsed: true }, aggregation: { ...result.aggregation, p: 0.5 } };
+    db.prepare("INSERT INTO psl_ratings (id, user_id, profile_id, analysis_id, side_analysis_id, scale_id, scale_snapshot_json, rubric_version, result_json, psl_score, tier_id, tier_name, coverage, valid, provisional, created_at) VALUES (?, ?, ?, ?, NULL, ?, ?, '2.2.0', ?, 4.37, ?, ?, ?, ?, ?, ?)")
+      .run(legacyId, row.user_id, row.profile_id, row.analysis_id, row.scale_id, row.scale_snapshot_json, JSON.stringify(legacy), row.tier_id, row.tier_name, row.coverage, row.valid, row.provisional, new Date(Date.now() + 60_000).toISOString());
+    db.close();
+    await page.goto(`/rater/${legacyId}`);
+    await expect(page.getByTestId("rating-score")).toContainText("4.4");
+    await expect(page.getByTestId("rating-score-label")).toHaveText("PSL score (old method)");
+    await expect(page.getByTestId("rating-legacy-badge")).toContainText("2.2.0");
+    await expect(page.getByTestId("rating-legacy-note")).toContainText("not a “PSL Score – Front Profile”");
+    await expect(page.getByTestId("front-profile-note")).toHaveCount(0);
+    await expect(page.getByTestId("rating-band")).toHaveCount(0);
+    await shot(page, "56c-rating-legacy");
+    // history marks it, leaderboards leave it out
+    await page.goto("/history");
+    await expect(page.getByTestId("ratings-history").getByTestId("legacy-method").first()).toBeVisible();
+    await page.goto("/leaderboards");
+    await expect(page.getByTestId("leaderboards-legacy")).toBeVisible();
+    // the stored record itself is untouched
+    const stored = (await (await page.request.get(`/api/ratings/${legacyId}`)).json()).rating;
+    expect(stored.rubricVersion).toBe("2.2.0");
+    expect(stored.result.score).toBe(4.37);
+    // clean up so later tests see only front-profile ratings
+    expect((await page.request.delete(`/api/ratings/${legacyId}`)).ok()).toBeTruthy();
+  });
+
   test("rater: self-assessment of the visual criteria (labelled, half weight) and photo measures shown but not scored", async ({ page }) => {
     test.setTimeout(240_000);
     await signIn(page);
-    const r = await rateUpload(page, "portrait-a.jpg", "Self Assessed", undefined, undefined, async (p) => {
+    const r = await rateUpload(page, "portrait-a.jpg", "Self Assessed", undefined, async (p) => {
       const card = p.getByTestId("rater-self");
       await expect(card).toContainText("Self-assessment");
       await card.getByRole("switch").click();
@@ -265,7 +310,12 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await page.waitForTimeout(800); // the setup is saved (debounced) for a crash-safe reload
     // reload: the saved photo is restored in the background — pick another photo right away
     await page.reload({ waitUntil: "domcontentloaded" });
+    // pick only once the page is interactive (a real user cannot open the file dialog earlier),
+    // but while the restore of the saved photo is still running
+    await expect(page.getByTestId("slot-a")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    const restoring = await page.getByTestId("slot-a").locator(".animate-spin").count();
     await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "portrait-b.jpg"));
+    expect(restoring, "the saved photo should still be loading when the new one is picked").toBeGreaterThan(0);
     await expect(page.getByTestId("slot-a")).toHaveAttribute("data-state", "analyzable", { timeout: 120_000 });
     await page.waitForTimeout(2500); // give a stale restore time to (wrongly) win
     await page.getByPlaceholder("e.g. Alex").fill("Second Person");
@@ -320,8 +370,8 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     const rec = (await (await page.request.get(`/api/tournaments/${tid}`)).json()).tournament;
     expect(rec.results.categoryRankings.length).toBe(12);
     // "Alpha" and "Alpha again" share the same rating → they tie in every category they win
-    const profileCat = rec.results.categoryRankings.find((r: { categoryId: string }) => r.categoryId === "profile");
-    expect(profileCat.decidable).toBe(false); // nobody has a profile view
+    // rubric 3.0: no profile category any more
+    expect(rec.results.categoryRankings.some((r: { categoryId: string }) => r.categoryId === "profile")).toBe(false);
     const anyTie = rec.results.categoryRankings.some((r: { tied: boolean }) => r.tied);
     expect(anyTie).toBe(true);
     // category winners independent of weights: re-run with other weights gives the same winners

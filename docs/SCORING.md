@@ -75,7 +75,7 @@ Every ratio belongs to exactly **one** category (no double counting):
 * **Proportion score** = category-weight-weighted mean of the available category indices (weights renormalised over covered categories; coverage is reported).
 * **Facial structure score** (display only) = 0.4 jawline + 0.3 midface + 0.3 structure.
 * **Symmetry score** = mean of per-metric scores `100·exp(−½(a/s)²)` over 14 bilateral comparisons (eye opening, fissure length, canthal tilt, canthus height, brow height/tilt, mouth-corner height/width, nose-tip and alar offsets, chin, gonion width/height, cheek width) in the 3D-pose-normalised frame. Engine 2.0 removes the noise floor: |a| measured with noise σ (Monte-Carlo, without the safety factor) becomes √max(a² − σ², 0).
-* **Overall score (engine ≥ 2.0)** = rubric 2.0 hierarchical index of the frontal measures (`scores.rubric`, `docs/RUBRIC.md`): criteria → 7 categories → weighted power mean (p = 0.5). The ratio categories above remain as descriptive groups (battle rounds, overview). Engine 1.x: 0.8 × proportion + 0.2 × symmetry.
+* **Overall score (engine ≥ 3.0)** = rubric 3.0 hierarchical index of the frontal measures (`scores.rubric`, `docs/RUBRIC.md`): criteria → 7 front-profile categories → weighted mean (Σ Sᵢ·Wᵢ, renormalised over the assessable categories). Engine 2.x used rubric 2.x (7 other categories, weighted power mean p = 0.5). The ratio categories above remain as descriptive groups (battle rounds, overview). Engine 1.x: 0.8 × proportion + 0.2 × symmetry.
 
 Feature observations (section 6 of the brief) reuse these values and are **not** added again. Visual properties (skin, cheekbone definition, jawline definition, chin projection, nasal bridge) are reported as *not determinable* rather than guessed.
 

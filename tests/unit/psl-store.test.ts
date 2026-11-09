@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inputFromFixture, loadFixture } from "./helpers";
-import { PROFILE } from "./side-view.test";
 
 const dir = mkdtempSync(join(tmpdir(), "psl-store-"));
 process.env.PSL_ARENA_DATA_DIR = dir;
@@ -75,27 +74,30 @@ describe("scales", () => {
 describe("ratings", () => {
   let analysisId = "";
   let profileId = "";
-  it("creates a rating from an existing analysis, auto-attaches the latest side view and stores the scale snapshot", async () => {
+  it("creates a front-only rating (rubric 3.0) from an existing analysis and stores the scale snapshot", async () => {
     const a = services.createAnalysis(userId, { profileLabel: "Alpha", storeImage: false, input: inputFromFixture(loadFixture("ai-face")) });
     analysisId = a.id;
     profileId = a.profileId;
     const r1 = await sv.createRating(userId, { analysisId, consent: undefined } as never);
     expect(r1.id).toMatch(/^rate_/);
     expect(r1.scaleName).toBe("PSL Standard");
-    expect(r1.result.coverage).toBeGreaterThan(0.7);
-    expect(r1.result.coverage).toBeLessThan(0.9);
-    expect(r1.result.rubricVersion).toBe("2.2.0");
+    expect(r1.result.rubricVersion).toBe("3.0.0");
+    expect(r1.result.coverage).toBeGreaterThan(0.9); // no profile criteria any more
+    expect(r1.result.quality.sideUsed).toBe(false);
+    expect(r1.sideAnalysisId).toBeNull();
     expect(r1.valid).toBe(true);
     expect(r1.tierName).toBeTruthy();
-    const side = services.createSideAnalysis(userId, { profileId, storeImage: false, imageWidth: 1000, imageHeight: 1000, points: PROFILE });
-    const r2 = await sv.createRating(userId, { analysisId });
-    expect(r2.sideAnalysisId).toBe(side.id);
-    expect(r2.result.coverage).toBeGreaterThan(0.95);
-    const r3 = await sv.createRating(userId, { analysisId, sideAnalysisId: null });
-    expect(r3.sideAnalysisId).toBeNull();
-    expect(psl.listRatings(userId, { profileId })).toHaveLength(3);
+    expect(r1.score).not.toBeNull();
+    // a side-view record stored before 3.0 is kept (export) but never used for a new rating
+    const legacy = repos.insertSideAnalysis({ userId, profileId, imageId: null, imageWidth: 1000, imageHeight: 1000, points: {} as never, result: { engineVersion: "2.1.0", analyzable: true, facing: "right", score: 70, scoreSigma: 5, scoredCount: 0, measurements: [] } as never });
+    const r2 = await sv.createRating(userId, { analysisId, sideAnalysisId: legacy.id } as never);
+    expect(r2.sideAnalysisId).toBeNull();
+    expect(r2.score).toBe(r1.score);
+    expect(r2.result.coverage).toBe(r1.result.coverage);
+    expect(repos.exportAll(userId).sideAnalyses.map((x) => x?.id)).toContain(legacy.id);
+    expect(psl.listRatings(userId, { profileId })).toHaveLength(2);
     expect(psl.latestRatings(userId)).toHaveLength(1);
-    expect(psl.latestRatings(userId)[0].id).toBe(r3.id);
+    expect(psl.latestRatings(userId)[0].id).toBe(r2.id);
     expect(repos.getProfile(userId, profileId)!.analysisCount).toBe(1);
   });
   it("rates with a custom scale and from a new upload, rejects foreign/unknown inputs", async () => {
@@ -126,6 +128,13 @@ describe("tournaments", () => {
       await sv.createRating(userId, { analysisId: a.id });
       profiles.push(a.profileId);
     }
+    // a profile whose newest rating is of the old method (rubric 2.x) is refused instead of mixing methods
+    const legacyRating = psl.getRating(userId, psl.listRatings(userId, { profileId: profiles[0], limit: 1 })[0].id)!;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    psl.insertRating({ userId, profileId: profiles[0], analysisId: legacyRating.analysisId, sideAnalysisId: null, scaleId: legacyRating.scaleId, result: { ...legacyRating.result, rubricVersion: "2.2.0" } });
+    expect(() => sv.createTournament(userId, { name: "T", config: cats.DEFAULT_TOURNAMENT_CONFIG, participants: [{ profileId: profiles[0] }, { profileId: profiles[1] }] })).toThrow(/rubric 2\.2\.0/);
+    await new Promise((resolve) => setTimeout(resolve, 5)); // distinct created_at: the re-rating is the newest
+    await sv.createRating(userId, { analysisId: legacyRating.analysisId! });
     const unrated = repos.createProfile(userId, "Unrated");
     expect(() => sv.createTournament(userId, { name: "T", config: cats.DEFAULT_TOURNAMENT_CONFIG, participants: [{ profileId: profiles[0] }, { profileId: unrated.id }] })).toThrow(/no PSL rating/);
     expect(() => sv.createTournament(userId, { name: "T", config: cats.DEFAULT_TOURNAMENT_CONFIG, participants: [{ profileId: profiles[0] }, { profileId: profiles[0] }] })).toThrow(/only once/);

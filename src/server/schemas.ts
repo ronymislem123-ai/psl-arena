@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { SIDE_CORE_POINTS, SIDE_LANDMARK_ORDER } from "@/engine/side-view";
 import { CRITERIA, RUBRIC_AREAS } from "@/engine/psl/rubric";
 import { SCALE_EXPORT_FORMAT } from "@/engine/psl/scale";
 
@@ -65,31 +64,6 @@ export const createAnalysisSchema = z.object({
 });
 
 /** Profile points: the midline (glabella → menton) is required, the other points are optional (automatic detection). */
-export const sidePointsSchema = z.object(
-  Object.fromEntries(SIDE_LANDMARK_ORDER.map((id) => [id, SIDE_CORE_POINTS.includes(id) ? pointSchema : pointSchema.optional()])) as Record<(typeof SIDE_LANDMARK_ORDER)[number], typeof pointSchema>,
-);
-const sidePointSourceSchema = z.enum(["manual", "contour", "derived", "segment"]);
-
-export const createSideAnalysisSchema = z.object({
-  profileId: z.string().optional(),
-  profileLabel: z.string().trim().min(1).max(60).optional(),
-  imageDataUrl: z.string().max(12_000_000).optional(),
-  storeImage: z.boolean().default(false),
-  consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),
-  imageWidth: z.number().int().positive().max(20_000),
-  imageHeight: z.number().int().positive().max(20_000),
-  points: sidePointsSchema,
-  placement: z.enum(["manual", "automatic", "mixed"]).optional(),
-  pointSources: z.partialRecord(z.enum(SIDE_LANDMARK_ORDER as [string, ...string[]]), sidePointSourceSchema).optional(),
-  reference: z
-    .discriminatedUnion("kind", [
-      z.object({ kind: z.literal("image") }),
-      z.object({ kind: z.literal("frankfort"), orbitale: pointSchema }),
-      z.object({ kind: z.literal("manual"), tiltDeg: z.number().min(-45).max(45) }),
-    ])
-    .optional(),
-});
-
 export const createBattleSchema = z.object({
   analysisAId: z.string().min(1),
   analysisBId: z.string().min(1),
@@ -180,8 +154,6 @@ export const createRatingSchema = z
         input: analysisInputSchema,
       })
       .optional(),
-    sideAnalysisId: z.string().nullable().optional(),
-    useLatestSide: z.boolean().optional(),
     scaleId: z.string().optional(),
     minCoverage: z.number().min(0.3).max(1).optional(),
     consent: z.object({ rightsConfirmed: z.literal(true), adultsConfirmed: z.literal(true) }),

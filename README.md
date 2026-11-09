@@ -39,11 +39,11 @@ The face model (`public/models/face_landmarker.task`, Apache-2.0, Google) is ven
 
 | Module | What it does |
 | --- | --- |
-| **AI PSL Rater** (`/rater`) | Rates a frontal photo (or a saved analysis, plus the profile's latest side view) with the versioned rubric 2.0 (40 criteria in 7 categories, non-compensatory aggregation, Monte-Carlo σ, five-level reliability), maps the result to a 0–10 PSL score and a tier on the selected scale, and reports it in the mandatory format (score, tier, reasoning, strengths, lower-rated criteria, overall assessment, analysis quality, disclaimer). Coverage-aware: criteria that cannot be measured are listed as not assessable; below the minimum coverage the score is provisional. See `docs/RUBRIC.md`. |
+| **AI PSL Rater** (`/rater`) | Rates a frontal photo (or a saved analysis) with the versioned rubric 3.0 — **front profile only** (32 criteria in 7 categories, weighted mean Σ Sᵢ·Wᵢ with renormalisation over assessable categories, Monte-Carlo σ, five-level reliability), maps the result to the 0.0–10.0 “PSL Score – Front Profile” with interpretation bands and a tier on the selected scale, and reports it in the mandatory format (score, tier, reasoning, strengths, lower-rated criteria, overall assessment, analysis quality, disclaimer). Coverage-aware: criteria that cannot be measured are listed as not assessable; below the minimum coverage the score is provisional. See `docs/RUBRIC.md`. |
 | **Custom PSL Scale Builder** (`/scales`) | Create, edit, duplicate, import/export and compare PSL scales: tiers with ranges, colours, groups, percentile claims, descriptions, notes and encrypted reference images; live validation (no gaps/overlaps, unrounded assignment, inclusive top bound) and five preview views. Ships with the 21-tier standard scale (sub1 … Adam). See `docs/SCALES.md`. |
 | **PSL Tournament Mode** (`/tournaments`) | Compares rated profiles with the same rubric: twelve independent category winners (multiple wins and shared wins allowed), a weighted overall winner with documented tie-breakers, knockout (byes, seeded, manual tie decisions), group stage + finals, ranking and category formats, interactive bracket, duel tables, results page with statistics, versions and locking. See `docs/TOURNAMENT.md`. |
 
-| **Comparison, progress & awards** (`/compare`, profile pages) | Compares 2–4 stored ratings side by side with deltas per area and criterion and warnings for differing rubric/engine versions, scales, coverage, image quality and profile-view usage; shows a profile's rating progress over time; lists tournament awards. See `docs/COMPARE.md`. |
+| **Comparison, progress & awards** (`/compare`, profile pages) | Compares 2–4 stored ratings side by side with deltas per area and criterion and warnings for differing rubric/engine versions, scales, coverage and image quality, old-method ratings marked; shows a profile's rating progress over time; lists tournament awards. See `docs/COMPARE.md`. |
 
 Ratings and tournaments store snapshots of the scale (and of each participant's rating) so later edits never change finished results. Research notes behind the rubric are in `docs/RESEARCH_LOG.md`; consistency experiments in `docs/VALIDATION.md`.
 
@@ -55,10 +55,10 @@ Ratings and tournaments store snapshots of the scale (and of each participant's 
 | Image check | Resolution, sharpness (Laplacian variance), brightness, contrast, yaw/pitch/roll, expression neutrality (blendshapes), parted lips, framing, multiple faces, hairline detection, selfie-perspective flag. Unusable images are blocked. |
 | Semantic landmarks | 50+ anthropometric points (canthi, pupils, alar base, cheilia, stomion, nasion, glabella, menton, chin corners, constructed gonions, zygion stand-ins, frontotemporale, estimated/adjustable hairline, optional manual neck points) — each with source, precision and confidence. |
 | 42 core ratios | Measured in a roll-normalised frame; each with T1 range, status (`defined` / `reconstructed` / `incomplete`), methodology, limitations and sensitivity flags. Incomplete definitions are never measured or scored. See `docs/RATIOS.md`. |
-| Scoring | Original T1 system (+10 inside T1; T2–T5 undefined in the material, so never invented) **plus** dispersion-unit measure indices and the rubric 2.0 hierarchy (overall = weighted power mean of 7 categories), coverage, confidence, analysis reliability, manual landmark/axis correction and the closed-loop ideal example. See `docs/SCORING.md`, `docs/RUBRIC.md`, `docs/MODEL_VALIDATION.md`. |
+| Scoring | Original T1 system (+10 inside T1; T2–T5 undefined in the material, so never invented) **plus** dispersion-unit measure indices and the rubric 3.0 hierarchy (front view only; overall = weighted mean of 7 categories), coverage, confidence, analysis reliability, manual landmark/axis correction and the closed-loop ideal example. See `docs/SCORING.md`, `docs/RUBRIC.md`, `docs/MODEL_VALIDATION.md`. |
 | Uncertainty | Monte-Carlo landmark jitter (deterministic seed) → σ for every score and ratio. |
 | Battle | 9 rounds (harmony, 7 categories, symmetry) + overall. Round and final decisions use a margin derived from both sides' uncertainty; low coverage/confidence ⇒ *inconclusive*; small differences ⇒ *draw*. |
-| Side view | Profile module for lateral photos: 16 guided manual landmarks (3× loupe, dragging, arrow-key nudging), 16 measurements (gonial, cervicomental, mentocervical, nasofrontal, nasofacial, nasomental, nasolabial, mentolabial angles, facial convexity, Holdaway H, Merrifield Z, lower-face height, lip–chin ratio, Goode projection, dorsal profile, chin meridian) with sourced reference ranges, placement check, Monte-Carlo placement sensitivity and a separate profile harmony index. See `docs/SIDE_VIEW.md`. |
+| Side view | Removed in rubric/engine 3.0 (2026-11-09): the app analyses and rates the front view only. Side-view records stored earlier stay in the database and the JSON export. See `docs/SIDE_VIEW.md`. |
 | Visualisation | Interactive SVG overlay with 10 analysis layers (landmarks, eyes, brows, midface, nose, mouth, jaw, thirds, ratios, symmetry), full-mesh toggle, click-to-inspect landmarks, draggable hairline, neck-point placement. |
 | Accounts | Local e-mail/password accounts (scrypt-hashed), database-backed sessions in HttpOnly SameSite cookies (30 days), login rate limiting, same-origin check on mutating requests, per-account data isolation on every query, hashed one-time recovery codes for password reset plus an operator CLI fallback, optional TOTP two-factor authentication (RFC 6238, QR enrollment, encrypted secret, replay protection, recovery codes as backup factor). |
 | Persistence | SQLite (`data/psl-arena.sqlite`): users, sessions, images, profiles, analysis sessions, landmarks, ratio measurements, category scores, battles, settings. Photos are stored only with consent, AES-256-GCM encrypted. |
@@ -101,8 +101,8 @@ The Docker volume `arena-data` holds the SQLite database, the encrypted photos a
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` / `build` / `start` | Next.js |
-| `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, side view, database) on real landmark fixtures, plus the browser-edition project (route handlers on sql.js) |
-| `npm run test:e2e` | Playwright end-to-end (battles, side view, scale builder, rater, tournaments, consistency experiments). Needs `npx playwright install chromium` once. |
+| `npm test` | Vitest unit tests (engine, scoring, battle, symmetry, database) on real landmark fixtures, plus the browser-edition project (route handlers on sql.js) |
+| `npm run test:e2e` | Playwright end-to-end (battles, reference prompt, scale builder, rater, tournaments, consistency experiments). Needs `npx playwright install chromium` once. |
 | `npm run typecheck` / `npm run lint` | TypeScript / ESLint |
 | `npm run build:static -- --base /psl-arena` | Browser edition as a static site in `out/` (`docs/BROWSER_EDITION.md`) |
 | `npm run serve:static -- --base /psl-arena` | Serve `out/` like GitHub Pages at `http://localhost:3300/psl-arena/` |
@@ -122,7 +122,7 @@ Serve the app over HTTPS when it is reachable from other machines: the session c
 - `docs/RATIOS.md` — the 42 ratios + 8 additional measurements, landmark mapping, statuses, evidence and conventions
 - `docs/SYSTEM_AUDIT.md`, `docs/MODEL_VALIDATION.md`, `docs/REENGINEERING_REPORT.md` — audit, validation and the (German) re-engineering report
 - `docs/SCORING.md` — tiers, harmony index, weights, dependency handling, uncertainty, battle rules
-- `docs/SIDE_VIEW.md` — the side-view (profile) module: landmarks, measurements, sources, checks
+- `docs/SIDE_VIEW.md` — the former side-view (profile) module, removed in 3.0 (kept for the stored records)
 - `docs/RUBRIC.md` — the PSL rating rubric: criteria, weights, calibration, coverage rules, provider interface
 - `docs/SCALES.md` — PSL scales: data model, standard scale, assignment and validation rules, editor
 - `docs/TOURNAMENT.md` — tournament engine: categories, winners, tie-breakers, formats, versions

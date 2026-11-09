@@ -12,10 +12,11 @@ import { FaceThumb } from "@/components/shared/face-thumb";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
-import type { AnalysisSummary, ProfileRow, SideAnalysisSummary } from "@/server/repos";
+import type { AnalysisSummary, ProfileRow } from "@/server/repos";
 import type { Award, RatingRecord, RatingSummary } from "@/server/repos-psl";
 import { AwardsCard, RatingTimeline } from "@/components/compare/progress";
 import { formatPsl } from "@/engine/psl/rating";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { paths } from "@/lib/paths";
 
 export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
@@ -63,7 +64,7 @@ export function ProfilesList({ profiles }: { profiles: ProfileRow[] }) {
   );
 }
 
-export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = [], ratingRecords = [], awards = [], participation = { completed: 0, total: 0 } }: { profile: ProfileRow; analyses: AnalysisSummary[]; sideAnalyses?: SideAnalysisSummary[]; ratings?: RatingSummary[]; ratingRecords?: RatingRecord[]; awards?: Award[]; participation?: { completed: number; total: number } }) {
+export function ProfileDetail({ profile, analyses, ratings = [], ratingRecords = [], awards = [], participation = { completed: 0, total: 0 } }: { profile: ProfileRow; analyses: AnalysisSummary[]; ratings?: RatingSummary[]; ratingRecords?: RatingRecord[]; awards?: Award[]; participation?: { completed: number; total: number } }) {
   const { t, lang } = useT();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -82,11 +83,6 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
   const delAnalysis = async (id: string) => {
     if (!confirm(t("common.deleteConfirm"))) return;
     await api.deleteAnalysis(id);
-    router.refresh();
-  };
-  const delSide = async (id: string) => {
-    if (!confirm(t("side.deleteConfirm"))) return;
-    await api.deleteSideAnalysis(id);
     router.refresh();
   };
   const scores = analyses.map((a) => a.overall).filter((v): v is number => v != null).reverse();
@@ -184,6 +180,7 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
                       <Link href={paths.rating(r.id)} className="hover:text-accent">{fmt.date(r.createdAt, lang)}</Link>
                       <div className="text-xs text-fg-3">{r.scaleName} · {r.tierName ?? "—"}{r.provisional ? ` · ${t("rater.result.provisional")}` : ""}</div>
                     </div>
+                    <LegacyMethodTag rubricVersion={r.rubricVersion} />
                     <span className="font-mono num">{formatPsl(r.score)}</span>
                     <Link href={paths.rating(r.id)}><Button size="sm" variant="outline">{t("common.open")}</Button></Link>
                   </li>
@@ -205,36 +202,6 @@ export function ProfileDetail({ profile, analyses, sideAnalyses = [], ratings = 
               </svg>
             )}
             <div className="text-xs text-fg-3 mt-2">{scores.length} {t("analysis.dataPoints")}</div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHeader title={t("side.list")} subtitle={`${t("side.latest")}: ${fmt.score(profile.latestSideScore, 1)}`} />
-          <CardBody>
-            {sideAnalyses.length === 0 ? (
-              <Empty>{t("side.empty")}</Empty>
-            ) : (
-              <ul className="divide-y divide-line">
-                {sideAnalyses.map((a) => (
-                  <li key={a.id} className="flex items-center gap-2 py-2 text-sm">
-                    <div className="min-w-0 flex-1">
-                      <Link href={paths.sideView(a.id)} className="hover:text-accent">
-                        {fmt.date(a.createdAt, lang)}
-                      </Link>
-                      <div className="text-xs text-fg-3">
-                        {t("side.facing")} {t(a.facing === "left" ? "side.facingLeft" : "side.facingRight")}
-                      </div>
-                    </div>
-                    <span className="font-mono num">{fmt.score(a.score, 1)}</span>
-                    <Link href={paths.sideView(a.id)}>
-                      <Button size="sm" variant="outline">{t("common.open")}</Button>
-                    </Link>
-                    <Button size="sm" variant="ghost" onClick={() => delSide(a.id)}>
-                      <Trash2 size={14} />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </CardBody>
         </Card>
         </div>

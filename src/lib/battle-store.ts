@@ -276,6 +276,8 @@ export function createSetupStore(persistKey?: string) {
     gen.a++;
     gen.b++;
     set({ a: emptySlot(), b: emptySlot(), consent: { rights: false, adults: false }, submitting: false, submitError: null, restored: false });
+    // forget the saved setup right away: the debounced save may never run if the page is left quickly
+    if (persistKey && typeof window !== "undefined") clearSetup(persistKey);
   },
   }));
 

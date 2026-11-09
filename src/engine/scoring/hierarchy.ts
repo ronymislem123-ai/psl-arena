@@ -176,7 +176,8 @@ export function aggregateCriterion(def: CriterionDefinition, measures: MeasureMa
   return {
     id: def.id,
     area: def.area,
-    index: den > 0 ? num / den : null,
+    // a weighted mean of 0–100 indices; clamp the floating-point rounding (e.g. 100.00000000000001)
+    index: den > 0 ? Math.min(100, Math.max(0, num / den)) : null,
     confidence: wsum > 0 ? conf / wsum : 0,
     reliability: wsum > 0 ? rel / wsum : 0,
     used,

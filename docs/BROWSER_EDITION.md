@@ -119,7 +119,7 @@ Next.js also writes its build cache to `.next`, so run `npm run build` again bef
 * Battles, ratings and tournaments created in the server app cannot be imported into the
   browser edition (different storage of photos and accounts), and vice versa.
 
-## Vision model and automatic side view (2026-11-08)
+## Vision model (2026-11-08); side view removed (2026-11-09)
 
-- The automatic side view (person segmentation + profile contour) runs entirely in the page; the segmenter model is served from `/models/` like the face landmarker and cached by the service worker.
+- The automatic side view and its segmenter model were removed in rubric/engine 3.0 (front profile only); side-view records in a restored older backup stay in the database.
 - The vision model for the four visual criteria is off by default. A user can enter their **own** Anthropic API key under Settings → Vision model; it is kept only in this browser's localStorage, never in the database or backups, and used only when the user ticks the consent box while rating. The page then calls `https://api.anthropic.com` directly (SDK with `dangerouslyAllowBrowser`); costs go to the user's own account. "Check key" uses the free model-info endpoint.

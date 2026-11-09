@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { devices, expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -51,6 +52,8 @@ test("browser edition: rating, persistence, history, tournament, compare, backup
   await shot(page, "s01-dashboard-empty");
 
   const alpha = await rateUpload(page, "portrait-a.jpg", "Alpha", true);
+  await expect(page.getByTestId("rating-score-label")).toHaveText("PSL Score – Front Profile");
+  await expect(page.getByTestId("front-profile-note")).toBeVisible();
   // the stored photo comes from the local database as an object URL
   await expect(page.locator('img[src^="blob:"]').first()).toBeVisible();
   await shot(page, "s02-rating");
@@ -144,6 +147,24 @@ test("browser edition: rating, persistence, history, tournament, compare, backup
   expect(errors).toEqual([]);
 });
 
+test("browser edition: \"Schlechtes Foto? Kein Problem!\" shows and copies the full reference prompt", async ({ page, context }) => {
+  const errors = collectErrors(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto("rater/");
+  await page.getByTestId("reference-prompt-open").first().click();
+  await expect(page.getByRole("dialog")).toContainText("Universal Facial Reference Optimization");
+  await expect(page.getByTestId("reference-prompt-text")).toContainText("11. FINALES ZIEL");
+  await page.getByTestId("reference-prompt-copy").click();
+  await expect(page.getByTestId("reference-prompt-copied")).toHaveText("Prompt erfolgreich kopiert");
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(createHash("sha256").update(copied).digest("hex")).toBe("5197e2acf46f89623458a819c8121f34690a36a5f657d86fbfe5ee265f2b5af8");
+  expect(copied).not.toContain("So funktioniert");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("browser edition on a phone: navigation, German texts, offline reload", async ({ browser }) => {
   const ctx = await browser.newContext({ ...devices["Pixel 7"], locale: "de-DE" });
   const page = await ctx.newPage();
@@ -232,7 +253,7 @@ test("German browser with page translation: battle setup does not crash", async 
   await ctx.close();
 });
 
-test("browser edition: automatic side view runs locally; vision model needs the user's own key and consent", async ({ page, baseURL }) => {
+test("browser edition: no side view any more; vision model needs the user's own key and consent", async ({ page, baseURL }) => {
   test.setTimeout(300_000);
   const errors = collectErrors(page);
   // only this origin may be contacted (also when run against the deployed site)
@@ -242,19 +263,10 @@ test("browser edition: automatic side view runs locally; vision model needs the 
     const u = new URL(r.url());
     if (u.protocol.startsWith("http") && ![own, "127.0.0.1", "localhost"].includes(u.hostname)) external.push(u.hostname);
   });
-  await page.goto("side-view/new/");
-  await expect(page.getByTestId("side-upload")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
-  await page.locator('input[type="file"]').first().setInputFiles(join(FIX, "profile-scan-left.jpg"));
-  await expect(page.getByTestId("side-auto")).toHaveAttribute("data-state", "ok", { timeout: 180_000 });
-  await expect(page.getByText("Facing: left")).toBeVisible();
-  await expect(page.getByTestId("side-preview")).toHaveAttribute("data-state", "analyzable");
-  await page.getByTestId("side-label").fill("Static Profile");
-  const boxes = page.locator('input[type="checkbox"]');
-  for (let i = 0; i < (await boxes.count()); i++) await boxes.nth(i).check();
-  await page.getByTestId("side-save").click();
-  await page.waitForURL(/side-view\/view\/\?id=side_/, { timeout: 60_000 });
-  await expect(page.getByTestId("side-row-FCA")).toContainText("°");
-  await shot(page, "s10-side-auto-result");
+  // rubric 3.0: front profile only — the side view is gone from navigation and routes
+  await page.goto("./");
+  await expect(page.locator('a[href*="side-view"]')).toHaveCount(0);
+  expect((await page.request.get("side-view/new/")).status()).toBe(404);
 
   // the vision model is off until the user enters a key (stored only in this browser)
   await page.goto("settings/");

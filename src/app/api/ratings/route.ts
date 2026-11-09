@@ -27,8 +27,6 @@ export async function POST(req: Request) {
     const rating = await createRating(user.id, {
       analysisId: body.analysisId,
       newAnalysis: body.newAnalysis ? { ...body.newAnalysis, input: body.newAnalysis.input as AnalysisInput } : undefined,
-      sideAnalysisId: body.sideAnalysisId,
-      useLatestSide: body.useLatestSide,
       scaleId: body.scaleId,
       minCoverage: body.minCoverage,
       visualConsent: body.visualConsent,

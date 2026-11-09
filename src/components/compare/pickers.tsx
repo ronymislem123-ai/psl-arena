@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge, levelTone } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/controls";
 import { formatPsl } from "@/engine/psl/rating";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
 import type { AnalysisSummary } from "@/server/repos";
@@ -30,7 +31,7 @@ export function ComparePickers({ mode, ratings, analyses, tournaments, preselect
             {ratings.length < 2 ? <div className="text-sm text-fg-3">{t("compare.empty")}</div> : (
               <ul className="divide-y divide-line" data-testid="compare-picker">
                 {ratings.map((r) => (
-                  <li key={r.id}><label className="flex items-center gap-3 py-2 cursor-pointer"><input type="checkbox" checked={selR.includes(r.id)} onChange={() => toggle(setSelR)(r.id)} className="h-4 w-4 accent-[#4f7cff]" /><span className="min-w-0 flex-1 truncate">{r.profileLabel}</span><span className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {r.tierName ?? "—"}</span><span className="font-mono num">{formatPsl(r.score)}</span></label></li>
+                  <li key={r.id}><label className="flex items-center gap-3 py-2 cursor-pointer"><input type="checkbox" checked={selR.includes(r.id)} onChange={() => toggle(setSelR)(r.id)} className="h-4 w-4 accent-[#4f7cff]" /><span className="min-w-0 flex-1 truncate">{r.profileLabel}</span><span className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {r.tierName ?? "—"}</span><LegacyMethodTag rubricVersion={r.rubricVersion} /><span className="font-mono num">{formatPsl(r.score)}</span></label></li>
                 ))}
               </ul>
             )}

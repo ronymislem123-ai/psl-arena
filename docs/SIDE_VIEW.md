@@ -1,5 +1,13 @@
 # Side-view (profile) module
 
+> **Removed in 3.0 (2026-11-09).** The side view is no longer part of the application:
+> no profile upload, no automatic profile detection, no side-view routes or API, no
+> profile criteria in the rating (rubric 3.0 rates the front profile only, see
+> `docs/RUBRIC.md`). Side-view analyses stored before 3.0 are kept in the database
+> (`side_analyses`, `side_measurements`) and in the JSON export; the definitions in
+> `src/engine/side-view.ts` remain so that those records and old ratings stay
+> readable. The text below documents the module as it was.
+
 The frontal engine cannot measure anything that needs depth: the true gonial angle, the cervicomental angle, chin and midface projection, the nasal dorsum. The side-view module adds these from a **lateral photo**. Since version 2.0 (2026-11-08) the user only uploads the photo: the points are **detected automatically**; manual correction and extra points are optional.
 
 ## Automatic detection (side view 2.0)

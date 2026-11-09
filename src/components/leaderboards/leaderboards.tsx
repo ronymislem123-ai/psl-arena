@@ -24,6 +24,11 @@ export function Leaderboards() {
   return (
     <div className="space-y-6">
       <PageHeader kicker={t("navPsl.leaderboards")} title={t("leaderboards.title")} subtitle={t("leaderboards.sub")} />
+      {!!data?.legacyExcluded && (
+        <div className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-fg-1" data-testid="leaderboards-legacy">
+          {t("leaderboards.legacyExcluded", { n: data.legacyExcluded })}
+        </div>
+      )}
       {!data ? (
         <div className="text-sm text-fg-3">{t("common.loading")}</div>
       ) : data.participants.length < 2 ? (

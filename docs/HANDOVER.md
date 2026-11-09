@@ -1,4 +1,4 @@
-# Übergabe / Handover — PSL ARENA (Stand 2026-11-08, Modul „Automatische Analyse“)
+# Übergabe / Handover — PSL ARENA (Stand 2026-11-09, Rubrik 3.0 „PSL Score – Front Profile“)
 
 Dieses Dokument ist die vollständige Übergabe an das nächste Modul (neue Sitzung).
 Es ist **kein Neustart**: alles hier Genannte ist umgesetzt, getestet, committet und
@@ -11,8 +11,9 @@ Next.js-16-App (App Router, React 19, TypeScript strict, Tailwind 4, zustand, zo
 zur geometrischen Gesichtsanalyse: MediaPipe Face Landmarker (478 Punkte inkl. z,
 läuft im Browser, Modell `public/models/face_landmarker.task`, WASM in
 `public/mediapipe/wasm/` per postinstall), Engine 2.0 / Rubrik 2.0 (`src/engine`),
-Battles, AI PSL Rater, Scale Builder, Turniere, Vergleich, Seitenansicht (manuelle
-Profil-Landmarks). Zwei Ausgaben aus einem Code: **Server-Edition** (`npm run build`,
+Battles, AI PSL Rater, Scale Builder, Turniere, Vergleich. Seit Rubrik/Engine 3.0
+(2026-11-09) wird ausschließlich die Frontalansicht bewertet; die Seitenansicht ist
+entfernt (Abschnitt 10). Zwei Ausgaben aus einem Code: **Server-Edition** (`npm run build`,
 `npm start`, SQLite via better-sqlite3, Konten/2FA) und **Browser-Edition**
 (`npm run build:static -- --base /psl-arena`, sql.js + IndexedDB, keine Konten,
 GitHub Pages: https://ronymislem123-ai.github.io/psl-arena/, Workflow
@@ -61,8 +62,8 @@ Idealbeispiel-Restfehler ≈ 4 % IPD (`docs/OPEN_ITEMS.md`).
 - Forschungsläufe: `npm run research -- ideal|validation`; Engine-1.x-Vergleich: `scripts/research/engine1-runner.test.ts`.
 - Visuelles Modell: `src/lib/visual-model/claude.ts` (SDK, `beta.messages.parse`, zod-Schema, `fallbacks: "default"`; Schlüssel/Endpunkt explizit, sonst übernimmt das SDK `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_BASE_URL` aus der Umgebung). Konfiguration `src/server/vision-config.ts` (Server: `PSL_ARENA_VISION_PROVIDER=claude`, `ANTHROPIC_API_KEY`, opt. `PSL_ARENA_VISION_MODEL`) bzw. `vision-config.static.ts` (Browser: localStorage `psl-arena.visionModel`). Einwilligung `visualConsent` + `visualImageDataUrl` in `createRating`. 4 Kriterien `method: "visual"`: eyeShape, cheekboneProjection, jawlineDefinition, lipShape.
 - **zod 4:** `z.record(z.enum(...), …)` ist erschöpfend (alle Schlüssel Pflicht) → für Teilmengen `z.partialRecord` verwenden.
-- Seitenansicht: `src/engine/side-view.ts` (Version 2.0: 16 Landmarks, 19 Messungen, Pflicht nur `SIDE_CORE_POINTS`), automatische Erkennung `src/engine/side-auto.ts` (rein, testbar) + `src/lib/vision/profile.ts` (Segmentierer `public/models/selfie_multiclass_256x256.tflite`, 16 MB, Apache-2.0), UI `src/components/side/side-placer.tsx` (Erkennung beim Hochladen, Korrektur optional).
-- Testmaterial Profil: `tests/e2e/fixtures/profile-scan*.jpg` (3D-Scan-Renderings, CC BY 3.0), Segmentierungs-Fixtures `tests/fixtures/side-seg-*.json`, Synthetik-Maske `tests/fixtures/profile-synthetic-mask.json`.
+- Seitenansicht (bis 2.x): entfernt in 3.0. `src/engine/side-view.ts` enthält nur noch Definitionen/Typen zum Lesen gespeicherter Seitenansicht-Datensätze und alter Bewertungen; Repo-Funktionen `listSideAnalyses`/`getSideAnalysis` bleiben für Export und Löschen.
+- Testmaterial Profil (Scan-Renderings, Segmentierungs-Fixtures) wurde mit der Seitenansicht entfernt.
 
 ## 5. Live-Entwicklungsboard
 
@@ -116,3 +117,40 @@ Drei unabhängige Prüfungen (Messlogik, Punktplatzierung auf Fotos, deutsche Ob
 - **Rater:** Ein während der Wiederherstellung gewähltes Foto wurde überschrieben (Generationszähler in `battle-store.ts`).
 - **Oberfläche:** Frontal-Index statt „PSL-Style-Score“ (mit PSL-Umrechnung und Hinweis), Engine-1.x-Kennzahlen eingeklappt, nicht bewertete Verhältnisse nicht mehr als Abweichung, lesbare Messgrößen statt Rohschlüsseln, deutsche Overlay-/Regionstexte, Spaltenkopf „Quelle“, Methoden deutsch, keine Repository-Pfade/internen Formulierungen, Vergleich/Battle/Turnier/Seitenansicht-Texte und Zahlen korrigiert, σ/λ in Großbuchstaben-Köpfen, Telefon-Layout bei 320 px.
 - Offene Punkte: `docs/OPEN_ITEMS.md` → „Audit 2026-11-09“.
+
+## 10. Referenzprompt & Rubrik 3.0 „PSL Score – Front Profile“ (2026-11-09)
+
+**A. „Schlechtes Foto? Kein Problem!“** — Der Button existierte in keinem Commit und
+wurde minimal-invasiv im gemeinsamen Upload-Feld (`src/components/battle/upload-slot.tsx`,
+Rater und Battle) ergänzt. Modal „Universal Facial Reference Optimization“
+(`src/components/shared/reference-prompt.tsx`) zeigt den Originalprompt wortgetreu
+aus der einzigen Quelle `src/lib/reference-prompt.ts` (`REFERENCE_PROMPT`, 9352 Zeichen,
+SHA-256 `5197e2ac…5af8`, 11 Abschnitte). „Elite-Prompt kopieren“ kopiert genau diese
+Konstante (Clipboard-API, Fallback `execCommand`), „Prompt erfolgreich kopiert“ nur bei
+Erfolg, sonst Fehlermeldung. Nutzungshinweis wird angezeigt, nicht mitkopiert. Keine
+Bildbearbeitung in der App, kein externer Bilddienst. Tests:
+`tests/unit/reference-prompt.test.ts`, `tests/e2e/reference-prompt.spec.ts`
+(Zwischenablage-Hash = Konstante, 1440 px und 360 px).
+
+**B. Seitenprofil entfernt, Score neu auf Frontansicht** (`docs/RUBRIC.md`):
+- Entfernt: Seitenansicht-Seiten/-API/-Navigation, automatische Profilerkennung und
+  Segmentierungsmodell, Profilfoto im Rater, Profilkriterien und -gewichte,
+  Turnierkategorie „Profil“, Seitenansicht-Kacheln/-Tabs.
+- Rubrik 3.0.0 / Engine 3.0.0: 7 Kategorien Eye Area 20, Facial Harmony & Symmetry 20,
+  Midface 15, Nose 15, Lower Third & Chin Shape 15, Jawline & Frontal Mandibular
+  Definition 10, Cheekbones & Facial Width 5 (Summe 100); 32 Kriterien; PSL = Σ Sᵢ·Wᵢ
+  über die beurteilbaren Kategorien (Gewichte renormiert, fehlend ≠ 0); unter 50 % des
+  Kategoriegewichts kein Gesamtscore (`insufficientData`); Anzeige mit einer
+  Nachkommastelle; Einordnung 0–2/3–4/5–6/7–8/9–10 (`src/engine/psl/bands.ts`).
+- Oberfläche: „PSL Score – Front Profile“ + Hinweistext, Einordnung je Gesamt- und
+  Kategoriewert; Bewertungen/Analysen < 3.0 als „Alte Methode“ markiert (Bewertung,
+  Verlauf, Profile, Dashboard, Vergleich, Turnier, Analyse); Ranglisten nur 3.0,
+  Turniere lehnen alte Bewertungen ab. Gespeicherte Daten werden nicht neu berechnet
+  oder gelöscht; Seitenansicht-Datensätze bleiben in DB und Export.
+- Dabei gefundener Fehler (behoben): `UploadSlot` hatte je Zustand ein eigenes
+  Datei-Input; endete die Wiederherstellung eines gespeicherten Fotos, während der
+  Dateidialog offen war, wurde das Input ausgehängt und die neue Auswahl ging
+  verloren. Jetzt ein dauerhaft gemountetes Input (E2E 6/6 wiederholt grün).
+- Tests: `tests/unit/front-rubric.test.ts` (Gewichte, Rechenbeispiel 6,85,
+  Renormierung, Mindestdaten, Bänder, Bericht), angepasste Unit-/E2E-Tests
+  (`psl.spec.ts` u. a. „front profile only“ und „old method“).

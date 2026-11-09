@@ -1,13 +1,32 @@
-# PSL rating rubric (version 2.2.0)
+# PSL rating rubric (version 3.0.0 — front profile only)
 
-The AI PSL Rater and the frontal analysis share one scoring model: measures
-(frontal ratios, symmetry metrics, two derived frontal measures, profile
-measurements, optional vision-model assessments) → **41 criteria** (one anatomical trait
-each) → **7 categories** → overall index 0–100 → PSL 0–10. The rubric is versioned
+The AI PSL Rater and the frontal analysis share one scoring model that uses the
+**frontal view only**: measures (frontal ratios, symmetry metrics, two derived
+frontal measures, optional vision-model or self-assessed visual impressions) →
+**32 criteria** (one anatomical trait each) → **7 categories** → overall index
+0–100 → **PSL Score – Front Profile** 0.0–10.0. The rubric is versioned
 (`RUBRIC_VERSION` in `src/engine/psl/rubric.ts`); every rating stores the version,
-calibration, minimum coverage and a snapshot of the scale. Ratings of rubric 1.0.0
-keep rendering with their own criteria and areas (`LEGACY_CRITERIA`, legacy
-`AREA_META` entries).
+minimum coverage and a snapshot of the scale.
+
+**3.0.0 (2026-11-09, engine 3.0.0): side profile removed, score rebuilt on the
+front view.** The side view (profile upload, automatic profile detection, the
+person-segmentation model, side-view routes and API, profile measures, profile
+criteria and their weights) is gone from the application. Traits that need a
+lateral view — sagittal chin projection, nose projection, mandibular projection,
+profile angles (convexity, nasofrontal/nasolabial/cervicomental angles), the true
+gonial angle — are no longer criteria; they are not estimated from the front
+view. The categories and weights were rebuilt for the front view (table below)
+and the overall score is the weighted arithmetic mean of the category scores
+(p = 1), renormalised over the assessable categories. Ratings and analyses stored
+before 3.0 are **not** recomputed: they keep their score and are marked
+"old method" everywhere (rating page, history, profiles, dashboard, compare,
+tournaments); leaderboards rank only 3.0 ratings and tournaments refuse older
+ones. Stored side-view records stay in the database and in the JSON export.
+
+## Earlier versions
+
+Ratings of rubric 1.x/2.x keep rendering with their own criteria and areas
+(`LEGACY_CRITERIA`, legacy `AREA_META` entries, `LEGACY_CATEGORY_WEIGHTS`).
 
 **2.2.0 (2026-11-09, engine 2.1.0):** the frontal gonial slope (GS) is shown but not
 scored — all six test faces lie above its 138–143° range (146–153°; the mesh contour
@@ -38,37 +57,47 @@ What changed against 1.0.0 and why is listed in `docs/SYSTEM_AUDIT.md` and
 
 ## Principles
 
-1. **One measure, one criterion.** A unit test checks that every measure key
-   (`r:`, `s:`, `a:`, `p:`, `v:`) feeds at most one criterion and that every
-   measurable frontal ratio is either scored by exactly one criterion or listed as
-   *descriptive* with a reason. The frontal chin–philtrum ratio and the profile
-   lip–chin ratio describe the same construct and form one criterion.
-2. **No invented values.** Criteria without inputs are *not assessable* with a
-   reason code; they are left out of the aggregation, never filled.
-3. **Shown, not scored.** Measures whose reference direction is contradicted by
+1. **Front view only.** Every criterion is computed from the frontal photo (or is a
+   labelled visual impression of it). Nothing that needs a lateral view is
+   measured, estimated or filled in.
+2. **One measure, one criterion.** A unit test checks that every measure key
+   (`r:`, `s:`, `a:`, `v:`) feeds at most one criterion and that every measurable
+   frontal ratio is either scored by exactly one criterion or listed as
+   *descriptive* with a reason.
+3. **No invented values.** Criteria without inputs are *not assessable* with a
+   reason code; they are left out of the aggregation, never filled and never
+   counted as 0.
+4. **Shown, not scored.** Measures whose reference direction is contradicted by
    evidence or whose reference range does not match the landmark construction are
    reported with the reason and excluded from every score (table below).
-4. **Unusable photos never score.** A failed quality gate gives no score and no tier.
-5. **Uncertainty travels to the end.** The landmark-noise Monte-Carlo of the frontal
+5. **Unusable photos never score; too little data gives no total.** A failed quality
+   gate gives no score and no tier; with less than 50 % of the category weight
+   assessable (`MIN_SCORABLE_COVERAGE`) no overall score is shown (warning
+   `insufficientData`).
+6. **Uncertainty travels to the end.** The landmark-noise Monte-Carlo of the frontal
    analysis is replayed through the whole aggregation; the rating reports σ in PSL,
-   the decimals σ justifies and the probability of another tier.
+   the decimals σ justifies and the probability of another tier. Image quality
+   enters as confidence weight and uncertainty (σ), not as a penalty on the
+   anatomical score.
 
 ## Categories and weights (sum 100)
 
-| Category | Weight | Basis for the order |
+| Category (`RubricArea`) | Weight | Criteria |
 | --- | ---: | --- |
-| A Eye area | 25 | Eyes explain the most variance of whole-face judgements (adj. R² .55, Gao 2025) |
-| F Facial proportions | 20 | Averageness/proportion is the most consistent shape predictor (Lee et al. 2025; Pallett et al. 2010) |
-| B Bone structure | 15 | Jaw prominence mattered among single features (Mogilski & Welling 2018), but 2D jaw landmarks are unreliable (Lim et al. 2022) |
-| D Nose | 12 | adj. R² .20 (Gao 2025) |
-| E Lips & mouth | 10 | adj. R² .12 (Gao 2025) |
-| A Symmetry | 10 | Weak predictor in recent large samples (Lee et al. 2025; Van Dongen 2011) |
-| G Forehead & hairline | 8 | Not predictive in Gao 2025; hairline is the least reliable landmark |
+| Eye Area (`eye`) | 20 | canthalTilt, eyeSpacing, fissureProportions, browArea, upperLidExposure, scleralShow, eyeShape (visual) |
+| Facial Harmony & Symmetry (`harmonySymmetry`) | 20 | facialThirds, faceShape, eyeMouthLength, facialFifths, foreheadHeight, eyeSymmetry, noseSymmetry, mouthSymmetry, jawChinSymmetry |
+| Midface (`midfaceFront`) | 15 | midfaceRatio, eyeMouthGeometry |
+| Nose (`nose`) | 15 | noseWidth, noseHeightWidth |
+| Lower Third & Chin Shape (`lowerThird`) | 15 | lowerThirdProportions, chinWidthShape, mouthWidth, lipProportions, lipChinVertical (frontal C/P), lipShape (visual) |
+| Jawline & Frontal Mandibular Definition (`jawline`) | 10 | jawWidth, jawlineDefinition (visual), neckWidth (manual neck points) |
+| Cheekbones & Facial Width (`cheekbonesWidth`) | 5 | cheekbonePosition, cheekboneProjection (visual), foreheadWidth |
 
-The order follows the cited evidence; the exact values are conventions. Their
-influence is tested in `docs/MODEL_VALIDATION.md` (equal weights change no ranking
-of the test faces). "H Overall harmony" is not a separate category: it is the
-interaction term of the non-compensatory aggregation.
+The weights are the proposed front-profile weights of the 3.0 specification. Each
+criterion belongs to exactly one category, so nothing is weighted twice: the
+symmetry criteria sit in *Facial Harmony & Symmetry* only, the lip/mouth criteria
+in *Lower Third*, the bitemporal width in *Cheekbones & Facial Width*. The jaw
+category is small because 2D gonion landmarks are the least reliable (bigonial ICC
+.16, Lim et al. 2022) and the frontal gonial slope is shown, not scored.
 
 ## Criteria
 
@@ -80,39 +109,37 @@ interaction term of the non-compensatory aggregation.
 | | browArea (brow length) | EBL |
 | | upperLidExposure (upper lid position) | MRD1: iris centre → upper lid margin, mm (normal 4–5 mm, Putterman 2012) |
 | | scleralShow | SSI: lower iris edge → lower lid margin, mm (≤ 0 normal, > 1 mm retraction, Bartley 1996; plateau to 0.5 mm, s = 1 mm) |
-| | eyeShape | vision model only |
-| Facial proportions | midfaceRatio | MF |
-| | facialThirds (middle & lower) | FT-M, FT-L |
+| | eyeShape | vision model or self-assessment only |
+| Facial harmony & symmetry | facialThirds (middle & lower) | FT-M, FT-L |
 | | faceShape | TFWHR, LFF, DEV BIT/BIG |
-| | eyeMouthGeometry | EME |
 | | eyeMouthLength | EML (Pallett et al. 2010 length ratio, preferred .36–.37, s = .017) |
-| | lowerThirdProportions | L3P |
 | | facialFifths | FIFTHS (Gaussian around equal fifths, s = 3 pp) |
-| | profileConvexity, lowerFaceHarmony | profile FCA, LFH |
-| Bone structure | jawWidth | BIG |
-| | jawAngularityFrontal | GS |
-| | chinWidthShape | M/C |
-| | cheekbonePosition | CBS |
-| | gonialAngle | profile GA |
-| | mandibularPlane | profile MPA (soft-tissue Go–Me to the reference horizontal, 20–30°, Tweed 1954 FMA 25 ± 5°) |
-| | midfaceProjection | profile MFP (Sn ahead of the glabella vertical, 2.4–7.2 % of G–Me; Legan & Burstone 1980: 6 ± 3 mm with G–Me ≈ 125 mm) |
-| | chinProjection | profile ZANG, HANG, CHP (Pg to the glabella vertical, ± 3.2 %; Legan & Burstone 1980: 0 ± 4 mm) |
-| | neckChinDefinition | profile CMA, MCA; frontal NW (manual neck points) |
-| | cheekboneProjection, jawlineDefinition | vision model only |
-| Nose | noseWidth | N/BYZGO |
-| | noseHeightWidth | N/H |
-| | noseProjection, nasalAngles | profile GOODE; NFA, NFC, NMA |
-| Lips & mouth | mouthWidth | M/IPD, M/N, M/BIG |
-| | lipProportions | LL/UL, LIP WHR |
-| | lipChinVertical | C/P (frontal) + LCR (profile) |
-| | nasolabialAngle | profile NLA |
-| | lipShape | vision model only |
-| Symmetry | eyeSymmetry | eye opening, fissure length, canthal tilt, canthus height, brow height, brow tilt |
+| | foreheadHeight | FT-U, FWHF |
+| | eyeSymmetry | eye opening, fissure length, canthal tilt, canthus height, brow height, brow tilt |
 | | noseSymmetry | nose tip, alar base |
 | | mouthSymmetry | mouth-corner height and width |
 | | jawChinSymmetry | gonion width/height, cheek width, chin |
-| Forehead & hairline | foreheadHeight | FT-U, FWHF |
+| Midface | midfaceRatio | MF |
+| | eyeMouthGeometry | EME |
+| Nose | noseWidth | N/BYZGO |
+| | noseHeightWidth | N/H |
+| Lower third & chin shape | lowerThirdProportions | L3P |
+| | chinWidthShape | M/C |
+| | mouthWidth | M/IPD, M/N, M/BIG |
+| | lipProportions | LL/UL, LIP WHR |
+| | lipChinVertical | C/P (frontal) |
+| | lipShape | vision model or self-assessment only |
+| Jawline & frontal mandibular definition | jawWidth | BIG |
+| | jawlineDefinition | vision model or self-assessment only |
+| | neckWidth | NW (only with manually placed neck points) |
+| Cheekbones & facial width | cheekbonePosition | CBS |
+| | cheekboneProjection | vision model or self-assessment only (frontal contour impression, no depth claim) |
 | | foreheadWidth | BIT |
+
+Not part of the rubric (need a lateral view): sagittal chin projection, nose
+projection, midface/mandibular projection, mandibular plane, true gonial angle
+(the frontal gonial slope GS is shown, not scored), nasofrontal/nasolabial/
+cervicomental angles, profile convexity.
 
 ### Shown, not scored
 
@@ -134,47 +161,51 @@ strict; ratios that some faces meet stay scored.
    fall-off `100·exp(−½(d/s)²)` outside, with the dispersion unit `s` = natural
    between-person spread (`docs/SCORING.md`), taken as the expectation over the
    measurement σ of the value. Symmetry metrics: the same Gaussian on the
-   noise-floor-corrected asymmetry. Profile measures: side-view index. Visual
-   scores: inverse calibration of the provider's 0–10 value.
+   noise-floor-corrected asymmetry. Visual scores: inverse calibration of the
+   provider's (or the user's) 0–10 value.
 2. **Criterion index** = weighted mean of its measures (they describe one trait),
    weight = dependency weight × landmark reliability λ × confidence.
    λ (weakest landmark): gonion/ramus/mandible 0.4 (2D bigonial ICC .16, Lim et al.
    2022), zygion 0.75 (bizygomatic ICC .66), hairline, chin corners, temples,
    neck 0.6; all others 1.
-3. **Category index** = weighted power mean (p = 0.5) of its criteria
-   (weight 1 × mean λ × mean confidence).
-4. **Overall index** = weighted power mean (p = 0.5) of the category indices with the
-   category weights, renormalised over assessed categories. Missing profile or
-   visual criteria therefore change coverage, not the scale of the result.
-   The power mean is monotone in every input, equals the arithmetic mean when all
-   inputs agree, and gives an excellent trait diminishing returns. The difference to
-   the arithmetic mean is reported as **compensation penalty**. p is a stated model
-   parameter (configural, non-additive judgements: Abbas & Duchaine 2008; Lin & Zhou
-   2021; no study quantifies the degree) with a sensitivity analysis.
-5. **Calibration** PSL = index ÷ 10 (linear). Rubric 1.0's anchors were placed so
-   the project's portraits landed in the middle (circular). A population anchor
-   would need human ratings or population data of every measure; the model
-   simulation that assumed the population to be centred in the reference ranges was
-   rejected by the real test faces (median index ≈ 85 predicted, 54–79 observed).
-   The PSL value is therefore a **geometric conformity score**, not a population
-   percentile.
-6. **Coverage** = category-weighted share of the non-visual criteria that were
-   assessable. Frontal photo with hairline ≈ 0.79 (test faces), with a side view ≈ 0.9–1.0. Below the
+3. **Category score Sᵢ** = weighted mean of its assessable criteria
+   (criterion weight × mean λ × mean confidence), as index 0–100 and ÷ 10 on 0–10.
+4. **PSL Score – Front Profile** = Σ Sᵢ · Wᵢ over the assessable categories, with
+   Wᵢ = category weight ÷ sum of the weights of the assessable categories (so the
+   used weights sum to 1.00). A category without any assessable criterion is left
+   out — it is not counted as 0. Worked example (all categories assessable):
+   0.20·8 + 0.20·6 + 0.15·7 + 0.15·5 + 0.15·9 + 0.10·4 + 0.05·10 = **6.85**;
+   without the nose and cheekbone categories the remaining weights 0.80 are
+   renormalised (`tests/unit/front-rubric.test.ts`). With less than 50 % of the
+   category weight assessable, no overall score and no tier are given.
+5. **Calibration** PSL = index ÷ 10 (linear), shown with one decimal (the tier comes
+   from the unrounded score). The PSL value is a **geometric conformity score**,
+   not a population percentile.
+6. **Interpretation bands** (`src/engine/psl/bands.ts`), the same for the total
+   and every category, judged on the displayed value: 0–2.9 very weak,
+   3.0–4.9 below average, 5.0–6.9 average, 7.0–8.9 above average, 9.0–10
+   exceptional — a reading against this rubric's criteria, not a medical or
+   anthropometric norm.
+7. **Coverage** = category-weighted share of the non-visual criteria that were
+   assessable. Frontal photo with hairline ≈ 0.95 (test faces; the jaw category
+   lacks the manual neck points), without a usable hairline ≈ 0.88. Below the
    minimum coverage (default 0.7) the score is *provisional*.
-7. **σ, precision, tier.** σ_PSL = SD of the overall score over the stored
-   Monte-Carlo samples of every frontal measure (correlated landmark noise) and the
-   side-view σ; the display uses one significant digit of σ (`displayDecimals`); the
-   tier comes from the unrounded score; `tierUncertainty` = share of samples in
-   another tier.
-8. **Strengths / lower-rated criteria**: assessable criteria ≥ 6.5 / < 5.
+8. **σ, precision, tier.** σ_PSL = SD of the overall score over the stored
+   Monte-Carlo samples of every frontal measure (correlated landmark noise); the
+   display uses one significant digit of σ (`displayDecimals`); `tierUncertainty`
+   = share of samples in another tier.
+9. **Strengths / lower-rated criteria**: assessable criteria ≥ 6.5 / < 5.
 
 ## Tournaments and comparisons
 
-Tournament categories that correspond to rubric categories (eye area, symmetry,
-proportions, nose, bone structure) use the category score; the others average a
-criterion selection. By default only "Best overall face" carries weight, so the
+Tournament categories that correspond to rubric categories (eye area, facial
+harmony & symmetry, midface, lower third, nose) use the category score; the others
+(jawline, cheekbones, harmony, symmetry, chin, bone structure) average a criterion
+selection. There is no profile category any more. By default only "Best overall face" carries weight, so the
 weighted tournament overall equals the rubric overall and nothing is counted twice.
-Comparisons warn when rubric or engine versions differ; battles between analyses
+Comparisons warn when rubric or engine versions differ and mark old-method
+ratings; tournaments accept only ratings of the current rubric; leaderboards rank
+only 3.0 ratings and say how many profiles were left out; battles between analyses
 of different engine generations are inconclusive.
 
 ## Visual criteria
@@ -237,10 +268,9 @@ inputs (closed eyes, no pixels, flat image) give "not available", never a value.
   systematically between populations.
 - Category weights and p are evidence-informed conventions, not fitted to human
   ratings (none were available).
-- 2D soft-tissue stand-ins for bony landmarks; profile criteria come from the
-  automatically detected silhouette points (or manual placement); points off the
-  silhouette (alar crease, tragion, often the gonion) make GA, GOODE and MPA
-  "not determinable" unless the user adds them.
+- 2D soft-tissue stand-ins for bony landmarks. Front view only: projections and
+  profile angles are not part of the score, so faces that differ mainly in profile
+  are not distinguished.
 - Vision-model scores are impressions of a general model, not validated against
   human ratings, and vary between runs and model versions (the model id is stored
   with every rating).

@@ -6,17 +6,15 @@ import { evidenceOf } from "@/engine/scoring/measurement";
 import { pslDecimals, rateFace, ratingSummary } from "@/engine/psl/rating";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
 import { RATIO_DEFINITIONS } from "@/engine/ratios/database";
-import { analyzeSideView, SIDE_DEFINITIONS } from "@/engine/side-view";
 import { inputFromFixture, loadFixture } from "./helpers";
-import { PROFILE } from "./side-view.test";
 
 const scale = snapshotScale(buildStandardScale());
 
 describe("rubric definition", () => {
   it("category weights sum to 100 and every active category has criteria", () => {
-    expect(RUBRIC_VERSION).toBe("2.2.0");
+    expect(RUBRIC_VERSION).toBe("3.0.0");
     expect(totalWeight()).toBe(100);
-    expect(RUBRIC_AREAS).toEqual(["eye", "proportions", "bone", "nose", "mouth", "symmetry", "forehead"]);
+    expect(RUBRIC_AREAS).toEqual(["eye", "harmonySymmetry", "midfaceFront", "nose", "lowerThird", "jawline", "cheekbonesWidth"]);
     for (const a of RUBRIC_AREAS) {
       expect(CATEGORY_WEIGHTS[a], a).toBeGreaterThan(0);
       expect(CRITERIA.some((c) => c.area === a), a).toBe(true);
@@ -46,7 +44,8 @@ describe("rubric definition", () => {
       expect(seen.has(`r:${r.id}`) !== descriptive.has(r.id), r.id).toBe(true);
       expect(evidenceOf(r.id).status === "contradicted" || evidenceOf(r.id).status === "constructMismatch", r.id).toBe(descriptive.has(r.id));
     }
-    for (const d of SIDE_DEFINITIONS.filter((d) => d.range)) expect(seen.has(`p:${d.id}`), d.id).toBe(true);
+    // rubric 3.0: front profile only — no profile measure is scored
+    expect([...seen.keys()].some((k) => k.startsWith("p:"))).toBe(false);
     expect(seen.get("a:EML")).toBe("eyeMouthLength");
     expect(seen.get("a:FIFTHS")).toBe("facialFifths");
   });
@@ -77,7 +76,7 @@ describe("rubric definition", () => {
   });
 });
 
-describe("non-compensatory aggregation", () => {
+describe("aggregation (rubric 3.0: weighted arithmetic mean)", () => {
   const all = (x: number): MeasureMap => {
     const m: MeasureMap = new Map();
     for (const c of CRITERIA) for (const k of measureKeys(c)) if (!k.startsWith("v:") && !k.startsWith("p:")) m.set(k, { index: x, confidence: 1, reliability: 1, weight: 1, source: "frontal" });
@@ -95,21 +94,19 @@ describe("non-compensatory aggregation", () => {
       expect(aggregateHierarchy(up).overall!, k).toBeGreaterThan(h0);
     }
   });
-  it("never exceeds the arithmetic mean and penalises unbalanced profiles", () => {
-    // one excellent category (eyes = 100) cannot offset weak others (40) one-to-one
+  it("PSL = Σ Sᵢ·Wᵢ: one category at 100, the others at 40", () => {
     const m = all(40);
     for (const c of CRITERIA.filter((c) => c.area === "eye")) for (const k of measureKeys(c)) if (m.has(k)) m.set(k, { ...m.get(k)!, index: 100 });
     const h = aggregateHierarchy(m);
-    expect(h.overallArithmetic!).toBeCloseTo(0.25 * 100 + 0.75 * 40, 6);
-    expect(h.overall!).toBeLessThan(h.overallArithmetic!);
-    expect(h.compensationPenalty!).toBeGreaterThan(2);
-    // balanced face with the same arithmetic mean scores higher than the unbalanced one
-    expect(aggregateHierarchy(all(h.overallArithmetic!)).overall!).toBeGreaterThan(h.overall!);
+    expect(h.overall!).toBeCloseTo(0.2 * 100 + 0.8 * 40, 6);
+    expect(h.overall!).toBeCloseTo(h.overallArithmetic!, 9);
+    expect(h.compensationPenalty!).toBeCloseTo(0, 9);
   });
   it("power mean: p = 1 is the arithmetic mean, smaller p is stricter", () => {
     const items = [{ x: 90, w: 1 }, { x: 30, w: 1 }];
     expect(powerMean(items, 1)).toBeCloseTo(60, 12);
-    expect(powerMean(items, AGGREGATION_P)!).toBeLessThan(60);
+    expect(AGGREGATION_P).toBe(1);
+    expect(powerMean(items, 0.5)!).toBeLessThan(60);
     expect(powerMean(items, 0.25)!).toBeLessThan(powerMean(items, 0.5)!);
     expect(powerMean([], 0.5)).toBeNull();
   });
@@ -117,33 +114,31 @@ describe("non-compensatory aggregation", () => {
 
 describe("rating engine on real fixtures", () => {
   const frontal = analyzeFace(inputFromFixture(loadFixture("ai-face")));
-  const side = analyzeSideView(PROFILE);
 
   it("rates a frontal analysis with documented coverage and a tier on the scale", () => {
     const r = rateFace({ frontal, scale });
-    expect(r.rubricVersion).toBe("2.2.0");
+    expect(r.rubricVersion).toBe("3.0.0");
     expect(r.score).not.toBeNull();
     expect(r.score!).toBeGreaterThan(0);
     expect(r.score!).toBeLessThan(10);
     expect(r.tier).not.toBeNull();
     expect(r.tier!.min).toBeLessThanOrEqual(r.score!);
     expect(r.score!).toBeLessThan(r.tier!.max + 1e-9);
-    // coverage = category-weighted share of the non-visual criteria; profile criteria are missing
+    // coverage = category-weighted share of the non-visual criteria (front profile only)
     const h = aggregateHierarchy(frontalMeasures(frontal.ratios, frontal.symmetry, frontal.additional));
     expect(r.coverage).toBeCloseTo(h.coverage, 12);
-    expect(r.coverage).toBeGreaterThan(DEFAULT_MIN_COVERAGE);
-    expect(r.coverage).toBeLessThan(0.9);
+    expect(r.coverage).toBeGreaterThan(0.9);
     expect(r.valid).toBe(true);
     expect(r.provisional).toBe(false);
     expect(r.minCoverage).toBe(DEFAULT_MIN_COVERAGE);
     const sum = ratingSummary(r);
     expect(sum.total).toBe(CRITERIA.length);
-    expect(r.notAssessable.filter((n) => n.code === "requiresProfile").length).toBeGreaterThanOrEqual(7);
+    expect(r.notAssessable.filter((n) => n.code === "requiresProfile")).toHaveLength(0);
     // rubric 2.1: two former visual criteria are measured; four remain visual-model only
     expect(r.notAssessable.filter((n) => n.code === "visualNotConfigured")).toHaveLength(4);
-    expect(r.warningCodes).toContain("noProfile");
+    expect(r.warningCodes).not.toContain("noProfile");
     expect(r.warningCodes).toContain("noVisualProvider");
-    // overall = calibrated weighted power mean of the category indices
+    // overall = calibrated weighted mean of the category indices (p = 1: Σ Sᵢ·Wᵢ)
     const cats = r.areas.filter((a) => a.index != null);
     const pm = Math.pow(cats.reduce((s, a) => s + a.weight * Math.pow(a.index!, AGGREGATION_P), 0) / cats.reduce((s, a) => s + a.weight, 0), 1 / AGGREGATION_P);
     expect(r.aggregation!.overallIndex).toBeCloseTo(pm, 9);
@@ -151,7 +146,7 @@ describe("rating engine on real fixtures", () => {
     expect(r.aggregation!.compensationPenalty!).toBeGreaterThanOrEqual(0);
     // the frontal analysis reports the same model
     expect(frontal.scores.overall).toBeCloseTo(pm, 9);
-    expect(frontal.scores.rubric!.version).toBe("2.2.0");
+    expect(frontal.scores.rubric!.version).toBe("3.0.0");
     // Monte-Carlo σ through the whole aggregation, and the precision it justifies
     expect(r.aggregation!.mcSamples).toBe(frontal.config.uncertaintySamples);
     expect(r.scoreSigma!).toBeGreaterThan(0);
@@ -165,36 +160,19 @@ describe("rating engine on real fixtures", () => {
     expect(r.criteria.some((c) => c.usedInputs.includes("FWHR") || c.usedInputs.includes("JWHR"))).toBe(false);
   });
 
-  it("adds the profile criteria when a side-view analysis is supplied", () => {
-    const base = rateFace({ frontal, scale });
-    const r = rateFace({ frontal, side, scale });
-    expect(r.coverage).toBeGreaterThan(base.coverage + 0.1);
-    expect(r.coverage).toBeLessThanOrEqual(1);
-    expect(r.criteria.find((c) => c.id === "gonialAngle")!.assessable).toBe(true);
-    expect(r.criteria.find((c) => c.id === "gonialAngle")!.source).toBe("profile");
-    expect(r.criteria.find((c) => c.id === "lipChinVertical")!.source).toBe("mixed");
-    expect(r.quality.sideUsed).toBe(true);
-    expect(r.warningCodes).not.toContain("noProfile");
-    // an unusable side view contributes nothing
-    const bad = analyzeSideView({ ...PROFILE, subnasale: { x: 516, y: 350 } });
-    expect(rateFace({ frontal, side: bad, scale }).coverage).toBeCloseTo(base.coverage, 12);
-  });
-
   it("becomes provisional below the minimum coverage and respects the configurable threshold", () => {
     const noHair = analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null }));
     const r = rateFace({ frontal: noHair, scale });
     const base = rateFace({ frontal, scale });
     expect(r.coverage).toBeLessThan(base.coverage);
     expect(r.criteria.find((c) => c.id === "eyeMouthLength")!.assessable).toBe(false);
-    const strictNoHair = rateFace({ frontal: noHair, scale, minCoverage: 0.78 });
+    const strictNoHair = rateFace({ frontal: noHair, scale, minCoverage: (r.coverage + base.coverage) / 2 });
     expect(strictNoHair.provisional).toBe(true);
     expect(strictNoHair.valid).toBe(false);
     expect(strictNoHair.score).not.toBeNull();
     expect(strictNoHair.warningCodes).toContain("lowCoverage");
-    const strict = rateFace({ frontal, scale, minCoverage: 0.9 });
+    const strict = rateFace({ frontal, scale, minCoverage: Math.min(1, base.coverage + 0.01) });
     expect(strict.provisional).toBe(true);
-    const strictSide = rateFace({ frontal, side, scale, minCoverage: 0.9 });
-    expect(strictSide.valid).toBe(true);
   });
 
   it("never scores an unusable frontal image", () => {
@@ -222,8 +200,8 @@ describe("rating engine on real fixtures", () => {
   });
 
   it("is deterministic and strengths/lower-rated come from the criterion scores", () => {
-    const a = rateFace({ frontal, side, scale });
-    const b = rateFace({ frontal, side, scale });
+    const a = rateFace({ frontal, scale });
+    const b = rateFace({ frontal, scale });
     expect(a.score).toBe(b.score);
     expect(a.criteria.map((c) => c.score)).toEqual(b.criteria.map((c) => c.score));
     for (const s of a.strengths) expect(s.score).toBeGreaterThanOrEqual(6.5);

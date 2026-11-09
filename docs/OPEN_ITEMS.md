@@ -8,25 +8,22 @@
 ## Landmark model limitations (2D frontal)
 * Gonion, zygion and frontotemporale are soft-tissue stand-ins (low precision); frontal gonial angles are systematically larger than lateral ones.
 * The mesh has no hairline, ears or neck: trichion is estimated by an image scan (adjustable/confirmable), neck points are manual, ear measurements are unavailable.
-* Profile-only measurements (cervicomental angle, gonial angle, chin projection, nasal dorsum) are reported as not measurable in the frontal analysis; they are covered by the side-view module (`docs/SIDE_VIEW.md`) from a separate lateral photo with manual landmarks.
+* Profile-only measurements (cervicomental angle, gonial angle, chin and nose projection, nasal dorsum) are reported as not measurable in the frontal analysis. Since rubric 3.0 they are not part of any score (front profile only); the former side-view module was removed.
 * Occlusions (glasses, hair over brows, hands) are not detected automatically; the quality step relies on pose, expression and pixel statistics. Perspective distortion cannot be measured from one image — the user-declared capture distance only adjusts confidence.
 * Eyebrow tilt follows the mesh brow contour; brows hidden by hair or heavily groomed reduce accuracy.
 
-## Side-view module
-* Since 2026-11-08 the midline points are detected automatically from the person silhouette (`docs/SIDE_VIEW.md`). Points off the silhouette (alar crease, tragion, orbitale; usually the gonion) are not detected — GA, GOODE, MPA and the Frankfort axis then need manually added points. Validated on a synthetic profile and a rendered 3D head scan, **not yet on a set of real profile photos with expert annotations**; a strongly tilted head (chin up) is rejected rather than measured. Beards, high collars and hair over the forehead change the silhouette and therefore the points.
-* Engine 2.0: an anatomical reference axis (soft-tissue Frankfort horizontal through tragion and an optional orbitale point, or a manually rotated axis) replaces the image vertical when set; without it the image vertical is still used and flagged.
-* The soft-tissue gonial angle uses the gonion–tragion line as the ramus proxy; it is not the cephalometric bony angle (the guide range 115–130° is applied as provided).
-* No frontal↔side fusion: the profile harmony index is reported separately and is not part of battles.
-* The mentolabial angle, dorsal profile and chin meridian are descriptive only (no sourced numeric target in the material).
+## Side-view module (removed in 3.0)
+* Removed from the application on 2026-11-09 (rubric/engine 3.0, front profile only). Stored side-view records are kept and exported but no longer shown in the app; a viewer for them (read-only, "old method") would be a follow-up if needed.
+* Faces that differ mainly in profile (chin/nose projection, convexity) are no longer distinguished by the score — an intended consequence of the front-only rubric.
 
 ## PSL modules (rater, scales, tournaments)
-* **Visual criteria.** Rubric 2.1 measures upper lid position (MRD1) and scleral show geometrically. Eye shape, lip shape, cheekbone projection and jawline definition are assessed by a real vision model (Claude API) only when it is set up and the user consents per rating; the integration is tested against the SDK request/response contract with mocked HTTP, but **no live call was possible in the development environment (no API key)**. Model scores are impressions, vary with the model version and are not validated against human ratings. Free alternatives: a labelled self-assessment (half weight) and six descriptive photo measures that are shown but deliberately not scored — turning them into scores would need reference ranges from human-rated data, which do not exist here.
+* **Visual criteria.** Since rubric 2.1 the app measures upper lid position (MRD1) and scleral show geometrically. Eye shape, lip shape, cheekbone projection and jawline definition are assessed by a real vision model (Claude API) only when it is set up and the user consents per rating; the integration is tested against the SDK request/response contract with mocked HTTP, but **no live call was possible in the development environment (no API key)**. Model scores are impressions, vary with the model version and are not validated against human ratings. Free alternatives: a labelled self-assessment (half weight) and six descriptive photo measures that are shown but deliberately not scored — turning them into scores would need reference ranges from human-rated data, which do not exist here.
 * **Calibration and weights are conventions.** The index→PSL anchors and the criterion weights are documented and versioned but not fitted to human ratings; no consented reference dataset with independent human raters exists in this project, so no empirical accuracy, inter-rater agreement or bias statistics are claimed (`docs/VALIDATION.md`).
-* **Minimum coverage** defaults to 70 % (brief suggestion: 80 %, reachable only with a profile view); configurable per rating.
-* **Three-quarter view** is not supported (no engine for it); only frontal + profile are fused.
+* **Minimum coverage** defaults to 70 %; a complete frontal photo reaches ≈ 95 % (≈ 88 % without a usable hairline); configurable per rating. Below 50 % of the category weight no overall score is given.
+* **Three-quarter and profile views** are not supported; rubric 3.0 rates the front view only.
 * **Potential rating** was not implemented (speculative by nature; the brief lists it as optional).
 * **Sharing** of ratings/tournaments is intentionally absent (privacy default); exports are downloads for the owner.
-* **Multi-image per view**: one frontal + one side view per rating; averaging several frontal photos of the same person is a follow-up.
+* **Multi-image**: one frontal photo per rating; averaging several frontal photos of the same person is a follow-up.
 * **Tournament ties**: knockout matches that stay tied after the three tie-breakers need a manual decision (recorded); there is no coin flip by design.
 * **Bracket on phones** scrolls horizontally with zoom buttons; a dedicated round-by-round list view would be friendlier.
 * **Awards and achievements** are derived from completed tournaments only; achievement thresholds are product conventions and not configurable yet.
@@ -62,4 +59,9 @@
 * **Hairline on grey/white hair** can stop at the start of a soft skin-to-hair fade (too low, too favourable forehead and face-shape values).
 * **Mentocervical angle.** Sources differ on which side of the intersection of G–Pg and Me–C the 80–95° norm refers to; the implementation keeps the angle between the facial ray G→Pg and the submental ray Me→C.
 * **Decimal separator.** Numbers are shown with a decimal point in both languages; German prose texts partly use commas. A full switch to German decimal commas needs a central number formatter for all ~90 numeric outputs.
-* **Head posture in profile photos** is not corrected automatically (natural head position is unknown); the app warns (`headTilted`) and offers the manual reference axis.
+
+## Front-only rubric 3.0 (2026-11-09)
+* **Category weights** (20/20/15/15/15/10/5) are the proposed weights of the specification, kept as given; they are conventions, not fitted to human ratings.
+* **Interpretation bands** use the displayed one-decimal value (0–2.9, 3.0–4.9, 5.0–6.9, 7.0–8.9, 9.0–10); the specification gave integer ranges, the decimal boundaries are this project's reading of them.
+* **Old ratings are not recomputed** (no silent re-scoring). Re-rating a profile creates a new 3.0 rating next to the old one; old ratings stay marked "old method".
+* **Head posture in profile photos** (`headTilted`) no longer applies; the warning code stays readable for stored side-view records.

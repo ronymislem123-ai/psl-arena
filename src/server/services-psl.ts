@@ -12,7 +12,7 @@ import type { ParticipantData, TournamentConfig } from "@/engine/tournament/type
 import { base64ToBytes } from "./bytes";
 import { ServiceError } from "./errors";
 import { readImage, storeImage } from "./images";
-import { getAnalysis, getProfile, getSideAnalysis, listSideAnalyses } from "./repos";
+import { getAnalysis, getProfile } from "./repos";
 import { addTournamentVersion, createScale, deleteTournament, getRating, getScale, getTournament, insertRating, insertTournament, listRatings, updateScale, updateTournament, userOwnsImage, type NewParticipant, type ScaleInput, type TournamentRecord } from "./repos-psl";
 import { createAnalysis } from "./services";
 import { getVisualProvider, VISUAL_CRITERIA, visualAssessmentSchema } from "./vision-provider";
@@ -90,6 +90,7 @@ export function addTierImage(userId: string, scaleId: string, tierId: string, im
 export interface CreateRatingArgs {
   analysisId?: string;
   newAnalysis?: { profileId?: string; profileLabel?: string; imageDataUrl?: string; storeImage: boolean; input: AnalysisInput };
+  /** rubric 3.0: ignored — ratings use the front profile only (kept so that old clients do not fail) */
   sideAnalysisId?: string | null;
   useLatestSide?: boolean;
   scaleId?: string;
@@ -113,14 +114,6 @@ export async function createRating(userId: string, args: CreateRatingArgs) {
   if (!analysis) throw new ServiceError(404, "Analysis not found.");
   const profile = getProfile(userId, analysis.profileId);
   if (!profile) throw new ServiceError(404, "Profile not found.");
-
-  let side = args.sideAnalysisId ? getSideAnalysis(userId, args.sideAnalysisId) : null;
-  if (args.sideAnalysisId && !side) throw new ServiceError(404, "Side-view analysis not found.");
-  if (side && side.profileId !== analysis.profileId) throw new ServiceError(400, "The side-view analysis belongs to a different profile.");
-  if (!side && args.sideAnalysisId !== null && (args.useLatestSide ?? true)) {
-    const latest = listSideAnalyses(userId, { profileId: analysis.profileId, limit: 5 }).find((s) => s.analyzable);
-    side = latest ? getSideAnalysis(userId, latest.id) : null;
-  }
 
   const scale = getScale(userId, args.scaleId ?? BUILTIN_SCALE_ID);
   if (!scale) throw new ServiceError(404, "Scale not found.");
@@ -152,8 +145,8 @@ export async function createRating(userId: string, args: CreateRatingArgs) {
     }
   }
 
-  const result: RatingResult = rateFace({ frontal: analysis.result, side: side?.result ?? null, visual, visualStatus, visualError, selfAssessment: args.selfAssessment ?? null, scale: snapshotScale(scale), minCoverage: args.minCoverage });
-  return insertRating({ userId, profileId: analysis.profileId, analysisId: analysis.id, sideAnalysisId: side?.id ?? null, scaleId: scale.id, result });
+  const result: RatingResult = rateFace({ frontal: analysis.result, visual, visualStatus, visualError, selfAssessment: args.selfAssessment ?? null, scale: snapshotScale(scale), minCoverage: args.minCoverage });
+  return insertRating({ userId, profileId: analysis.profileId, analysisId: analysis.id, sideAnalysisId: null, scaleId: scale.id, result });
 }
 
 // ---------------------------------------------------------------- tournaments

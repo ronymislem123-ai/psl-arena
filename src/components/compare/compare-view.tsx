@@ -11,6 +11,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Toggle } from "@/components/ui/controls";
 import { compareRatings, type CompareItem } from "@/engine/psl/compare";
 import { formatPsl } from "@/engine/psl/rating";
+import { isFrontOnlyRubric } from "@/engine/psl/rubric";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { RUBRIC_AREAS } from "@/engine/psl/rubric";
 import { useT } from "@/lib/i18n";
 import { areaName, criterionName } from "@/lib/i18n/psl-texts";
@@ -81,7 +83,7 @@ export function CompareView({ records }: { records: RatingRecord[] }) {
               <tr className="border-t border-line"><td className="py-2 text-fg-2">{t("rater.result.tier")}</td>{c.items.map((it) => <td key={it.id} className="py-2"><TierBadge tier={it.tierName ? { id: it.id, name: it.tierName, min: 0, max: 0, color: it.tierColor ?? "#9db6ff" } : null} size="sm" /> <span className="text-[11px] text-fg-3">{it.scaleName} v{it.scaleVersion}</span></td>)}</tr>
               <tr className="border-t border-line"><td className="py-2 text-fg-2">{t("rater.result.rubric")} / {t("common.engine")}</td>{c.items.map((it) => <td key={it.id} className="py-2 font-mono text-xs">{it.rubricVersion} / {it.engineVersion}</td>)}</tr>
               <tr className="border-t border-line"><td className="py-2 text-fg-2">{t("rater.result.coverage")} / {t("rater.result.confidence")}</td>{c.items.map((it) => <td key={it.id} className="py-2 font-mono text-xs">{Math.round(it.coverage * 100)} % / {fmt.pct(it.confidence)} {it.provisional && <Badge tone="amber" className="ml-1">{t("rater.result.provisional")}</Badge>}{!it.valid && !it.provisional && <Badge tone="rose" className="ml-1">{t("rater.result.invalid")}</Badge>}</td>)}</tr>
-              <tr className="border-t border-line"><td className="py-2 text-fg-2">{t("compare.quality")} / {t("compare.sideView")}</td>{c.items.map((it) => <td key={it.id} className="py-2 text-xs"><Badge tone={levelTone(it.quality)}>{t(`quality.${it.quality}`)}</Badge> <span className="text-fg-2">{it.sideUsed ? t("common.yes") : t("common.no")}</span></td>)}</tr>
+              <tr className="border-t border-line"><td className="py-2 text-fg-2">{t("compare.quality")} / {t("compare.method")}</td>{c.items.map((it) => <td key={it.id} className="py-2 text-xs"><Badge tone={levelTone(it.quality)}>{t(`quality.${it.quality}`)}</Badge> {isFrontOnlyRubric(it.rubricVersion) ? <span className="text-fg-2">{t("compare.frontMethod")}</span> : <LegacyMethodTag rubricVersion={it.rubricVersion} />}</td>)}</tr>
             </tbody>
           </table>
         </CardBody>
@@ -129,7 +131,7 @@ export function CompareView({ records }: { records: RatingRecord[] }) {
   );
 }
 
-export function ComparePicker({ ratings, preselect = [] }: { ratings: { id: string; profileLabel: string; createdAt: string; score: number | null; scaleName: string; tierName: string | null }[]; preselect?: string[] }) {
+export function ComparePicker({ ratings, preselect = [] }: { ratings: { id: string; profileLabel: string; createdAt: string; score: number | null; scaleName: string; tierName: string | null; rubricVersion: string }[]; preselect?: string[] }) {
   const { t, lang } = useT();
   const [sel, setSel] = useState<string[]>(() => preselect.filter((id) => ratings.some((r) => r.id === id)).slice(0, 4));
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 4 ? s : [...s, id]));
@@ -149,6 +151,7 @@ export function ComparePicker({ ratings, preselect = [] }: { ratings: { id: stri
                     <input type="checkbox" checked={sel.includes(r.id)} onChange={() => toggle(r.id)} className="h-4 w-4 accent-[#4f7cff]" />
                     <span className="min-w-0 flex-1 truncate">{r.profileLabel}</span>
                     <span className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {r.tierName ?? "—"}</span>
+                    <LegacyMethodTag rubricVersion={r.rubricVersion} />
                     <span className="font-mono num">{formatPsl(r.score)}</span>
                   </label>
                 </li>

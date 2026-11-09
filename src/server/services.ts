@@ -1,10 +1,9 @@
 import { analyzeFace } from "@/engine/analysis";
 import { resolveBattle } from "@/engine/battle";
 import type { AnalysisInput } from "@/engine/types";
-import { analyzeSideView, SIDE_CORE_POINTS, SIDE_LANDMARK_ORDER, type SideLandmarkId, type SidePointSet, type SidePointSource, type SideReference } from "@/engine/side-view";
 import { base64ToBytes } from "./bytes";
 import { ServiceError } from "./errors";
-import { createProfile, getAnalysis, getProfile, insertAnalysis, insertBattle, insertSideAnalysis, type AnalysisRecord, type BattleRecord, type SideAnalysisRecord } from "./repos";
+import { createProfile, getAnalysis, getProfile, insertAnalysis, insertBattle, type AnalysisRecord, type BattleRecord } from "./repos";
 import { storeImage } from "./images";
 
 export { ServiceError };
@@ -47,32 +46,3 @@ export function createBattle(userId: string, analysisAId: string, analysisBId: s
   return insertBattle({ userId, a, b, result });
 }
 
-export function createSideAnalysis(
-  userId: string,
-  args: { profileId?: string; profileLabel?: string; imageDataUrl?: string; storeImage: boolean; imageWidth: number; imageHeight: number; points: SidePointSet; reference?: SideReference; placement?: "manual" | "automatic" | "mixed"; pointSources?: Partial<Record<SideLandmarkId, SidePointSource>> },
-): SideAnalysisRecord {
-  for (const id of SIDE_CORE_POINTS) if (!args.points[id]) throw new ServiceError(400, `Landmark "${id}" is missing.`);
-  for (const id of SIDE_LANDMARK_ORDER) {
-    const p = args.points[id];
-    if (!p) continue;
-    if (p.x < 0 || p.y < 0 || p.x > args.imageWidth || p.y > args.imageHeight) throw new ServiceError(400, `Landmark "${id}" lies outside the image.`);
-  }
-  if (args.reference?.kind === "frankfort") {
-    const o = args.reference.orbitale;
-    if (o.x < 0 || o.y < 0 || o.x > args.imageWidth || o.y > args.imageHeight) throw new ServiceError(400, 'Landmark "orbitale" lies outside the image.');
-  }
-  const result = analyzeSideView(args.points, { reference: args.reference, placement: args.placement, pointSources: args.pointSources });
-  if (!result.analyzable) {
-    throw new ServiceError(422, `Placement not usable: ${result.issues.filter((i) => i.severity === "error").map((i) => i.code).join(", ")}`);
-  }
-  let profile = args.profileId ? getProfile(userId, args.profileId) : null;
-  if (args.profileId && !profile) throw new ServiceError(404, "Profile not found.");
-  if (!profile) profile = createProfile(userId, args.profileLabel?.trim() || "Unnamed");
-
-  let imageId: string | null = null;
-  if (args.storeImage && args.imageDataUrl) {
-    const { buf, mime } = decodeDataUrl(args.imageDataUrl);
-    imageId = storeImage(userId, buf, mime, args.imageWidth, args.imageHeight).id;
-  }
-  return insertSideAnalysis({ userId, profileId: profile.id, imageId, imageWidth: args.imageWidth, imageHeight: args.imageHeight, points: args.points, result });
-}

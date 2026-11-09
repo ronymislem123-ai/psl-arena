@@ -18,7 +18,6 @@ export const paths = {
   profile: (id: string) => (IS_STATIC ? withQuery("/profiles/view", { id }) : `/profiles/${id}`),
   rating: (id: string) => (IS_STATIC ? withQuery("/rater/view", { id }) : `/rater/${id}`),
   scale: (id: string, opts?: { saved?: boolean }) => (IS_STATIC ? withQuery("/scales/view", { id, saved: opts?.saved ? "1" : undefined }) : `/scales/${id}${opts?.saved ? "?saved=1" : ""}`),
-  sideView: (id: string) => (IS_STATIC ? withQuery("/side-view/view", { id }) : `/side-view/${id}`),
   tournament: (id: string) => (IS_STATIC ? withQuery("/tournaments/view", { id }) : `/tournaments/${id}`),
   tournamentEdit: (id: string) => (IS_STATIC ? withQuery("/tournaments/edit", { id }) : `/tournaments/${id}/edit`),
   tournamentVersion: (id: string, versionId: string) => (IS_STATIC ? withQuery("/tournaments/version", { id, v: versionId }) : `/tournaments/${id}/versions/${versionId}`),

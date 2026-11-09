@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import { analyzeFace } from "@/engine/analysis";
 import { rateFace, type RatingResult } from "@/engine/psl/rating";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
-import { analyzeSideView } from "@/engine/side-view";
 import { DEFAULT_CATEGORIES, DEFAULT_TOURNAMENT_CONFIG, normalizeWeights } from "@/engine/tournament/categories";
 import { allCategoryScores, buildBracket, buildGroups, categoryRankings, compareParticipants, computeResults, initialState, overallRanking, resolveTiedMatch, roundName, step, weightedOverall } from "@/engine/tournament/engine";
 import type { ParticipantData, TournamentConfig } from "@/engine/tournament/types";
 import { inputFromFixture, loadFixture } from "./helpers";
-import { PROFILE } from "./side-view.test";
 
 const scale = snapshotScale(buildStandardScale());
 const base = {
@@ -15,11 +13,11 @@ const base = {
   biden: analyzeFace(inputFromFixture(loadFixture("biden"))),
   ai: analyzeFace(inputFromFixture(loadFixture("ai-face"))),
 };
-const side = analyzeSideView(PROFILE);
 const R = {
   obama: rateFace({ frontal: base.obama, scale }),
   biden: rateFace({ frontal: base.biden, scale }),
-  ai: rateFace({ frontal: base.ai, side, scale }),
+  // p1/p7 carry a (labelled) self-assessment of the eye shape, p4/p8 do not: a category of that criterion is decidable only between them
+  ai: rateFace({ frontal: base.ai, selfAssessment: { eyeShape: 8 }, scale }),
   aiNoSide: rateFace({ frontal: base.ai, scale }),
 };
 const P = (id: string, rating: RatingResult, seed = 1): ParticipantData => ({ id, name: id, imageId: null, rating, seed });
@@ -31,13 +29,15 @@ const five = eight.slice(0, 5);
 describe("categories and weights", () => {
   it("ships 12 built-in categories mapped to rubric criteria and normalises weights", () => {
     expect(DEFAULT_CATEGORIES).toHaveLength(12);
-    expect(DEFAULT_CATEGORIES.map((c) => c.name)).toContain("Best Profile");
+    // rubric 3.0: front profile only — no profile category, every criterion is a frontal one
+    expect(DEFAULT_CATEGORIES.map((c) => c.id)).not.toContain("profile");
+    expect(DEFAULT_CATEGORIES.map((c) => c.name)).toContain("Best Lower Third");
     const w = normalizeWeights(DEFAULT_CATEGORIES);
     expect([...w.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
-    // rubric 2.0: by default only the overall face counts, so no criterion is weighted twice
+    // by default only the overall face counts, so no criterion is weighted twice
     expect(w.get("overallFace")).toBeCloseTo(1, 9);
     expect(w.get("harmony")).toBe(0);
-    expect(DEFAULT_CATEGORIES.filter((c) => c.area).map((c) => c.area)).toEqual(["eye", "symmetry", "proportions", "nose", "bone"]);
+    expect(DEFAULT_CATEGORIES.filter((c) => c.area).map((c) => c.area)).toEqual(["eye", "harmonySymmetry", "midfaceFront", "lowerThird", "nose"]);
     // sums under or over 100 % are normalised the same way
     const under = normalizeWeights([{ id: "a", name: "a", criteria: [], weight: 30 }, { id: "b", name: "b", criteria: [], weight: 30 }]);
     expect(under.get("a")).toBeCloseTo(0.5, 9);
@@ -47,18 +47,14 @@ describe("categories and weights", () => {
     expect(zero.get("a")).toBeCloseTo(0.5, 9);
   });
 
-  it("scores categories from the shared rating and marks profile-only categories as not assessable", () => {
+  it("scores categories from the shared rating; a category whose criteria are missing is not assessable", () => {
     const scores = allCategoryScores([P("a", R.obama), P("b", R.ai)], cfg());
-    const profileA = scores.find((s) => s.participantId === "a" && s.categoryId === "profile")!;
-    expect(profileA.assessable).toBe(false);
-    expect(profileA.reasonCode).toBe("requiresProfile");
-    const profileB = scores.find((s) => s.participantId === "b" && s.categoryId === "profile")!;
-    expect(profileB.assessable).toBe(true);
+    for (const s of scores) expect(s.reasonCode).not.toBe("requiresProfile");
     const overall = scores.find((s) => s.participantId === "a" && s.categoryId === "overallFace")!;
     expect(overall.score).toBe(R.obama.score);
     const jaw = scores.find((s) => s.participantId === "a" && s.categoryId === "jawline")!;
     expect(jaw.assessable).toBe(true);
-    expect(jaw.coverage).toBeLessThan(1); // jawlineDefinition (visual) + gonialAngle (profile) missing
+    expect(jaw.coverage).toBeLessThan(1); // jawlineDefinition (visual) and neckWidth (manual neck points) missing
   });
 });
 
@@ -77,11 +73,12 @@ describe("category winners and overall ranking", () => {
       if (r.winners.includes("p2")) expect(r.winners).toContain("p5");
       expect(r.tied).toBe(r.winners.length > 1);
     }
-    const profile = rankings.find((r) => r.categoryId === "profile")!;
-    expect(profile.decidable).toBe(true); // p1 and p7 have a side view
-    expect(profile.winners.sort()).toEqual(["p1", "p7"]);
-    expect(profile.entries.filter((e) => e.rank === null).length).toBe(6);
-    const onlyOne = categoryRankings(allCategoryScores([P("a", R.ai), P("b", R.obama)], c), c).find((r) => r.categoryId === "profile")!;
+    const c2 = { ...c, categories: [...c.categories, { id: "eyeShapeOnly", name: "Eye shape", criteria: [{ id: "eyeShape" as const, weight: 1 }], weight: 0 }] };
+    const shape = categoryRankings(allCategoryScores(eight, c2), c2).find((r) => r.categoryId === "eyeShapeOnly")!;
+    expect(shape.decidable).toBe(true); // only p1 and p7 have the criterion
+    expect(shape.winners.sort()).toEqual(["p1", "p7"]);
+    expect(shape.entries.filter((e) => e.rank === null).length).toBe(6);
+    const onlyOne = categoryRankings(allCategoryScores([P("a", R.ai), P("b", R.obama)], c2), c2).find((r) => r.categoryId === "eyeShapeOnly")!;
     expect(onlyOne.decidable).toBe(false);
     expect(onlyOne.winners).toEqual([]);
   });

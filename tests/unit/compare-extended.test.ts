@@ -108,7 +108,7 @@ describe("compareTournamentVersions", () => {
   const rB = rateFace({ frontal: obama, scale });
   it("reports participant, config and result changes between versions", () => {
     const v1 = mk(1, [P("p1", "Alpha", rA), P("p2", "Bravo", rB)]);
-    const cfg2 = { ...DEFAULT_TOURNAMENT_CONFIG, format: "category" as const, categories: DEFAULT_CATEGORIES.filter((c) => c.id !== "profile").map((c) => ({ ...c, weight: c.id === "eyeArea" ? 50 : c.weight })) };
+    const cfg2 = { ...DEFAULT_TOURNAMENT_CONFIG, format: "category" as const, categories: DEFAULT_CATEGORIES.filter((c) => c.id !== "chin").map((c) => ({ ...c, weight: c.id === "eyeArea" ? 50 : c.weight })) };
     const v2 = mk(2, [P("q1", "Alpha", rA), P("q2", "Bravo", rB), P("q3", "Charlie", rB)], cfg2);
     const d = compareTournamentVersions(v1, v2);
     expect(d.a.version).toBe(1);
@@ -117,7 +117,7 @@ describe("compareTournamentVersions", () => {
     expect(d.participants.removed).toEqual([]);
     expect(d.participants.unchanged).toBe(2);
     expect(d.config.formatChanged).toEqual(["ranking", "category"]);
-    expect(d.config.categoriesRemoved).toEqual(["Best Profile"]);
+    expect(d.config.categoriesRemoved).toEqual(["Best Chin"]);
     expect(d.config.weightChanges).toEqual([{ id: "eyeArea", name: "Best Eye Area", a: 0, b: 50 }]);
     expect(d.results).not.toBeNull();
     expect(d.results!.categories.length).toBe(12);

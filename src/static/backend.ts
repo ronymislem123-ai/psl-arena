@@ -25,8 +25,6 @@ import * as scaleDuplicate from "@/app/api/scales/[id]/duplicate/route";
 import * as scaleExport from "@/app/api/scales/[id]/export/route";
 import * as scaleImages from "@/app/api/scales/[id]/images/route";
 import * as settings from "@/app/api/settings/route";
-import * as sideAnalyses from "@/app/api/side-analyses/route";
-import * as sideAnalysisById from "@/app/api/side-analyses/[id]/route";
 import * as stats from "@/app/api/stats/route";
 import * as tournaments from "@/app/api/tournaments/route";
 import * as tournamentById from "@/app/api/tournaments/[id]/route";
@@ -60,8 +58,6 @@ const ROUTES: [string, RouteModule][] = [
   ["/api/scales/:id/export", scaleExport],
   ["/api/scales/:id/images", scaleImages],
   ["/api/settings", settings],
-  ["/api/side-analyses", sideAnalyses],
-  ["/api/side-analyses/:id", sideAnalysisById],
   ["/api/stats", stats],
   ["/api/tournaments", tournaments],
   ["/api/tournaments/:id", tournamentById],

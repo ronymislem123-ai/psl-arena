@@ -12,15 +12,16 @@ import { FaceThumb, VerdictBadge } from "@/components/shared/face-thumb";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/utils";
-import type { AnalysisSummary, BattleSummary, SideAnalysisSummary } from "@/server/repos";
+import type { AnalysisSummary, BattleSummary } from "@/server/repos";
 import type { RatingSummary, TournamentSummary } from "@/server/repos-psl";
 import { formatPsl } from "@/engine/psl/rating";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { paths } from "@/lib/paths";
 
-export function History({ battles, analyses, sideAnalyses, ratings = [], tournaments = [] }: { battles: BattleSummary[]; analyses: AnalysisSummary[]; sideAnalyses: SideAnalysisSummary[]; ratings?: RatingSummary[]; tournaments?: TournamentSummary[] }) {
+export function History({ battles, analyses, ratings = [], tournaments = [] }: { battles: BattleSummary[]; analyses: AnalysisSummary[]; ratings?: RatingSummary[]; tournaments?: TournamentSummary[] }) {
   const { t, lang } = useT();
   const router = useRouter();
-  const [tab, setTab] = useState<"battles" | "analyses" | "side" | "ratings" | "tournaments">(ratings.length ? "ratings" : "battles");
+  const [tab, setTab] = useState<"battles" | "analyses" | "ratings" | "tournaments">(ratings.length ? "ratings" : "battles");
   const [selected, setSelected] = useState<string[]>([]);
   const toggleSel = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 4 ? s : [...s, id]));
   const [selectedA, setSelectedA] = useState<string[]>([]);
@@ -45,14 +46,9 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
     await api.deleteTournament(id);
     router.refresh();
   };
-  const delS = async (id: string) => {
-    if (!confirm(t("side.deleteConfirm"))) return;
-    await api.deleteSideAnalysis(id);
-    router.refresh();
-  };
   return (
     <div className="space-y-6">
-      <PageHeader kicker={t("nav.history")} title={t("history.title")} subtitle={t("history.sub")} action={<Tabs tabs={[{ id: "ratings", label: t("historyPsl.ratings"), count: ratings.length }, { id: "tournaments", label: t("historyPsl.tournaments"), count: tournaments.length }, { id: "battles", label: t("history.battles"), count: battles.length }, { id: "analyses", label: t("history.analyses"), count: analyses.length }, { id: "side", label: t("side.historyTab"), count: sideAnalyses.length }]} value={tab} onChange={setTab} />} />
+      <PageHeader kicker={t("nav.history")} title={t("history.title")} subtitle={t("history.sub")} action={<Tabs tabs={[{ id: "ratings", label: t("historyPsl.ratings"), count: ratings.length }, { id: "tournaments", label: t("historyPsl.tournaments"), count: tournaments.length }, { id: "battles", label: t("history.battles"), count: battles.length }, { id: "analyses", label: t("history.analyses"), count: analyses.length }]} value={tab} onChange={setTab} />} />
       {tab === "battles" && (
         <Card>
           <CardBody className="pt-5">
@@ -113,7 +109,8 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                       <Link href={paths.rating(r.id)} className="font-medium hover:text-accent break-words">{r.profileLabel}</Link>
                       <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} · {t("rater.result.rubric")} {r.rubricVersion} · {t("rater.result.coverage")} {Math.round(r.coverage * 100)} %</div>
                     </div>
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                      <LegacyMethodTag rubricVersion={r.rubricVersion} />
                       <Badge tone={r.valid ? "mint" : r.provisional ? "amber" : "rose"}>{r.valid ? t("rater.result.valid") : r.provisional ? t("rater.result.provisional") : t("rater.result.invalid")}</Badge>
                       <span className="text-xs text-fg-2 hidden sm:inline">{r.tierName ?? "—"}</span>
                       <div className="font-display text-lg num">{formatPsl(r.score)}</div>
@@ -152,38 +149,6 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
           </CardBody>
         </Card>
       )}
-      {tab === "side" && (
-        <Card>
-          <CardBody className="pt-5">
-            {sideAnalyses.length === 0 ? (
-              <Empty>{t("side.empty")}</Empty>
-            ) : (
-              <ul className="divide-y divide-line" data-testid="side-history">
-                {sideAnalyses.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3 py-3">
-                    <FaceThumb imageId={a.imageId} label={a.profileLabel} size={44} />
-                    <div className="min-w-0 flex-1">
-                      <Link href={paths.sideView(a.id)} className="font-medium hover:text-accent">
-                        {a.profileLabel}
-                      </Link>
-                      <div className="text-xs text-fg-3">
-                        {fmt.date(a.createdAt, lang)} · {t("side.facing")} {t(a.facing === "left" ? "side.facingLeft" : "side.facingRight")} · {a.scoredCount} {t("side.scored")}
-                      </div>
-                    </div>
-                    <div className="font-display text-lg num">{fmt.score(a.score, 1)}</div>
-                    <Link href={paths.sideView(a.id)}>
-                      <Button size="sm" variant="outline">{t("common.open")}</Button>
-                    </Link>
-                    <Button size="sm" variant="ghost" onClick={() => delS(a.id)}>
-                      <Trash2 size={14} />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
-      )}
       {tab === "analyses" && (
         <Card>
           <CardBody className="pt-5">
@@ -208,6 +173,7 @@ export function History({ battles, analyses, sideAnalyses, ratings = [], tournam
                         {fmt.date(a.createdAt, lang)} · {t("common.coverage")} {fmt.pct(a.coverageFraction)} · {t("common.confidence")} {fmt.pct(a.confidence)}
                       </div>
                     </div>
+                    <LegacyMethodTag engineVersion={a.engineVersion} className="hidden sm:inline-flex" />
                     <Badge tone={levelTone(a.qualityLevel)}>{t(`quality.${a.qualityLevel}`)}</Badge>
                     <div className="font-display text-lg num">{fmt.score(a.overall, 1)}</div>
                     <Link href={paths.analysis(a.id)}>

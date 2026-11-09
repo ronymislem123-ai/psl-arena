@@ -38,14 +38,15 @@
 ## Vision model (rubric 2.1)
 
 - **Off by default.** Eye shape, lip shape, cheekbone projection and jawline definition are only assessed by an external vision model (Anthropic Claude) when one is set up: by the operator (server: `PSL_ARENA_VISION_PROVIDER=claude`, `ANTHROPIC_API_KEY`) or by the user (browser edition: own key, stored only in that browser's localStorage).
-- **Explicit consent per rating.** The frontal photo is sent only when the user ticks the consent box for that rating; the box is unticked by default. Without it nothing leaves the device/server and the four criteria are reported as not assessable. Side-view photos are never sent.
+- **Explicit consent per rating.** The frontal photo is sent only when the user ticks the consent box for that rating; the box is unticked by default. Without it nothing leaves the device/server and the four criteria are reported as not assessable.
 - **What is sent and returned.** One downscaled JPEG and the four criterion definitions; the model returns per criterion a score, a confidence and one sentence. The instructions forbid identification and any estimate of age, ethnicity, health or other personal attributes and any overall attractiveness verdict; the answer is validated against a strict schema, anything else is discarded. The provider's own data-retention terms apply to the sent photo.
 - **Key handling.** The SDK client is created with the configured key and the fixed endpoint `https://api.anthropic.com` only (it does not pick up other tokens or base URLs from the environment). The browser key is never written to the database or backups.
 
-## Automatic side view
-
 - **Free alternatives.** A self-assessment of the four visual criteria is entered by the user and stored with the rating (labelled as such). The descriptive photo measures for these criteria (eyelid and lip geometry, jaw-edge and cheekbone light/shadow contrast) are computed in the browser; only the resulting numbers are sent, never pixels.
-- Segmentation and profile detection run entirely in the browser (MediaPipe models served from this origin); the profile photo is stored only on opt-in, like frontal photos. Automatically detected points are stored with their source so that a result can always be traced to "detected" or "placed by the user".
+
+## Side view (removed in 3.0)
+
+- Since rubric/engine 3.0 (2026-11-09) the app takes no profile photos at all; the person-segmentation model was removed. Side-view analyses (and their stored photos) saved before 3.0 stay in the user's data — exported with the JSON export and removed by "delete all data" or by deleting the profile — and are never used for new ratings.
 
 ## Browser edition (GitHub Pages)
 

@@ -49,7 +49,7 @@ test("compare, progress and awards", async ({ page }) => {
   await expect(page.getByTestId("compare-view")).toBeVisible();
   await expect(page.getByTestId("compare-warnings")).toHaveCount(0);
   await expect(page.getByText("Same rubric version")).toBeVisible();
-  await expect(page.locator('[data-testid="compare-criteria"] tbody tr')).toHaveCount(41); // rubric 2.2
+  await expect(page.locator('[data-testid="compare-criteria"] tbody tr')).toHaveCount(32); // rubric 3.0, front profile only
   await expect(page.locator('[data-testid="compare-areas"] tbody tr')).toHaveCount(7);
   await shot(page, "70-compare-identical");
 
@@ -60,7 +60,7 @@ test("compare, progress and awards", async ({ page }) => {
   expect(await lists.count()).toBeGreaterThan(0);
   await page.getByRole("switch").click();
   const rows = await page.locator('[data-testid="compare-criteria"] tbody tr').count();
-  expect(rows).toBeLessThan(41);
+  expect(rows).toBeLessThanOrEqual(32);
   expect(rows).toBeGreaterThan(15);
   await shot(page, "71-compare-two-profiles");
 
@@ -91,7 +91,7 @@ test("compare, progress and awards", async ({ page }) => {
   await expect(page.getByTestId("progress-chart")).toBeVisible();
   await expect(page.getByTestId("awards")).toContainText("No tournament awards yet.");
   const rubric = await (await page.request.get("/api/rubric")).json();
-  expect(rubric.version).toBe("2.2.0");
+  expect(rubric.version).toBe("3.0.0");
   const cfgRes = await page.request.get("/api/tournaments");
   expect(cfgRes.ok()).toBeTruthy();
   const created = await page.request.post("/api/tournaments", { data: { name: "Awards Cup", config: { format: "ranking", seeding: "rating", randomSeed: 1, winnerMethod: "weighted", decisiveCategoryId: "harmony", tieEpsilon: 0.05, groupSize: 4, qualifyPerGroup: 2, minCategoryCoverage: 0.5, categories: [{ id: "overallFace", name: "Best Overall Face", criteria: [], overall: true, weight: 0 }, { id: "harmony", name: "Best Facial Harmony", criteria: [{ id: "facialThirds", weight: 2 }, { id: "eyeMouthLength", weight: 2 }, { id: "faceShape", weight: 2 }], weight: 100 }, { id: "eyeArea", name: "Best Eye Area", criteria: [{ id: "canthalTilt", weight: 4 }, { id: "eyeSpacing", weight: 4 }], weight: 0 }] }, participants: [{ profileId: alpha.profileId }, { profileId: bravo.profileId }] } });

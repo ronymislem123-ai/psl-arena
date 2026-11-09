@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { ReferencePromptButton } from "@/components/shared/reference-prompt";
 import { AlertTriangle, CheckCircle2, ImagePlus, Info, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, levelTone } from "@/components/ui/badge";
@@ -32,11 +33,17 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
     if (f) void loadFile(side, f);
   };
 
+  // one file input for every state of the slot: if a restore or a pick finishes while the
+  // file dialog is open, a per-state input would be unmounted and the user's pick lost
+  const fileInput = <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFiles(e.target.files)} />;
+
   const title = titleOverride ?? (side === "a" ? t("common.person1") : t("common.person2"));
   const accent = side === "a" ? "text-accent" : "text-violet";
 
   if (slot.status === "empty" || slot.status === "loading" || slot.status === "error") {
     return (
+      <>
+      {fileInput}
       <div className="glass rounded-2xl p-5 flex flex-col" data-testid={`slot-${side}`} data-ready={hydrated ? "true" : "false"}>
         <div className="flex items-center justify-between mb-3">
           <div className={cn("font-display font-semibold tracking-wide", accent)}>{title}</div>
@@ -58,7 +65,6 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
             dragOver ? "border-accent bg-accent/10" : "border-line-strong hover:border-accent/50 hover:bg-white/3",
           )}
         >
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFiles(e.target.files)} />
           {slot.status === "loading" ? (
             <div className="space-y-3">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan border-t-transparent" />
@@ -80,6 +86,7 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
             </div>
           )}
         </div>
+        <ReferencePromptButton className="mt-3 self-start" />
         <ul className="mt-4 grid grid-cols-1 gap-1 text-xs text-fg-3">
           <li className="font-mono uppercase tracking-wider text-fg-2 mb-1">{t("upload.guidelines")}</li>
           {["g1", "g2", "g3", "g4", "g5"].map((k) => (
@@ -89,6 +96,7 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
           ))}
         </ul>
       </div>
+      </>
     );
   }
 
@@ -103,6 +111,8 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
   const nCorrected = Object.keys(slot.corrections.landmarks ?? {}).length;
 
   return (
+    <>
+    {fileInput}
     <div className="glass rounded-2xl p-4 md:p-5 flex flex-col gap-4" data-testid={`slot-${side}`} data-ready="true" data-state={q ? (q.analyzable ? "analyzable" : "unusable") : "pending"}>
       <div className="flex items-center justify-between gap-3">
         <div className={cn("font-display font-semibold tracking-wide", accent)}>{title}</div>
@@ -118,7 +128,6 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
           <Button variant="ghost" size="sm" onClick={() => clear(side)} title={t("common.remove")}>
             <Trash2 size={14} />
           </Button>
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFiles(e.target.files)} />
         </div>
       </div>
 
@@ -282,6 +291,8 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
               ))}
             </ul>
           )}
+          {/* a rejected photo is exactly the case the reference prompt is for */}
+          {!q.analyzable && <ReferencePromptButton className="mt-1" />}
         </div>
       )}
 
@@ -303,5 +314,6 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
         </div>
       )}
     </div>
+    </>
   );
 }

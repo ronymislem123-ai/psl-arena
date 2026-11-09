@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Dialog, Empty, Select, StatTile, Tabs } from "@/components/ui/controls";
 import { formatPsl } from "@/engine/psl/rating";
+import { isFrontOnlyRubric } from "@/engine/psl/rubric";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { assignTier } from "@/engine/psl/scale";
 import type { CategoryRanking, Match, TournamentResults } from "@/engine/tournament/types";
 import { api } from "@/lib/api";
@@ -91,6 +93,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
             <Badge tone={STATUS_TONE[tr.status]} data-testid="tournament-status">{t(`tournaments.status.${tr.status}`)}</Badge>
+            <LegacyMethodTag rubricVersion={tr.rubricVersion} />
             <Badge tone="muted">{t("tournaments.nParticipants", { n: tr.participants.length })}</Badge>
             <Badge tone="muted">{t("tournaments.nCategories", { n: tr.config.categories.length })}</Badge>
             {tr.description && <span className="text-xs text-fg-2">{tr.description}</span>}
@@ -139,7 +142,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
           <CardHeader title={t("tournaments.participants")} />
           <CardBody className="overflow-x-auto">
             <table className="w-full text-sm" data-testid="participants-table">
-              <thead className="text-fg-3 uppercase tracking-wider text-[10px]"><tr><th className="text-left py-2">{t("tournaments.seed")}</th><th className="text-left py-2">{t("tournaments.displayName")}</th><th className="text-right py-2">{t("tournaments.overallFace")}</th><th className="text-left py-2 pl-3">{t("rater.result.tier")}</th><th className="text-right py-2">{t("rater.result.coverage")}</th><th className="text-right py-2">{t("tournaments.weightedScore")}</th><th className="text-left py-2 pl-3">{t("rater.profileView")}</th></tr></thead>
+              <thead className="text-fg-3 uppercase tracking-wider text-[10px]"><tr><th className="text-left py-2">{t("tournaments.seed")}</th><th className="text-left py-2">{t("tournaments.displayName")}</th><th className="text-right py-2">{t("tournaments.overallFace")}</th><th className="text-left py-2 pl-3">{t("rater.result.tier")}</th><th className="text-right py-2">{t("rater.result.coverage")}</th><th className="text-right py-2">{t("tournaments.weightedScore")}</th><th className="text-left py-2 pl-3">{t("compare.method")}</th></tr></thead>
               <tbody>
                 {participants.map((p) => (
                   <tr key={p.id} className="border-t border-line">
@@ -149,7 +152,7 @@ export function TournamentView({ tournament: initial, versions, readOnly }: { to
                     <td className="py-2 pl-3"><TierBadge tier={tierOf(p.rating.score)} size="sm" /></td>
                     <td className="py-2 text-right font-mono text-xs">{Math.round(p.rating.coverage * 100)} %</td>
                     <td className="py-2 text-right font-mono num">{formatPsl(live.weighted.get(p.id)?.score ?? null)}</td>
-                    <td className="py-2 pl-3 text-xs text-fg-2">{p.rating.quality.sideUsed ? t("common.yes") : t("common.no")}</td>
+                    <td className="py-2 pl-3 text-xs text-fg-2">{isFrontOnlyRubric(p.rating.rubricVersion) ? t("compare.frontMethod") : <LegacyMethodTag rubricVersion={p.rating.rubricVersion} />}</td>
                   </tr>
                 ))}
               </tbody>

@@ -14,7 +14,7 @@ Raw inputs, calculated values and interpreted scores are stored separately.
 | `landmarks` | semantic landmarks per analysis (raw + aligned coords, source, precision, confidence, mesh index) | (analysis_id, landmark_id) |
 | `ratio_measurements` | calculated ratio values with availability, confidence, T1 flag, tier, points, index, deviation, σ | (analysis_id, ratio_id) |
 | `category_scores` | category indices with coverage/confidence | (analysis_id, category_id) |
-| `side_analyses` | one per side-view (profile) analysis | id, profile_id, image_id, engine_version, image size, facing, `points_json` (16 manual landmarks), `result_json` (full `SideViewResult`), score, score_sigma, scored_count, analyzable |
+| `side_analyses` | one per side-view (profile) analysis — written only before 3.0, kept for stored data and the export | id, profile_id, image_id, engine_version, image size, facing, `points_json` (16 manual landmarks), `result_json` (full `SideViewResult`), score, score_sigma, scored_count, analyzable |
 | `side_measurements` | per-measurement values of a side analysis (value, in-range flag, deviation, index, σ) | (analysis_id, measurement_id) |
 | `psl_scales` | user-defined PSL scales (`tiers_json` holds the tiers with reference-image ids), version counter, template flag | id, name, range_min, range_max, tiers_json, version |
 | `psl_ratings` | one per PSL rating: profile, frontal analysis, optional side analysis, scale id + `scale_snapshot_json`, rubric version, `result_json` (full `RatingResult`), denormalised score/tier/coverage/valid/provisional | id, profile_id, analysis_id, side_analysis_id, scale_id, psl_score, tier_id |

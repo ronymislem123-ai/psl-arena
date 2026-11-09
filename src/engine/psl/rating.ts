@@ -7,13 +7,11 @@
  */
 import type { AnalysisResult, QualityLevel } from "../types";
 import { RATIO_BY_ID } from "../ratios/database";
-import { SIDE_BY_ID, toleranceFor, type SideViewResult } from "../side-view";
-import { createRng, gaussian, stddev } from "../geometry";
-import { plateauIndex } from "../scoring/measurement";
+import { stddev } from "../geometry";
 import { aggregateHierarchy, frontalMeasures, type MeasureMap } from "../scoring/hierarchy";
 import { assignTier, type PslScaleSnapshot } from "./scale";
 import { analysisReliability, type ReliabilityLevel } from "../quality/reliability";
-import { AREA_META, CALIBRATION_ANCHORS, calibrate, calibrationSlope, CATEGORY_WEIGHTS, CRITERIA, DEFAULT_MIN_COVERAGE, DESCRIPTIVE_RATIOS, RUBRIC_AREAS, RUBRIC_VERSION, uncalibrate, AGGREGATION_P, type CriterionId, type RubricArea } from "./rubric";
+import { AREA_META, CALIBRATION_ANCHORS, calibrate, calibrationSlope, CATEGORY_WEIGHTS, CRITERIA, DEFAULT_MIN_COVERAGE, DESCRIPTIVE_RATIOS, MIN_SCORABLE_COVERAGE, RUBRIC_AREAS, RUBRIC_VERSION, uncalibrate, AGGREGATION_P, type CriterionId, type RubricArea } from "./rubric";
 
 export interface VisualAssessment {
   /** 0–10 on the PSL-like criterion scale */
@@ -33,8 +31,8 @@ export interface VisualAssessmentSet {
 export type VisualStatus = "used" | "notConfigured" | "noConsent" | "noImage" | "failed";
 
 export interface RatingInput {
+  /** rubric 3.0: the front profile is the only input (no side view) */
   frontal: AnalysisResult;
-  side?: SideViewResult | null;
   visual?: VisualAssessmentSet | null;
   /** rubric 2.1: status of the vision model for this rating (default: used when `visual` is set, else notConfigured) */
   visualStatus?: VisualStatus;
@@ -139,7 +137,7 @@ export interface RatingResult {
   selfAssessment?: Partial<Record<CriterionId, number>>;
   /** rubric 2.1: per visual criterion, the model's short reason */
   visualNotes?: Partial<Record<CriterionId, string>>;
-  warningCodes: ("frontalUnusable" | "lowCoverage" | "noProfile" | "noVisualProvider" | "visualFailed" | "selfAssessment" | "lowConfidence" | "legacyEngine")[];
+  warningCodes: ("frontalUnusable" | "lowCoverage" | "insufficientData" | /* rubric ≤ 2.x */ "noProfile" | "noVisualProvider" | "visualFailed" | "selfAssessment" | "lowConfidence" | "legacyEngine")[];
   /** rubric 2.0 aggregation details */
   aggregation?: {
     method: "weighted-power-mean";
@@ -154,18 +152,6 @@ export interface RatingResult {
   reliability?: ReliabilityLevel;
   /** measures that are shown but deliberately not scored */
   descriptive?: { id: string; value: number | null; reason: string }[];
-}
-
-/** manually placed profile points: 1 (reliability not separately quantified); automatically detected: 0.8 */
-const sideReliability = (side: SideViewResult) => (side.placement && side.placement !== "manual" ? 0.8 : 1);
-
-function sideMeasures(side: SideViewResult | null | undefined, into: MeasureMap) {
-  if (!side?.analyzable) return;
-  const conf = side.issues.some((i) => i.severity === "warning") ? 0.7 : 0.85;
-  for (const m of side.measurements) {
-    if (m.index == null) continue;
-    into.set(`p:${m.id}`, { index: m.index, confidence: conf, reliability: sideReliability(side), weight: SIDE_BY_ID[m.id]?.weight ?? 1, source: "profile" });
-  }
 }
 
 /** Criteria that only detect a defect: full marks are the normal case, not a strength. */
@@ -194,7 +180,7 @@ export function pslDecimals(sigma: number | null | undefined): number {
 }
 
 export function rateFace(input: RatingInput): RatingResult {
-  const { frontal, side, visual, scale } = input;
+  const { frontal, visual, scale } = input;
   const visualStatus: VisualStatus = input.visualStatus ?? (visual ? "used" : "notConfigured");
   const minCoverage = input.minCoverage ?? DEFAULT_MIN_COVERAGE;
   const createdAt = new Date().toISOString();
@@ -202,7 +188,6 @@ export function rateFace(input: RatingInput): RatingResult {
   const legacyEngine = Number.parseInt(frontal.engineVersion, 10) < 2;
 
   const measures = frontalMeasures(frontal.ratios, frontal.symmetry, frontal.additional);
-  sideMeasures(side, measures);
   visualMeasures(visual, input.selfAssessment, measures);
   const h = aggregateHierarchy(measures);
   // criteria whose frontal inputs all depend on the hairline (thirds, forehead, eye–mouth length)
@@ -222,7 +207,7 @@ export function rateFace(input: RatingInput): RatingResult {
         visualStatus === "used" ? "visualNotAssessable" : visualStatus === "noConsent" ? "visualNoConsent" : visualStatus === "noImage" ? "visualNoImage" : visualStatus === "failed" ? "visualFailed" : "visualNotConfigured";
       const needsProfile = def.method === "profile" || (def.inputs.side?.length && !(def.inputs.ratios ?? []).some((r) => measures.has(`r:${r}`)));
       const code: NotAssessableCode =
-        def.method === "visual" ? visualCode : needsProfile && side?.analyzable ? "profileNotDeterminable" : needsProfile ? "requiresProfile" : needsHairline(def) && !frontal.landmarks.some((l) => l.id === "trichion") ? hairlineCode : "inputsUnavailable";
+        def.method === "visual" ? visualCode : needsProfile ? "requiresProfile" : needsHairline(def) && !frontal.landmarks.some((l) => l.id === "trichion") ? hairlineCode : "inputsUnavailable";
       return { ...base, assessable: false, notAssessableCode: code, index: null, score: null, confidence: 0, source: def.method === "visual" ? "visual-model" : def.method === "profile" ? "profile" : "frontal", usedInputs: [], missingInputs: a.missing };
     }
     const source: CriterionSource = a.fromVisual ? "visual-model" : a.fromSelf ? "self-assessment" : a.fromFrontal && a.fromProfile ? "mixed" : a.fromProfile ? "profile" : "frontal";
@@ -230,13 +215,12 @@ export function rateFace(input: RatingInput): RatingResult {
     return { ...base, assessable: true, index: a.index, score: calibrate(a.index), confidence: a.confidence, reliability: a.reliability, source, usedInputs, missingInputs: a.missing };
   });
 
-  // Monte-Carlo: replay the frontal landmark-noise samples (and the profile σ) through the same aggregation
+  // Monte-Carlo: replay the frontal landmark-noise samples through the same aggregation
   const samples = frontalUsable ? frontal.uncertainty?.measureSamples : undefined;
   const n = samples ? Math.max(0, ...Object.values(samples).map((a) => a.length)) : 0;
   const pslSamples: number[] = [];
   const catSamples: Record<string, number[]> = {};
   if (samples && n > 1) {
-    const rng = createRng(frontal.config.seed ^ 0x5eed);
     // centre each measure's samples on its point index: the stored samples are raw
     // landmark-noise replays (e.g. symmetry without the noise-floor correction that the
     // point value has), so only their spread is used, not their offset
@@ -254,15 +238,6 @@ export function rateFace(input: RatingInput): RatingResult {
         const v = arr[s];
         if (v == null) mm.delete(k);
         else mm.set(k, { ...base, index: Math.max(0, Math.min(100, v + (shift[k] ?? 0))) });
-      }
-      if (side?.analyzable) {
-        for (const m of side.measurements) {
-          const def = SIDE_BY_ID[m.id];
-          const key = `p:${m.id}`;
-          const base = mm.get(key);
-          if (!base || !def?.range || m.value == null || !(m.valueSigma! > 0)) continue;
-          mm.set(key, { ...base, index: plateauIndex(m.value + m.valueSigma! * gaussian(rng), def.range, toleranceFor(def.range, def.unit)) });
-        }
       }
       const hs = aggregateHierarchy(mm);
       if (hs.overall != null) pslSamples.push(calibrate(hs.overall));
@@ -289,7 +264,9 @@ export function rateFace(input: RatingInput): RatingResult {
   });
 
   const coverage = frontalUsable ? h.coverage : 0;
-  const overallIndex = frontalUsable ? h.overall : null;
+  // too much missing for a meaningful total: no (seemingly precise) overall score
+  const insufficient = frontalUsable && h.overall != null && coverage < MIN_SCORABLE_COVERAGE;
+  const overallIndex = frontalUsable && !insufficient ? h.overall : null;
   const score = overallIndex == null ? null : calibrate(overallIndex);
   const valid = frontalUsable && score != null && coverage >= minCoverage;
   const provisional = frontalUsable && score != null && coverage < minCoverage;
@@ -318,7 +295,7 @@ export function rateFace(input: RatingInput): RatingResult {
   const warningCodes: RatingResult["warningCodes"] = [];
   if (!frontalUsable) warningCodes.push("frontalUnusable");
   if (provisional) warningCodes.push("lowCoverage");
-  if (!side?.analyzable) warningCodes.push("noProfile");
+  if (insufficient) warningCodes.push("insufficientData");
   if (!visual && visualStatus === "notConfigured" && criteria.some((c) => CRITERIA.some((d) => d.id === c.id && d.method === "visual") && !c.assessable)) warningCodes.push("noVisualProvider");
   if (visualStatus === "failed") warningCodes.push("visualFailed");
   if (criteria.some((c) => c.source === "self-assessment")) warningCodes.push("selfAssessment");
@@ -328,7 +305,7 @@ export function rateFace(input: RatingInput): RatingResult {
   return {
     rubricVersion: RUBRIC_VERSION,
     engineVersion: frontal.engineVersion,
-    sideViewVersion: side?.engineVersion ?? null,
+    sideViewVersion: null,
     createdAt,
     calibration: CALIBRATION_ANCHORS,
     minCoverage,
@@ -351,12 +328,12 @@ export function rateFace(input: RatingInput): RatingResult {
       frontalLevel: frontal.quality.level,
       frontalAnalyzable: frontalUsable,
       frontalIssues: frontal.quality.issues.filter((i) => i.severity !== "info").length,
-      sideIssues: side?.issues.length ?? 0,
-      sideUsed: !!side?.analyzable,
+      sideIssues: 0,
+      sideUsed: false,
       visualUsed: !!visual,
       hairline: frontal.landmarks.some((l) => l.id === "trichion"),
     },
-    inputs: { frontalCreatedAt: frontal.createdAt, sideFacing: side?.facing ?? null, visualProvider: visual?.providerId ?? null, visualModel: visual?.modelVersion ?? null, visualStatus, visualError: input.visualError ?? null, sidePlacement: side?.analyzable ? (side.placement ?? "manual") : null },
+    inputs: { frontalCreatedAt: frontal.createdAt, sideFacing: null, visualProvider: visual?.providerId ?? null, visualModel: visual?.modelVersion ?? null, visualStatus, visualError: input.visualError ?? null, sidePlacement: null },
     appearance: frontal.appearance,
     selfAssessment: input.selfAssessment ? Object.fromEntries(Object.entries(input.selfAssessment).filter(([k, v]) => v != null && CRITERIA.some((c) => c.id === k && c.method === "visual"))) : undefined,
     visualNotes: visual ? Object.fromEntries(Object.entries(visual.assessments).filter(([, v]) => v?.note).map(([k, v]) => [k, v!.note!])) : undefined,

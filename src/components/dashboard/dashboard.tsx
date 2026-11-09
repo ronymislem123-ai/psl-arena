@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Boxes, DraftingCompass, Images, Scan, ScanFace, SlidersHorizontal, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, Boxes, Images, Scan, ScanFace, SlidersHorizontal, Sparkles, Swords, Trophy, Users } from "lucide-react";
 import { TierBadge } from "@/components/psl/tier-badge";
 import { formatPsl } from "@/engine/psl/rating";
+import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { BRAND } from "@/config/brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -51,11 +52,6 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
                   <Swords size={18} /> {t("dashboard.quickStart")}
                 </Button>
               </Link>
-              <Link href="/side-view/new">
-                <Button size="lg" variant="outline" title={t("side.quickStartSub")}>
-                  <DraftingCompass size={18} /> {t("side.quickStart")}
-                </Button>
-              </Link>
             </div>
           </div>
           <div className="relative">
@@ -82,7 +78,6 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
           <StatTile label={t("dashboardPsl.ratings")} value={stats.ratings} icon={<ScanFace size={18} />} tone="accent" />
           <StatTile label={t("dashboardPsl.tournaments")} value={stats.tournaments} icon={<Trophy size={18} />} tone="amber" />
           <StatTile label={t("dashboardPsl.scales")} value={stats.scales} icon={<SlidersHorizontal size={18} />} tone="violet" />
-          <StatTile label={t("side.dashboardTile")} value={stats.sideAnalyses} icon={<DraftingCompass size={18} />} tone="cyan" />
           <StatTile label={t("dashboard.avgOverall")} value={fmt.score(stats.averageOverall, 1)} icon={<Sparkles size={18} />} tone="mint" />
           <StatTile label={t("dashboard.storedImages")} value={stats.images} icon={<Images size={18} />} tone="amber" />
         </div>
@@ -102,7 +97,7 @@ export function Dashboard({ stats, recentBattles, recentAnalyses, profiles, rece
                       <FaceThumb imageId={r.profileImageId} label={r.profileLabel} size={40} />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{r.profileLabel}</div>
-                        <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName}</div>
+                        <div className="text-xs text-fg-3">{fmt.date(r.createdAt, lang)} · {r.scaleName} <LegacyMethodTag rubricVersion={r.rubricVersion} className="ml-1 align-middle" /></div>
                       </div>
                       <TierBadge tier={r.tierName ? { id: r.tierId ?? "", name: r.tierName, min: 0, max: 0, color: "#9db6ff" } : null} size="sm" />
                       <div className="font-display text-lg font-semibold num">{formatPsl(r.score)}</div>

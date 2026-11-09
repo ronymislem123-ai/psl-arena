@@ -13,7 +13,7 @@ The comparison engine (`src/engine/psl/compare.ts`) is pure and flags what makes
 | `scaleDiffers` | different scale id/version — tier names are not comparable, scores are |
 | `coverageDiffers` | coverage differs by more than 10 percentage points |
 | `qualityDiffers` | different frontal image-quality levels |
-| `sideViewDiffers` / `visualDiffers` | a profile view / visual assessments were used in some ratings only |
+| `sideViewDiffers` / `visualDiffers` | a profile view (old-method ratings, rubric ≤ 2.x) / visual assessments were used in some ratings only; ratings of rubric < 3.0 are additionally marked "old method" |
 | `provisional` / `invalid` | some ratings are provisional / have no score |
 
 Entry points: the rating page ("Compare with…" preselects that rating), the history tab (tick 2–4 ratings), the profile page (latest ratings), or the picker at `/compare`.

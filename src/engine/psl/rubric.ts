@@ -28,11 +28,14 @@ import type { AdditionalMeasurementId, RatioId, SemanticLandmarkId } from "../ty
 import type { SideMeasurementId } from "../side-view";
 import { evidenceOf } from "../scoring/measurement";
 
-export const RUBRIC_VERSION = "2.2.0";
+export const RUBRIC_VERSION = "3.0.0";
 
-export type RubricArea = "eye" | "proportions" | "bone" | "nose" | "mouth" | "symmetry" | "forehead" | /* 1.0 only */ "midface" | "harmony";
-/** Active categories of rubric 2.0, in display order. */
-export const RUBRIC_AREAS: RubricArea[] = ["eye", "proportions", "bone", "nose", "mouth", "symmetry", "forehead"];
+export type RubricArea =
+  | "eye" | "harmonySymmetry" | "midfaceFront" | "nose" | "lowerThird" | "jawline" | "cheekbonesWidth"
+  | /* 2.x only */ "proportions" | "bone" | "mouth" | "symmetry" | "forehead"
+  | /* 1.0 only */ "midface" | "harmony";
+/** Active categories of rubric 3.0 (front profile only), in display order. */
+export const RUBRIC_AREAS: RubricArea[] = ["eye", "harmonySymmetry", "midfaceFront", "nose", "lowerThird", "jawline", "cheekbonesWidth"];
 
 export type CriterionMethod = "geometric" | "symmetry" | "profile" | "derived" | "visual";
 export type CriterionView = "frontal" | "profile" | "any";
@@ -46,7 +49,7 @@ export type CriterionId =
   | "noseWidth" | "noseHeightWidth" | "noseProjection" | "nasalAngles"
   | "mouthWidth" | "lipProportions" | "nasolabialAngle" | "lipChinVertical" | "lipShape"
   | "eyeSymmetry" | "noseSymmetry" | "mouthSymmetry" | "jawChinSymmetry"
-  | "foreheadHeight" | "foreheadWidth"
+  | "foreheadHeight" | "foreheadWidth" | "neckWidth"
   // rubric 1.0 only (kept for stored ratings)
   | "fwhr" | "areaBalance" | "verticalBalance";
 
@@ -75,37 +78,49 @@ export interface CriterionDefinition {
 }
 
 export const AREA_META: Record<RubricArea, { name: string; description: string; legacy?: boolean }> = {
-  eye: { name: "Eye area", description: "Canthal tilt, spacing, fissure proportions, brows, upper lid position (MRD1) and scleral show; eye shape only with a vision model." },
-  proportions: { name: "Facial proportions", description: "Midface ratio, middle and lower thirds, face shape, eye–mouth geometry and length ratio, lower third, fifths; profile convexity and lower-face height from the profile." },
-  bone: { name: "Bone structure", description: "Jaw width, frontal jaw angle, chin width, cheekbone position; gonial angle, mandibular plane, midface and chin projection and neck–chin definition from the profile; cheekbone projection and jawline definition only with a vision model." },
-  nose: { name: "Nose", description: "Width and height-to-width frontally, projection and angles from the profile." },
-  mouth: { name: "Lips & mouth", description: "Mouth width, lip proportions, lip–chin height (frontal and profile) and nasolabial angle." },
-  symmetry: { name: "Symmetry", description: "Left–right agreement of eyes/brows, nose, mouth and jaw/chin in the pose-normalised frame." },
-  forehead: { name: "Forehead & hairline", description: "Forehead height (upper third, forehead-to-width) and forehead width (bitemporal); needs the hairline for the height." },
+  eye: { name: "Eye area", description: "Canthal tilt, eye spacing, fissure proportions, brow length, upper lid position (MRD1) and scleral show; eye shape only with a vision model or a self-assessment." },
+  harmonySymmetry: { name: "Facial harmony & symmetry", description: "Vertical and horizontal proportions (thirds, forehead height, face shape, fifths, eye–mouth length) and left–right symmetry of eyes/brows, nose, mouth and jaw/chin." },
+  midfaceFront: { name: "Midface", description: "Midface height relative to the pupil distance and the eye–mouth–eye angle (compactness of the midface)." },
+  nose: { name: "Nose", description: "Alar width relative to the face and nose height-to-width, from the frontal view." },
+  lowerThird: { name: "Lower third & chin shape", description: "Upper-lip share of the lower third, chin-to-philtrum height, chin width, mouth width and lip proportions; lip shape only with a vision model or a self-assessment." },
+  jawline: { name: "Jawline & frontal mandibular definition", description: "Frontal jaw width relative to the cheekbones and neck width (manual neck points); jawline definition only with a vision model or a self-assessment." },
+  cheekbonesWidth: { name: "Cheekbones & facial width", description: "Height of the widest face level and forehead-to-cheekbone width; cheekbone projection only as a visual impression (no 3D depth from a frontal photo)." },
+  proportions: { name: "Facial proportions", description: "Rubric 2.x area (front + profile).", legacy: true },
+  bone: { name: "Bone structure", description: "Rubric 2.x area (front + profile).", legacy: true },
+  mouth: { name: "Lips & mouth", description: "Rubric 2.x area (front + profile).", legacy: true },
+  symmetry: { name: "Symmetry", description: "Rubric 2.x area.", legacy: true },
+  forehead: { name: "Forehead & hairline", description: "Rubric 2.x area.", legacy: true },
   midface: { name: "Midface & proportions", description: "Rubric 1.0 area (now split into proportions, bone and forehead).", legacy: true },
   harmony: { name: "Facial harmony", description: "Rubric 1.0 area (replaced by the balance term of the aggregation).", legacy: true },
 };
 
 /**
- * Category weights (sum 100). Evidence-informed order, conventional values
- * (docs/RUBRIC.md): eyes carry the most variance in whole-face judgements, then
- * nose, then mouth, the forehead the least (Gao 2025); proportions/averageness
- * are the most consistent shape predictor (Lee et al. 2025, Pallett et al. 2010);
- * symmetry is a weak predictor in recent large samples (Lee et al. 2025; Van
- * Dongen 2011); jaw prominence mattered among single features (Mogilski & Welling
- * 2018) but frontal 2D jaw landmarks are unreliable (Lim et al. 2022).
+ * Category weights of the front-profile PSL score (rubric 3.0, sum 100). Eyes and the
+ * overall facial geometry carry the most weight in whole-face judgements (Gao 2025;
+ * Lee et al. 2025; Pallett et al. 2010); nose, midface and lower third follow; the
+ * frontal jaw (2D jaw landmarks are unreliable, Lim et al. 2022) and the cheekbones
+ * (no depth in a frontal photo) count least. Every measure feeds exactly one criterion
+ * and every criterion exactly one category (unit test), so nothing is weighted twice.
  */
-export const CATEGORY_WEIGHTS: Partial<Record<RubricArea, number>> = { eye: 25, proportions: 20, bone: 15, nose: 12, mouth: 10, symmetry: 10, forehead: 8 };
+export const CATEGORY_WEIGHTS: Partial<Record<RubricArea, number>> = { eye: 20, harmonySymmetry: 20, midfaceFront: 15, nose: 15, lowerThird: 15, jawline: 10, cheekbonesWidth: 5 };
 
 /**
- * Exponent of the weighted power mean over the categories. p = 1 would be fully
- * compensatory (one excellent category offsets a weak one 1:1); p → 0 is the
- * geometric mean. p = 0.5 is a moderate non-compensatory choice: studies show
- * configural, non-additive judgements (Abbas & Duchaine 2008; Lin & Zhou 2021),
- * but no study quantifies the degree, so p is a stated model parameter with a
- * sensitivity analysis in docs/MODEL_VALIDATION.md.
+ * Exponent of the weighted power mean used by the aggregation. Rubric 3.0 uses p = 1:
+ * the PSL score is the weighted arithmetic mean PSL = Σ Sᵢ·Wᵢ of the assessable
+ * category scores Sᵢ (0–10) with weights Wᵢ renormalised to 1 over the assessable
+ * categories, and each category score is the reliability-weighted arithmetic mean of
+ * its assessable criteria. (Rubric 2.x used p = 0.5, non-compensatory.)
  */
-export const AGGREGATION_P = 0.5;
+export const AGGREGATION_P = 1;
+
+/** Below this share of the category-weighted coverage no overall score is given (too much missing for a meaningful total). */
+export const MIN_SCORABLE_COVERAGE = 0.5;
+
+/** Category weights of rubric 2.x (front + side profile), only for displaying analyses and ratings stored before 3.0. */
+export const LEGACY_CATEGORY_WEIGHTS: Partial<Record<RubricArea, number>> = { eye: 25, proportions: 20, bone: 15, nose: 12, mouth: 10, symmetry: 10, forehead: 8 };
+
+/** Rubric 3.0 and later rate the front profile only; 1.x/2.x ratings are the old (front + side profile) method. */
+export const isFrontOnlyRubric = (version: string | null | undefined): boolean => Number.parseInt(version ?? "", 10) >= 3;
 
 /**
  * Reliability (attenuation λ, 0–1) of measures by the weakest landmark they use.
@@ -143,49 +158,51 @@ export const CRITERIA: CriterionDefinition[] = [
   c({ id: "scleralShow", area: "eye", name: "Scleral show", definition: "Visible sclera between the lower edge of the iris and the lower lid margin, in millimetres (iris diameter = 11.7 mm). The lower lid normally rests at the inferior limbus (no inferior scleral show); more than 1 mm is regarded as lower-lid retraction.", method: "geometric", view: "frontal", inputs: { additional: ["SSI"] }, requirements: "Frontal photo, relaxed gaze straight ahead.", limitations: [LIM_EYELID, "Reference: lower lid at the inferior limbus, scleral show > 1 mm = retraction (Bartley 1996)."] }),
   c({ id: "eyeShape", area: "eye", name: "Eye shape", definition: "Overall fissure shape (almond, round, hooded …) as a visual impression.", method: "visual", view: "frontal", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL] }),
   // F — facial proportions
-  c({ id: "midfaceRatio", area: "proportions", name: "Midface ratio", definition: "Midface height relative to the inter-pupillary distance.", method: "geometric", view: "frontal", inputs: { ratios: ["MF"] }, requirements: "Frontal photo, pitch ≤ 15°.", limitations: [LIM_T1, "Residual pitch shortens/lengthens the midface."] }),
-  c({ id: "facialThirds", area: "proportions", name: "Middle & lower third", definition: "Middle and lower third of the face height against their reference ranges (the upper third belongs to the forehead category).", method: "geometric", view: "frontal", inputs: { ratios: ["FT_M", "FT_L"] }, requirements: "Hairline visible/confirmed.", limitations: [LIM_T1, "Depends on the estimated or confirmed hairline.", "Equal-thirds canons rarely hold in real faces (Jayaratne et al. 2012)."] }),
-  c({ id: "faceShape", area: "proportions", name: "Face shape proportions", definition: "Total height-to-width, lower-face share and the agreement of forehead and jaw widths.", method: "geometric", view: "frontal", inputs: { ratios: ["TFWHR", "LFF", "DEV_BIT_BIG"] }, requirements: "Hairline visible/confirmed.", limitations: [LIM_T1, "Depends on the hairline and the soft-tissue face contour."] }),
-  c({ id: "eyeMouthGeometry", area: "proportions", name: "Eye–mouth geometry", definition: "Angle of the eye–mouth–eye triangle.", method: "geometric", view: "frontal", inputs: { ratios: ["EME"] }, requirements: "Neutral mouth.", limitations: [LIM_T1, "The stomion moves with expression."] }),
-  c({ id: "eyeMouthLength", area: "proportions", name: "Eye–mouth length ratio", definition: "Vertical distance pupil line → mouth over hairline → chin (Pallett et al. 2010: preferred .36–.37).", method: "geometric", view: "frontal", inputs: { additional: ["EML"] }, requirements: "Hairline visible/confirmed, neutral mouth.", limitations: ["Preference data from white female faces only (Pallett et al. 2010); the optimum may differ for other groups.", "Depends on the hairline."] }),
-  c({ id: "lowerThirdProportions", area: "proportions", name: "Lower third proportions", definition: "Share of the upper lip in the lower third (subnasale → stomion over subnasale → menton).", method: "geometric", view: "frontal", inputs: { ratios: ["L3P"] }, requirements: "Lips closed.", limitations: [LIM_T1] }),
-  c({ id: "facialFifths", area: "proportions", name: "Facial fifths", definition: "Deviation of the five horizontal fifths from equal width (neoclassical canon).", method: "geometric", view: "frontal", inputs: { additional: ["FIFTHS"] }, requirements: "Frontal photo, yaw ≤ 15°.", limitations: ["Equal fifths are a historical canon that most faces do not meet (Farkas; Jayaratne et al. 2012); scored with a 3 pp dispersion unit."] }),
-  c({ id: "profileConvexity", area: "proportions", name: "Profile convexity", definition: "Facial convexity angle G–Sn–Pg.", method: "profile", view: "profile", inputs: { side: ["FCA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE] }),
-  c({ id: "lowerFaceHarmony", area: "proportions", name: "Lower-face height (profile)", definition: "Lower face height share (Sn–Me / G–Me) in the anatomical reference frame.", method: "profile", view: "profile", inputs: { side: ["LFH"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE] }),
+  c({ id: "midfaceRatio", area: "midfaceFront", name: "Midface ratio", definition: "Midface height relative to the inter-pupillary distance.", method: "geometric", view: "frontal", inputs: { ratios: ["MF"] }, requirements: "Frontal photo, pitch ≤ 15°.", limitations: [LIM_T1, "Residual pitch shortens/lengthens the midface."] }),
+  c({ id: "facialThirds", area: "harmonySymmetry", name: "Middle & lower third", definition: "Middle and lower third of the face height against their reference ranges (the upper third belongs to the forehead category).", method: "geometric", view: "frontal", inputs: { ratios: ["FT_M", "FT_L"] }, requirements: "Hairline visible/confirmed.", limitations: [LIM_T1, "Depends on the estimated or confirmed hairline.", "Equal-thirds canons rarely hold in real faces (Jayaratne et al. 2012)."] }),
+  c({ id: "faceShape", area: "harmonySymmetry", name: "Face shape proportions", definition: "Total height-to-width, lower-face share and the agreement of forehead and jaw widths.", method: "geometric", view: "frontal", inputs: { ratios: ["TFWHR", "LFF", "DEV_BIT_BIG"] }, requirements: "Hairline visible/confirmed.", limitations: [LIM_T1, "Depends on the hairline and the soft-tissue face contour."] }),
+  c({ id: "eyeMouthGeometry", area: "midfaceFront", name: "Eye–mouth geometry", definition: "Angle of the eye–mouth–eye triangle.", method: "geometric", view: "frontal", inputs: { ratios: ["EME"] }, requirements: "Neutral mouth.", limitations: [LIM_T1, "The stomion moves with expression."] }),
+  c({ id: "eyeMouthLength", area: "harmonySymmetry", name: "Eye–mouth length ratio", definition: "Vertical distance pupil line → mouth over hairline → chin (Pallett et al. 2010: preferred .36–.37).", method: "geometric", view: "frontal", inputs: { additional: ["EML"] }, requirements: "Hairline visible/confirmed, neutral mouth.", limitations: ["Preference data from white female faces only (Pallett et al. 2010); the optimum may differ for other groups.", "Depends on the hairline."] }),
+  c({ id: "lowerThirdProportions", area: "lowerThird", name: "Lower third proportions", definition: "Share of the upper lip in the lower third (subnasale → stomion over subnasale → menton).", method: "geometric", view: "frontal", inputs: { ratios: ["L3P"] }, requirements: "Lips closed.", limitations: [LIM_T1] }),
+  c({ id: "facialFifths", area: "harmonySymmetry", name: "Facial fifths", definition: "Deviation of the five horizontal fifths from equal width (neoclassical canon).", method: "geometric", view: "frontal", inputs: { additional: ["FIFTHS"] }, requirements: "Frontal photo, yaw ≤ 15°.", limitations: ["Equal fifths are a historical canon that most faces do not meet (Farkas; Jayaratne et al. 2012); scored with a 3 pp dispersion unit."] }),
   // B — bone structure
-  c({ id: "jawWidth", area: "bone", name: "Jaw width", definition: "Bigonial width relative to the bizygomatic width.", method: "geometric", view: "frontal", inputs: { ratios: ["BIG"] }, requirements: "Jawline visible (no beard/hair over the angles).", limitations: [LIM_T1, LIM_JAW] }),
-  c({ id: "chinWidthShape", area: "bone", name: "Chin width", definition: "Mouth width relative to the chin width.", method: "geometric", view: "frontal", inputs: { ratios: ["M_C"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Reconstructed chin corners."] }),
-  c({ id: "cheekbonePosition", area: "bone", name: "Cheekbone position", definition: "Height of the widest facial point relative to the midface.", method: "geometric", view: "frontal", inputs: { ratios: ["CBS"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Soft-tissue contour stands in for the zygomatic arch (2D bizygomatic ICC .66, Lim et al. 2022)."] }),
-  c({ id: "gonialAngle", area: "bone", name: "Gonial angle (profile)", definition: "Soft-tissue gonial angle between ramus and mandibular body.", method: "profile", view: "profile", inputs: { side: ["GA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Soft-tissue proxy with the tragion as ramus reference."] }),
-  c({ id: "mandibularPlane", area: "bone", name: "Mandibular plane (profile)", definition: "Steepness of the soft-tissue jaw line (gonion → menton) against the reference horizontal.", method: "profile", view: "profile", inputs: { side: ["MPA"] }, requirements: "Side-view analysis with a soft-tissue gonion.", limitations: [LIM_PROFILE, "Soft-tissue proxy of the Frankfort–mandibular plane angle; needs the gonion, which is not on the silhouette."] }),
-  c({ id: "midfaceProjection", area: "bone", name: "Midface projection (profile)", definition: "Forward position of the subnasale relative to the glabella vertical.", method: "profile", view: "profile", inputs: { side: ["MFP"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Millimetre norm converted with an average face height."] }),
-  c({ id: "chinProjection", area: "bone", name: "Chin projection (profile)", definition: "Chin position relative to the lips, the facial line and the glabella vertical (Z angle, H angle, Pg to glabella vertical).", method: "profile", view: "profile", inputs: { side: ["ZANG", "HANG", "CHP"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Z angle against the anatomical reference axis (Frankfort horizontal when the orbitale is placed)."] }),
-  c({ id: "neckChinDefinition", area: "bone", name: "Neck–chin definition", definition: "Cervicomental and mentocervical angles; neck width frontally when neck points are placed.", method: "profile", view: "any", inputs: { side: ["CMA", "MCA"], ratios: ["NW"] }, requirements: "Side-view analysis or manual neck points.", limitations: [LIM_PROFILE, "Submental fat and head flexion change the angles."] }),
-  c({ id: "cheekboneProjection", area: "bone", name: "Cheekbone projection", definition: "Visible zygomatic prominence (3D projection).", method: "visual", view: "any", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL, "Lighting and body fat dominate the impression."] }),
-  c({ id: "jawlineDefinition", area: "bone", name: "Jawline definition", definition: "Visible sharpness of the mandibular border.", method: "visual", view: "any", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL] }),
+  c({ id: "jawWidth", area: "jawline", name: "Jaw width", definition: "Bigonial width relative to the bizygomatic width.", method: "geometric", view: "frontal", inputs: { ratios: ["BIG"] }, requirements: "Jawline visible (no beard/hair over the angles).", limitations: [LIM_T1, LIM_JAW] }),
+  c({ id: "chinWidthShape", area: "lowerThird", name: "Chin width", definition: "Mouth width relative to the chin width.", method: "geometric", view: "frontal", inputs: { ratios: ["M_C"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Reconstructed chin corners."] }),
+  c({ id: "cheekbonePosition", area: "cheekbonesWidth", name: "Cheekbone position", definition: "Height of the widest facial point relative to the midface.", method: "geometric", view: "frontal", inputs: { ratios: ["CBS"] }, requirements: "Frontal photo.", limitations: [LIM_T1, "Soft-tissue contour stands in for the zygomatic arch (2D bizygomatic ICC .66, Lim et al. 2022)."] }),
+  c({ id: "cheekboneProjection", area: "cheekbonesWidth", name: "Cheekbone projection", definition: "Visible zygomatic prominence (3D projection).", method: "visual", view: "any", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL, "Lighting and body fat dominate the impression."] }),
+  c({ id: "jawlineDefinition", area: "jawline", name: "Jawline definition", definition: "Visible sharpness of the mandibular border.", method: "visual", view: "any", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL] }),
   // D — nose
   c({ id: "noseWidth", area: "nose", name: "Nose width", definition: "Alar width relative to the bizygomatic width (the intercanthal comparison is shown but not scored).", method: "geometric", view: "frontal", inputs: { ratios: ["N_BYZGO"] }, requirements: "Frontal photo, standard distance.", limitations: [LIM_T1, "Close camera distance widens the nose (≈ +30 % at 30 cm, Ward et al. 2018)."] }),
   c({ id: "noseHeightWidth", area: "nose", name: "Nose height-to-width", definition: "Nasal height over alar width.", method: "geometric", view: "frontal", inputs: { ratios: ["N_H"] }, requirements: "Frontal photo.", limitations: [LIM_T1] }),
-  c({ id: "noseProjection", area: "nose", name: "Nose projection (profile)", definition: "Goode ratio of tip projection to nasal length.", method: "profile", view: "profile", inputs: { side: ["GOODE"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE] }),
-  c({ id: "nasalAngles", area: "nose", name: "Nasal angles (profile)", definition: "Nasofrontal, nasofacial and nasomental angles.", method: "profile", view: "profile", inputs: { side: ["NFA", "NFC", "NMA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE] }),
   // E — lips & mouth
-  c({ id: "mouthWidth", area: "mouth", name: "Mouth width", definition: "Mouth width relative to IPD, nose and jaw.", method: "geometric", view: "frontal", inputs: { ratios: ["M_IPD", "M_N", "M_BIG"] }, requirements: "Neutral mouth.", limitations: [LIM_T1, "Smiling widens the mouth."] }),
-  c({ id: "lipProportions", area: "mouth", name: "Lip proportions", definition: "Lower-to-upper lip height and lip width-to-height.", method: "geometric", view: "frontal", inputs: { ratios: ["LL_UL", "LIP_WHR"] }, requirements: "Lips closed, relaxed.", limitations: [LIM_T1] }),
-  c({ id: "lipChinVertical", area: "mouth", name: "Lip–chin height", definition: "Lower lip and chin height relative to the philtrum: frontal chin-to-philtrum ratio and profile Stm–Me : Sn–Stm (one construct, both views).", method: "geometric", view: "any", inputs: { ratios: ["C_P"], side: ["LCR"] }, requirements: "Frontal photo (and optionally a side view), lips closed.", limitations: [LIM_T1, "Profile part needs a side-view analysis."] }),
-  c({ id: "nasolabialAngle", area: "mouth", name: "Nasolabial angle (profile)", definition: "Angle between the columella and the upper lip.", method: "profile", view: "profile", inputs: { side: ["NLA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE] }),
-  c({ id: "lipShape", area: "mouth", name: "Lip shape", definition: "Vermilion shape and fullness as a visual impression.", method: "visual", view: "frontal", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL] }),
+  c({ id: "mouthWidth", area: "lowerThird", name: "Mouth width", definition: "Mouth width relative to IPD, nose and jaw.", method: "geometric", view: "frontal", inputs: { ratios: ["M_IPD", "M_N", "M_BIG"] }, requirements: "Neutral mouth.", limitations: [LIM_T1, "Smiling widens the mouth."] }),
+  c({ id: "lipProportions", area: "lowerThird", name: "Lip proportions", definition: "Lower-to-upper lip height and lip width-to-height.", method: "geometric", view: "frontal", inputs: { ratios: ["LL_UL", "LIP_WHR"] }, requirements: "Lips closed, relaxed.", limitations: [LIM_T1] }),
+  c({ id: "lipChinVertical", area: "lowerThird", name: "Lip–chin height", definition: "Lower lip and chin height relative to the philtrum (frontal chin-to-philtrum ratio).", method: "geometric", view: "frontal", inputs: { ratios: ["C_P"] }, requirements: "Frontal photo, lips closed.", limitations: [LIM_T1] }),
+  c({ id: "lipShape", area: "lowerThird", name: "Lip shape", definition: "Vermilion shape and fullness as a visual impression.", method: "visual", view: "frontal", inputs: {}, requirements: "Vision model (with consent) or the user's labelled self-assessment; descriptive photo measures are shown but not scored.", limitations: [LIM_VISUAL] }),
+  c({ id: "neckWidth", area: "jawline", name: "Neck width (frontal)", definition: "Neck width relative to the face width, from manually placed neck points.", method: "geometric", view: "frontal", inputs: { ratios: ["NW"] }, requirements: "Frontal photo with both neck edges placed manually.", limitations: [LIM_T1, "Only with manually placed neck points; clothing and head posture change the visible neck width."] }),
   // A — symmetry
-  c({ id: "eyeSymmetry", area: "symmetry", name: "Eye & brow symmetry", definition: "Left–right agreement of eye opening, fissure length, canthal tilt, canthus height, brow height and tilt.", method: "symmetry", view: "frontal", inputs: { symmetry: ["eyeHeight", "pfl", "canthalTilt", "canthusHeight", "browHeight", "browTilt"] }, requirements: "Frontal photo, yaw ≤ 10°.", limitations: ["Residual yaw inflates apparent asymmetry; asymmetry is measured after 3D pose normalisation when depth is available."] }),
-  c({ id: "noseSymmetry", area: "symmetry", name: "Nose symmetry", definition: "Nose tip and alar base relative to the midline.", method: "symmetry", view: "frontal", inputs: { symmetry: ["noseTip", "alar"] }, requirements: "Frontal photo.", limitations: ["The nose tip shifts ≈ 21·sin(yaw) mm with residual yaw."] }),
-  c({ id: "mouthSymmetry", area: "symmetry", name: "Mouth symmetry", definition: "Mouth corner heights and distances from the midline.", method: "symmetry", view: "frontal", inputs: { symmetry: ["mouthCornerHeight", "mouthCornerWidth"] }, requirements: "Neutral mouth.", limitations: ["Expression changes mouth symmetry."] }),
-  c({ id: "jawChinSymmetry", area: "symmetry", name: "Jaw & chin symmetry", definition: "Gonion width/height agreement, cheek width agreement and chin deviation.", method: "symmetry", view: "frontal", inputs: { symmetry: ["gonionWidth", "gonionHeight", "zygion", "chin"] }, requirements: "Frontal photo.", limitations: ["Constructed gonions and soft-tissue zygions.", LIM_JAW] }),
+  c({ id: "eyeSymmetry", area: "harmonySymmetry", name: "Eye & brow symmetry", definition: "Left–right agreement of eye opening, fissure length, canthal tilt, canthus height, brow height and tilt.", method: "symmetry", view: "frontal", inputs: { symmetry: ["eyeHeight", "pfl", "canthalTilt", "canthusHeight", "browHeight", "browTilt"] }, requirements: "Frontal photo, yaw ≤ 10°.", limitations: ["Residual yaw inflates apparent asymmetry; asymmetry is measured after 3D pose normalisation when depth is available."] }),
+  c({ id: "noseSymmetry", area: "harmonySymmetry", name: "Nose symmetry", definition: "Nose tip and alar base relative to the midline.", method: "symmetry", view: "frontal", inputs: { symmetry: ["noseTip", "alar"] }, requirements: "Frontal photo.", limitations: ["The nose tip shifts ≈ 21·sin(yaw) mm with residual yaw."] }),
+  c({ id: "mouthSymmetry", area: "harmonySymmetry", name: "Mouth symmetry", definition: "Mouth corner heights and distances from the midline.", method: "symmetry", view: "frontal", inputs: { symmetry: ["mouthCornerHeight", "mouthCornerWidth"] }, requirements: "Neutral mouth.", limitations: ["Expression changes mouth symmetry."] }),
+  c({ id: "jawChinSymmetry", area: "harmonySymmetry", name: "Jaw & chin symmetry", definition: "Gonion width/height agreement, cheek width agreement and chin deviation.", method: "symmetry", view: "frontal", inputs: { symmetry: ["gonionWidth", "gonionHeight", "zygion", "chin"] }, requirements: "Frontal photo.", limitations: ["Constructed gonions and soft-tissue zygions.", LIM_JAW] }),
   // G — forehead & hairline
-  c({ id: "foreheadHeight", area: "forehead", name: "Forehead height", definition: "Upper third of the face height and forehead height relative to the face width.", method: "geometric", view: "frontal", inputs: { ratios: ["FT_U", "FWHF"] }, requirements: "Hairline visible/confirmed.", limitations: [LIM_T1, "The hairline is estimated from colour change or placed manually; automatic hairline landmarks carry large errors."] }),
-  c({ id: "foreheadWidth", area: "forehead", name: "Forehead width", definition: "Bitemporal width relative to the bizygomatic width.", method: "geometric", view: "frontal", inputs: { ratios: ["BIT"] }, requirements: "Temples visible (no hair over the temples).", limitations: [LIM_T1, "Temple contour points are soft-tissue stand-ins."] }),
+  c({ id: "foreheadHeight", area: "harmonySymmetry", name: "Forehead height", definition: "Upper third of the face height and forehead height relative to the face width.", method: "geometric", view: "frontal", inputs: { ratios: ["FT_U", "FWHF"] }, requirements: "Hairline visible/confirmed.", limitations: [LIM_T1, "The hairline is estimated from colour change or placed manually; automatic hairline landmarks carry large errors."] }),
+  c({ id: "foreheadWidth", area: "cheekbonesWidth", name: "Forehead width", definition: "Bitemporal width relative to the bizygomatic width.", method: "geometric", view: "frontal", inputs: { ratios: ["BIT"] }, requirements: "Temples visible (no hair over the temples).", limitations: [LIM_T1, "Temple contour points are soft-tissue stand-ins."] }),
 ];
 
 /** Rubric 1.0 criteria that no longer exist (rendering of stored ratings only). */
 export const LEGACY_CRITERIA: CriterionDefinition[] = [
+  // rubric 2.x profile criteria (front + profile; not used since 3.0, front profile only)
+  { id: "profileConvexity", area: "proportions", name: "Profile convexity", definition: "Facial convexity angle G–Sn–Pg.", method: "profile", view: "profile", inputs: { side: ["FCA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE], weight: 1, legacy: true },
+  { id: "lowerFaceHarmony", area: "proportions", name: "Lower-face height (profile)", definition: "Lower face height share (Sn–Me / G–Me) in the anatomical reference frame.", method: "profile", view: "profile", inputs: { side: ["LFH"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE], weight: 1, legacy: true },
+  { id: "gonialAngle", area: "bone", name: "Gonial angle (profile)", definition: "Soft-tissue gonial angle between ramus and mandibular body.", method: "profile", view: "profile", inputs: { side: ["GA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Soft-tissue proxy with the tragion as ramus reference."], weight: 1, legacy: true },
+  { id: "mandibularPlane", area: "bone", name: "Mandibular plane (profile)", definition: "Steepness of the soft-tissue jaw line (gonion → menton) against the reference horizontal.", method: "profile", view: "profile", inputs: { side: ["MPA"] }, requirements: "Side-view analysis with a soft-tissue gonion.", limitations: [LIM_PROFILE, "Soft-tissue proxy of the Frankfort–mandibular plane angle; needs the gonion, which is not on the silhouette."], weight: 1, legacy: true },
+  { id: "midfaceProjection", area: "bone", name: "Midface projection (profile)", definition: "Forward position of the subnasale relative to the glabella vertical.", method: "profile", view: "profile", inputs: { side: ["MFP"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Millimetre norm converted with an average face height."], weight: 1, legacy: true },
+  { id: "chinProjection", area: "bone", name: "Chin projection (profile)", definition: "Chin position relative to the lips, the facial line and the glabella vertical (Z angle, H angle, Pg to glabella vertical).", method: "profile", view: "profile", inputs: { side: ["ZANG", "HANG", "CHP"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE, "Z angle against the anatomical reference axis (Frankfort horizontal when the orbitale is placed)."], weight: 1, legacy: true },
+  { id: "neckChinDefinition", area: "bone", name: "Neck–chin definition", definition: "Cervicomental and mentocervical angles; neck width frontally when neck points are placed.", method: "profile", view: "any", inputs: { side: ["CMA", "MCA"], ratios: ["NW"] }, requirements: "Side-view analysis or manual neck points.", limitations: [LIM_PROFILE, "Submental fat and head flexion change the angles."], weight: 1, legacy: true },
+  { id: "noseProjection", area: "nose", name: "Nose projection (profile)", definition: "Goode ratio of tip projection to nasal length.", method: "profile", view: "profile", inputs: { side: ["GOODE"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE], weight: 1, legacy: true },
+  { id: "nasalAngles", area: "nose", name: "Nasal angles (profile)", definition: "Nasofrontal, nasofacial and nasomental angles.", method: "profile", view: "profile", inputs: { side: ["NFA", "NFC", "NMA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE], weight: 1, legacy: true },
+  { id: "nasolabialAngle", area: "mouth", name: "Nasolabial angle (profile)", definition: "Angle between the columella and the upper lip.", method: "profile", view: "profile", inputs: { side: ["NLA"] }, requirements: "Side-view analysis.", limitations: [LIM_PROFILE], weight: 1, legacy: true },
   { id: "jawAngularityFrontal", area: "bone", name: "Jaw angularity (frontal)", definition: "Frontal projection of the jaw angle (gonial slope; rubric 2.0–2.1, shown but not scored since 2.2 because every test face lies above the reference range — the mesh convention differs from the source's).", method: "geometric", view: "frontal", weight: 1, inputs: { ratios: ["GS"] }, requirements: "Frontal photo.", limitations: [], legacy: true },
   { id: "fwhr", area: "midface", name: "Facial width-to-height", definition: "Bizygomatic width over brow-to-upper-lip height (rubric 1.0; shown but not scored since 2.0).", method: "geometric", view: "frontal", weight: 3, inputs: { ratios: ["FWHR"] }, requirements: "Frontal photo.", limitations: [], legacy: true },
   { id: "jawHeightRatio", area: "bone", name: "Jaw width-to-height", definition: "Bigonial width over the lower-face height (rubric 1.0; removed in 2.0 because the reconstructed construction does not reproduce the reference range).", method: "geometric", view: "frontal", weight: 2, inputs: { ratios: ["JWHR"] }, requirements: "—", limitations: [], legacy: true },

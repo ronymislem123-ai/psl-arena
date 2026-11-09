@@ -4,16 +4,15 @@ import { compareRatings, progressSeries, type CompareItem } from "@/engine/psl/c
 import { rateFace, type RatingResult } from "@/engine/psl/rating";
 import { CRITERIA } from "@/engine/psl/rubric";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
-import { analyzeSideView } from "@/engine/side-view";
 import { inputFromFixture, loadFixture } from "./helpers";
-import { PROFILE } from "./side-view.test";
 
 const scale = snapshotScale(buildStandardScale());
 const frontal = analyzeFace(inputFromFixture(loadFixture("ai-face")));
 const other = analyzeFace(inputFromFixture(loadFixture("obama")));
 const base = rateFace({ frontal, scale });
-const withSide = rateFace({ frontal, side: analyzeSideView(PROFILE), scale });
-const noHair = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null })), scale, minCoverage: 0.78 });
+// a stored rating of the old method (rubric 2.x, front + profile): only the flag and score matter here
+const withSide: RatingResult = { ...base, rubricVersion: base.rubricVersion, score: base.score! + 0.3, coverage: base.coverage - 0.2, quality: { ...base.quality, sideUsed: true } };
+const noHair = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null })), scale, minCoverage: base.coverage - 0.001 });
 const otherRating = rateFace({ frontal: other, scale });
 const item = (id: string, result: RatingResult, createdAt: string, label = id): CompareItem => ({ id, label, createdAt, result });
 
@@ -56,11 +55,6 @@ describe("compareRatings", () => {
     expect(codes).toContain("sideViewDiffers");
     expect(codes).toContain("provisional");
     expect(c.comparable).toBe(true);
-    const gonial = c.criteria.find((r) => r.id === "gonialAngle")!;
-    expect(gonial.values[0]).toBeNull();
-    expect(gonial.values[1]).not.toBeNull();
-    expect(gonial.common).toBe(false);
-    expect(gonial.deltas[1]).toBeNull();
     expect(c.commonCriteria).toBeLessThan(base.criteria.filter((x) => x.assessable).length);
   });
 

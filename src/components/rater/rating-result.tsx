@@ -16,7 +16,8 @@ import { Dialog } from "@/components/ui/controls";
 import { Progress } from "@/components/ui/progress";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { formatPsl, type CriterionScore } from "@/engine/psl/rating";
-import { CRITERION_BY_ID } from "@/engine/psl/rubric";
+import { CRITERION_BY_ID, isFrontOnlyRubric } from "@/engine/psl/rubric";
+import { pslBand } from "@/engine/psl/bands";
 import { DEFAULT_TOURNAMENT_CONFIG } from "@/engine/tournament/categories";
 import { RATIO_BY_ID } from "@/engine/ratios/database";
 import { formatValue } from "@/engine/explain";
@@ -67,6 +68,9 @@ export function RatingResult({ record }: { record: RatingRecord }) {
   const scoreMax = r.scale.rangeMax;
   const decimals = r.displayDecimals ?? 1;
   const isV2 = !!r.aggregation;
+  // rubric 3.0+: "PSL Score – Front Profile"; older ratings stay as stored and are marked as the old method
+  const front = isFrontOnlyRubric(r.rubricVersion);
+  const band = front ? pslBand(r.score) : null;
   const areaOrder = r.areas.map((a) => a.id);
 
   return (
@@ -76,6 +80,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
         title={record.profileLabel}
         subtitle={
           <span className="flex flex-wrap gap-2 items-center">
+            {!front && <Badge tone="amber" data-testid="rating-legacy-badge">{t("rater.result.legacyBadge", { v: r.rubricVersion })}</Badge>}
             <Badge tone={statusTone} data-testid="rating-status">{r.valid ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {statusText}</Badge>
             <Badge tone="cyan">{t("rater.result.coverage")}: {Math.round(r.coverage * 100)} %</Badge>
             <Badge tone="accent">{t("rater.result.confidence")}: {fmt.pct(r.confidence)}</Badge>
@@ -98,6 +103,13 @@ export function RatingResult({ record }: { record: RatingRecord }) {
         }
       />
 
+      {!front && (
+        <div className="flex gap-2.5 rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-fg-1" data-testid="rating-legacy-note">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" />
+          <p>{t("rater.result.legacyNote", { v: r.rubricVersion })}</p>
+        </div>
+      )}
+
       {/* hero */}
       <Card strong>
         <CardBody className="pt-5">
@@ -107,26 +119,33 @@ export function RatingResult({ record }: { record: RatingRecord }) {
               <ScoreRing value={r.score} max={scoreMax} size={150} stroke={10} label={t("rater.result.score")} digits={decimals} tone={r.score == null ? "muted" : undefined} animate />
             </div>
             <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-fg-2" data-testid="rating-score-label">{front ? t("rater.result.frontLabel") : t("rater.result.legacyScoreLabel")}</div>
               <div className="font-display text-5xl font-bold num" data-testid="rating-score">{r.score == null ? "—" : formatPsl(r.score, decimals)}<span className="text-xl text-fg-3"> / {scoreMax}</span></div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs uppercase tracking-wider text-fg-2">{t("rater.result.tier")}</span>
                 <TierBadge tier={r.tier} size="lg" />
                 {r.tier && <span className="font-mono text-xs text-fg-3">{formatTierRange(r.tier)}</span>}
               </div>
+              {band && <div className="text-sm text-fg-1" data-testid="rating-band"><span className="text-xs uppercase tracking-wider text-fg-2">{t("rater.result.bandTitle")}</span> {t(`rater.result.band.${band}`)}</div>}
               {r.tier?.description && <p className="text-sm text-fg-2">{scaleText(r.tier.description, lang)}</p>}
               {r.tier?.percentile && <p className="text-xs text-fg-3">{r.tier.percentile}</p>}
               <ScaleBar tiers={r.scale.tiers} rangeMin={r.scale.rangeMin} rangeMax={r.scale.rangeMax} value={r.score} className="pt-7" />
+              {front && <p className="text-xs text-fg-2 pt-1" data-testid="front-profile-note">{t("rater.result.frontNote")}</p>}
             </div>
             <div className="space-y-2" data-testid="rating-areas">
               {r.areas.map((a) => (
                 <div key={a.id} title={areaDescription(a.id, lang)}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-fg-1">{areaName(a.id, lang)} <span className="text-fg-3">· {isV2 ? `${t("rater.result.areaWeight", { w: a.weight })} · ` : ""}{t("rater.result.areaCoverage", { c: Math.round(a.coverage * 100) })}</span>{a.score != null && a.coverage < DEFAULT_TOURNAMENT_CONFIG.minCategoryCoverage && <span className="text-amber" data-testid={`area-low-${a.id}`}> · {t("rater.result.areaLowCoverage")}</span>}</span>
-                    <span className="font-mono num">{formatPsl(a.score)}{a.sigma != null && <span className="text-fg-3 text-[10px]"> ±{a.sigma.toFixed(1)}</span>}</span>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="min-w-0 text-fg-1">{areaName(a.id, lang)} <span className="text-fg-3">· {isV2 ? `${t("rater.result.areaWeight", { w: a.weight })} · ` : ""}{t("rater.result.areaCoverage", { c: Math.round(a.coverage * 100) })}</span>{a.score != null && a.coverage < DEFAULT_TOURNAMENT_CONFIG.minCategoryCoverage && <span className="text-amber" data-testid={`area-low-${a.id}`}> · {t("rater.result.areaLowCoverage")}</span>}</span>
+                    <span className="shrink-0 text-right">
+                      <span className="font-mono num">{formatPsl(a.score)}{a.sigma != null && <span className="text-fg-3 text-[10px]"> ±{a.sigma.toFixed(1)}</span>}</span>
+                      {front && pslBand(a.score) && <span className="block text-[10px] text-fg-3" data-testid={`area-band-${a.id}`}>{t(`rater.result.bandShort.${pslBand(a.score)}`)}</span>}
+                    </span>
                   </div>
                   <Progress value={a.score == null ? 0 : (a.score / scoreMax) * 100} tone={pslTone(a.score)} className="mt-1" />
                 </div>
               ))}
+              {front && <p className="pt-1 text-[10px] leading-snug text-fg-3" data-testid="band-legend">{t("rater.result.bandLegend")}</p>}
             </div>
           </div>
         </CardBody>
@@ -149,7 +168,7 @@ export function RatingResult({ record }: { record: RatingRecord }) {
             <div>
               <div className="text-[11px] uppercase tracking-wider text-fg-2 mb-1">{t("rater.result.overallAssessment")}</div>
               <p className="text-fg-1">{lines.overall}</p>
-              <p className="text-xs text-fg-3 mt-1">{t(isV2 ? "rater.result.harmonyNote" : "rater.result.areaBalanceNote")}</p>
+              {!front && <p className="text-xs text-fg-3 mt-1">{t(isV2 ? "rater.result.harmonyNote" : "rater.result.areaBalanceNote")}</p>}
             </div>
           </CardBody>
         </Card>
