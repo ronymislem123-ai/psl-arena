@@ -28,7 +28,6 @@ export async function POST(req: Request) {
       analysisId: body.analysisId,
       newAnalysis: body.newAnalysis ? { ...body.newAnalysis, input: body.newAnalysis.input as AnalysisInput } : undefined,
       scaleId: body.scaleId,
-      minCoverage: body.minCoverage,
       visualConsent: body.visualConsent,
       visualImageDataUrl: body.visualConsent ? body.visualImageDataUrl : undefined,
       lang: body.lang,

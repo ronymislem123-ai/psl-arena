@@ -33,6 +33,7 @@ import { cn, fmt, scoreTone } from "@/lib/utils";
 import type { RatingRecord } from "@/server/repos-psl";
 import { paths } from "@/lib/paths";
 import { ApiLink } from "@/components/shared/api-link";
+import { QcRatingBanner } from "@/components/analysis/qc-panel";
 
 const SOURCE_TONE: Record<string, Tone> = { frontal: "cyan", profile: "violet", mixed: "accent", "visual-model": "amber", "self-assessment": "rose", derived: "mint" };
 const pslTone = (v: number | null) => (v == null ? "muted" : scoreTone(v * 10));
@@ -102,6 +103,8 @@ export function RatingResult({ record }: { record: RatingRecord }) {
           </div>
         }
       />
+
+      {front && <QcRatingBanner status={r.qcStatus} href={record.analysisId ? `${paths.analysis(record.analysisId)}#qc` : null} />}
 
       {!front && (
         <div className="flex gap-2.5 rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-fg-1" data-testid="rating-legacy-note">

@@ -333,7 +333,7 @@ export interface AdditionalMeasurementDefinition {
 
 export type Availability = "available" | "unavailable" | "excluded";
 
-export type UnavailableCode = "incomplete" | "hairline" | "neck" | "landmarks" | "computation" | "excluded";
+export type UnavailableCode = "incomplete" | "hairline" | "neck" | "landmarks" | "computation" | "excluded" | "verification";
 export type TierCode = "inT1" | "outsideUndetermined" | "verifiedTier" | "notScoredIncomplete" | "notScoredLandmarks" | "notScoredComputation" | "excluded";
 
 export interface RatioResult {
@@ -365,6 +365,8 @@ export interface RatioResult {
   valueSigma?: number;
   /** engine 2.0: measured and shown, but not scored (reference contradicted by evidence or not matching the measurement construction) */
   excludedFromScore?: boolean;
+  /** engine 3.1: result of the measurement check (reproducibility over the detection passes, plausibility) */
+  qc?: MeasureQc;
 }
 
 export type AdditionalNoteCode = "eyelid" | "requiresProfile" | "requiresProfileSeeGS" | "fingerRule" | "fifths" | "byzBig" | "noEarLandmarks" | "noseChin" | "eyeMouthLength" | "hairlineMissing" | "landmarksMissing";
@@ -377,6 +379,8 @@ export interface AdditionalMeasurementResult {
   note: string;
   noteCode?: AdditionalNoteCode;
   confidence: number;
+  /** engine 3.1: measurement check */
+  qc?: MeasureQc;
 }
 
 // ---------------------------------------------------------------------------
@@ -445,6 +449,8 @@ export interface SymmetryMetric {
   tolerance: number;
   score: number; // 0..100
   landmarks: SemanticLandmarkId[];
+  /** engine 3.1: measurement check */
+  qc?: MeasureQc;
 }
 
 export interface SymmetryResult {
@@ -739,6 +745,88 @@ export interface AnalysisInput {
   config: AnalysisConfig;
   /** rubric 2.1: image-based appearance measures from the photo (browser), shown, not scored */
   appearanceImage?: import("./appearance").AppearanceImageInput | null;
+  /** engine 3.1: further detections of the same photo for the landmark verification */
+  verification?: VerificationInput | null;
+}
+
+/**
+ * engine 3.1 — landmark verification. The photo is detected several times under
+ * controlled changes (mirrored, rotated ±5°, zoomed face crop, zoomed + mirrored);
+ * every detection is mapped back to the pixels of the photo. `mesh` of the
+ * analysis input is the detection of the unchanged photo ("original").
+ */
+export type VerificationPassId = "original" | "mirror" | "rotPlus" | "rotMinus" | "zoom" | "zoomMirror";
+export interface VerificationPassInput {
+  id: Exclude<VerificationPassId, "original">;
+  /** 478 points in the photo's pixels (z in pixels) */
+  mesh: Point[];
+  /** hairline estimate from this pass' mesh (photo pixels), when the estimate succeeded */
+  trichion?: Point | null;
+}
+export interface VerificationInput {
+  passes: VerificationPassInput[];
+  /** passes in which no matching face was found */
+  failed?: Exclude<VerificationPassId, "original">[];
+}
+
+export type LandmarkCheckStatus = "confirmed" | "corrected" | "uncertain" | "rejected" | "manual" | "unverified";
+export type AnatomyRuleId = "midlineOrder" | "hairlineAbove" | "eyeOrder" | "lidOrder" | "browAboveEye" | "sideOfMidline" | "noseWings" | "mouthCorners" | "chinLowest" | "contourWidth" | "bilateralLevel";
+export interface LandmarkCheck {
+  id: SemanticLandmarkId;
+  status: LandmarkCheckStatus;
+  /** distance of the single (original) detection from the verified position, in inter-pupillary distances */
+  deviation: number | null;
+  /** robust spread of the detection passes around the verified position (IPD units) */
+  spread: number | null;
+  /** tolerance of this landmark (IPD units): 3 × its measured repeatability */
+  tolerance: number;
+  /** re-check after correction: share of passes within the tolerance of the verified position */
+  agreement: number | null;
+  /** number of detection passes that contributed */
+  passes: number;
+  /** violated anatomical rule (the landmark was re-analysed and, if still violating, rejected) */
+  rule?: AnatomyRuleId;
+  /** photo pixels: the single detection (when corrected) and every pass, for the zoomed view */
+  original?: Point;
+  passPoints?: Point[];
+}
+
+export type MeasureQcStatus = "stable" | "unstable" | "excluded" | "implausible" | "unverified";
+export interface MeasureQc {
+  status: MeasureQcStatus;
+  /** robust spread of the value over the detection passes (unit of the measure) */
+  spread: number | null;
+  /** the spread in dispersion units (natural between-person spread) */
+  spreadUnits: number | null;
+  reason?: "unreproducible" | "implausible" | "rejectedLandmark" | "uncertainLandmark" | "reproducibility";
+}
+export interface MeasureCheck extends MeasureQc {
+  id: string;
+  kind: "ratio" | "symmetry" | "additional";
+}
+
+export type QcCheckId = "imageQuality" | "multiPass" | "landmarks" | "anatomy" | "measurements" | "plausibility" | "recompute" | "reproducibility" | "coverage" | "consistency";
+export interface QcCheck {
+  id: QcCheckId;
+  /** note: something was found and handled automatically (corrected/excluded) without affecting the reliability of the result */
+  status: "pass" | "note" | "warn" | "fail";
+  params?: Record<string, number | string>;
+}
+export interface QualityControl {
+  version: 1;
+  /** passed: every check passed; limited: result shown with the listed restrictions; failed: no overall result */
+  status: "passed" | "limited" | "failed";
+  passes: { used: number; total: number; ids: VerificationPassId[]; failed: VerificationPassId[] };
+  landmarks: LandmarkCheck[];
+  measures: MeasureCheck[];
+  checks: QcCheck[];
+  /** analysis rounds: a rejected result is re-analysed without the failing landmarks/measures and checked again */
+  iterations: number;
+  actions: { round: number; code: "rejectLandmark" | "correctLandmark" | "excludeMeasure"; ids: string[] }[];
+  /** spread of the overall index over the detection passes (index points, 0–100) */
+  overallSpread: number | null;
+  /** rubric criteria that could be assessed without the checks but not after them */
+  lostCriteria: string[];
 }
 
 export interface AnalysisCorrections {
@@ -790,9 +878,11 @@ export interface AnalysisResult {
   uncertainty: UncertaintyReport | null;
   /** engine 2.0: manual corrections applied to this analysis (flag for comparisons) */
   corrections?: { landmarks: SemanticLandmarkId[]; axisAdjustDeg: number } | null;
+  /** engine 3.1: multi-stage quality control (landmarks, measurements, final control) */
+  qc?: QualityControl | null;
   warnings: string[];
   /** Language-neutral warnings (UI translates). */
-  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "hairlineCovered" | "hairlineLow" | "smile" | "corrected"; params?: Record<string, number> }[];
+  warningCodes?: { code: "unusable" | "lowCoverage" | "uncertainRatios" | "noHairline" | "hairlineCovered" | "hairlineLow" | "smile" | "corrected" | "qcFailed" | "qcLimited"; params?: Record<string, number> }[];
 }
 
 // ---------------------------------------------------------------------------

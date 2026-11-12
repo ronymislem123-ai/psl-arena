@@ -2,6 +2,7 @@
 
 * **Local detection.** Face detection, landmarking, quality analysis and the live preview run in the browser (MediaPipe WASM served from this origin). No third-party request is made during analysis.
 * **What the server receives.** Landmark coordinates, blendshape coefficients, the head-pose matrix and summary quality numbers. The photo itself is only sent when "Store photos in history" is enabled.
+* **Quality-control passes (engine 3.1).** The extra detections of the quality control (mirrored, rotated, zoomed copies of the photo) are made in the browser from in-memory canvases that are released right after each detection; no copy is stored or uploaded. Only the resulting point coordinates (5 × 478 points plus a hairline estimate per pass) are part of the analysis input and are stored with the analysis, like the main landmarks.
 * **Encryption at rest.** Stored photos are AES-256-GCM encrypted on disk; the key is `PSL_ARENA_IMAGE_KEY` or an auto-generated `image.key` (mode 0600). Photos are served only through `/api/images/:id` with no-sniff and a restrictive CSP.
 * **Consent gate.** Before a battle can start, the user confirms the right to use the photos, the depicted persons' agreement and that both persons are adults.
 * **Deletion & export.** Profiles, analyses, battles and photos can be deleted individually; Settings offers export (JSON) and "delete all data".

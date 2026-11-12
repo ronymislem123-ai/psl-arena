@@ -16,7 +16,6 @@ import { ScaleBar } from "@/components/psl/tier-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Checkbox, Field, Select, Tabs, Toggle } from "@/components/ui/controls";
-import { DEFAULT_MIN_COVERAGE } from "@/engine/psl/rubric";
 import { BUILTIN_SCALE_ID, type PslScale } from "@/engine/psl/scale";
 import type { CaptureDistance } from "@/engine/types";
 import { api } from "@/lib/api";
@@ -49,7 +48,6 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
   const [profileId, setProfileId] = useState(initialProfileId ?? profiles[0]?.id ?? "");
   const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
   const [analysisId, setAnalysisId] = useState("");
-  const [minCoverage, setMinCoverage] = useState(DEFAULT_MIN_COVERAGE);
   const [rights, setRights] = useState(false);
   const [adult, setAdult] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -105,7 +103,7 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
     setError(null);
     try {
       const consentToModel = !!vision?.configured && visualConsent;
-      const common = { scaleId, minCoverage, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const }, visualConsent: consentToModel, lang, selfAssessment: selfOn && Object.keys(selfValues).length ? selfValues : null };
+      const common = { scaleId, consent: { rightsConfirmed: true as const, adultsConfirmed: true as const }, visualConsent: consentToModel, lang, selfAssessment: selfOn && Object.keys(selfValues).length ? selfValues : null };
       let res;
       if (mode === "upload") {
         const input = buildAnalysisInput(slot.prep!, slot.faceIndex, { includeReconstructed: s.config.includeReconstructed, captureDistance: s.config.captureDistance, uncertaintySamples: 40, seed: 20251106 }, slotManual(slot));
@@ -186,9 +184,6 @@ export function RaterSetup({ scales, profiles, initialProfileId }: { scales: Sca
                 ))}
               </Select>
               {scale && <ScaleBar tiers={scale.tiers} rangeMin={scale.rangeMin} rangeMax={scale.rangeMax} />}
-              <Field label={`${t("rater.minCoverage")}: ${Math.round(minCoverage * 100)} %`} hint={t("rater.minCoverageHint")}>
-                <input type="range" min={50} max={95} step={5} value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Number(e.target.value) / 100)} className="w-full accent-[#4f7cff]" data-testid="rater-min-coverage" />
-              </Field>
             </CardBody>
           </Card>
           <Card data-testid="rater-vision" data-configured={vision?.configured ? "true" : "false"}>

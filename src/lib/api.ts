@@ -43,7 +43,6 @@ export const api = {
     analysisId?: string;
     newAnalysis?: { profileId?: string; profileLabel?: string; imageDataUrl?: string; storeImage: boolean; input: AnalysisInput };
     scaleId?: string;
-    minCoverage?: number;
     consent: { rightsConfirmed: true; adultsConfirmed: true };
     visualConsent?: boolean;
     visualImageDataUrl?: string;

@@ -89,6 +89,8 @@ export function unavailableText(r: RatioResult, lang: Lang): string {
       return "Die Messung konnte aus der erkannten Geometrie nicht berechnet werden.";
     case "excluded":
       return "Rekonstruierte Messung durch die Konfiguration ausgeschlossen.";
+    case "verification":
+      return `Nicht gemessen: Ein benötigter Landmark hat die Landmark-Prüfung nicht bestanden (${(r.missingLandmarks ?? []).map((id) => landmarkLabel(id, lang, id)).join(", ")}).`;
   }
 }
 
@@ -293,6 +295,10 @@ export function warningTexts(r: AnalysisResult, lang: Lang): string[] {
         return `Manuell korrigiert: ${p.n} Landmark(s)${p.axis ? `, Referenzachse ${p.axis > 0 ? "+" : ""}${Number(p.axis).toFixed(1).replace(".", ",")}°` : ""}. Die Ergebnisse hängen von der manuellen Platzierung ab.`;
       case "smile":
         return "Lächeln erkannt: Mund-, Lippen-, Augenöffnungs- und Untergesichtsmessungen haben reduzierte Konfidenz.";
+      case "qcFailed":
+        return "Qualitätskontrolle nicht bestanden: Es wird kein Gesamtergebnis ausgegeben. Die Gründe stehen im Reiter „Prüfung“.";
+      case "qcLimited":
+        return "Qualitätskontrolle mit Einschränkungen bestanden: Einzelne Landmarks oder Messungen sind unsicher oder ausgeschlossen (Details im Reiter „Prüfung“).";
     }
   });
 }

@@ -33,11 +33,15 @@ export const MESH_POINT_COUNT = 478;
 export const MESH_INDEX: Partial<Record<SemanticLandmarkId, number>> = {
   pupil_R: 468,
   pupil_L: 473,
-  // canthi on the lid-junction ring (ring 1), slightly outside the visible fissure edge (33/133, 263/362)
+  // engine 3.1: the lateral canthus is the lateral corner of the palpebral fissure (mesh 33/263, where the
+  // lid margins meet); the ring-1 points 130/359 lie on the skin lateral of the corner (zoomed audit of the
+  // test portraits; with the corner PFL/BYZGO, EAR and the facial fifths match their references better).
+  // The medial canthus stays on ring 1 (243/463): the fissure points 133/362 lie at the lateral edge of the
+  // caruncle, lateral of the anatomical medial canthus.
   endocanthion_R: 243,
   endocanthion_L: 463,
-  exocanthion_R: 130,
-  exocanthion_L: 359,
+  exocanthion_R: 33,
+  exocanthion_L: 263,
   palpebrale_sup_R: 159,
   palpebrale_sup_L: 386,
   palpebrale_inf_R: 145,
@@ -312,10 +316,25 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
     const medialRaw = midpoint(R[upper[4]], R[lower[4]]);
     const lateral = midpoint(A[upper[0]], A[lower[0]]);
     const lateralRaw = midpoint(R[upper[0]], R[lower[0]]);
-    // apex = highest (smallest y) point of the upper contour, excluding the ends
-    let apexIdx = upper[2];
-    for (const i of [upper[1], upper[2], upper[3]]) if (A[i].y < A[apexIdx].y) apexIdx = i;
-    return { medial, medialRaw, lateral, lateralRaw, apexIdx, medialIdx: [upper[4], lower[4]], lateralIdx: [upper[0], lower[0]] };
+    // apex = highest point of the upper contour (engine 3.1: vertex of the parabola through the
+    // three inner contour points, so the apex moves continuously instead of jumping between vertices)
+    const [p1, p2, p3] = [A[upper[1]], A[upper[2]], A[upper[3]]];
+    let apex = p2;
+    const d = (p1.x - p2.x) * (p1.x - p3.x) * (p2.x - p3.x);
+    if (Math.abs(d) > 1e-9) {
+      const a = (p3.x * (p2.y - p1.y) + p2.x * (p1.y - p3.y) + p1.x * (p3.y - p2.y)) / d;
+      const b = (p3.x * p3.x * (p1.y - p2.y) + p2.x * p2.x * (p3.y - p1.y) + p1.x * p1.x * (p2.y - p3.y)) / d;
+      const c = (p2.x * p3.x * (p2.x - p3.x) * p1.y + p3.x * p1.x * (p3.x - p1.x) * p2.y + p1.x * p2.x * (p1.x - p2.x) * p3.y) / d;
+      if (a > 0) {
+        const lo = Math.min(p1.x, p3.x);
+        const hi = Math.max(p1.x, p3.x);
+        const x = Math.max(lo, Math.min(hi, -b / (2 * a)));
+        apex = { x, y: a * x * x + b * x + c };
+      } else {
+        apex = [p1, p2, p3].reduce((m, p) => (p.y < m.y ? p : m));
+      }
+    }
+    return { medial, medialRaw, lateral, lateralRaw, apex, apexIdx: [upper[1], upper[2], upper[3]], medialIdx: [upper[4], lower[4]], lateralIdx: [upper[0], lower[0]] };
   };
   const bR = browEnds(BROW_UPPER_R, BROW_LOWER_R);
   const bL = browEnds(BROW_UPPER_L, BROW_LOWER_L);
@@ -323,8 +342,8 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
   add("brow_medial_L", "Brow head (left)", "brow", "left", "medium", "derived", bL.medial, bL.medialRaw, { meshIndices: bL.medialIdx });
   add("brow_lateral_R", "Brow tail (right)", "brow", "right", "medium", "derived", bR.lateral, bR.lateralRaw, { meshIndices: bR.lateralIdx });
   add("brow_lateral_L", "Brow tail (left)", "brow", "left", "medium", "derived", bL.lateral, bL.lateralRaw, { meshIndices: bL.lateralIdx });
-  add("brow_apex_R", "Brow arch apex (right)", "brow", "right", "medium", "model", A[bR.apexIdx], R[bR.apexIdx], { meshIndex: bR.apexIdx });
-  add("brow_apex_L", "Brow arch apex (left)", "brow", "left", "medium", "model", A[bL.apexIdx], R[bL.apexIdx], { meshIndex: bL.apexIdx });
+  add("brow_apex_R", "Brow arch apex (right)", "brow", "right", "medium", "derived", bR.apex, frame.toRaw(bR.apex), { meshIndices: bR.apexIdx });
+  add("brow_apex_L", "Brow arch apex (left)", "brow", "left", "medium", "derived", bL.apex, frame.toRaw(bL.apex), { meshIndices: bL.apexIdx });
   addIdx("brow_lower_mid_R", "Brow lower edge, mid (right)", "brow", "right", "medium");
   addIdx("brow_lower_mid_L", "Brow lower edge, mid (left)", "brow", "left", "medium");
 
@@ -386,14 +405,16 @@ export function buildLandmarks(input: AnalysisInput, am: AlignedMesh): Build {
     const corner = A[ramus[2]]; // mesh 58 / 288 sits at the turn of the contour
     const ix = intersectLines(ramusLine, bodyLine);
     const maxOff = dist(A[ramus[2]], A[body[2]]) * 0.9;
-    let pt = ix ?? corner;
-    let conf = 1;
+    // engine 3.1: the intersection is blended continuously into the contour corner as it moves away
+    // from the jaw angle (a hard switch made the point jump on tiny landmark changes)
+    const w = ix ? Math.max(0, Math.min(1, (dist(ix, corner) - 0.5 * maxOff) / (0.5 * maxOff))) : 1;
+    const ws = w * w * (3 - 2 * w);
+    const pt = ix ? { x: ix.x * (1 - ws) + corner.x * ws, y: ix.y * (1 - ws) + corner.y * ws } : corner;
+    const conf = 1 - 0.2 * ws;
     let note = "Constructed as the intersection of the ramus and mandibular-body contour lines.";
     let noteCode: SemanticLandmark["noteCode"] = "gonionConstructed";
-    if (!ix || dist(pt, corner) > maxOff) {
-      pt = corner;
-      conf = 0.8;
-      note = "Contour lines did not intersect near the jaw angle; fell back to the contour corner point.";
+    if (ws >= 0.5) {
+      note = "Contour lines intersect far from the jaw angle; the point is drawn towards the contour corner.";
       noteCode = "gonionFallback";
     }
     const rawPt = frame.toRaw(pt);

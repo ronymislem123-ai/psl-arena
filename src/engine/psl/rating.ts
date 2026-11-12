@@ -11,7 +11,8 @@ import { stddev } from "../geometry";
 import { aggregateHierarchy, frontalMeasures, type MeasureMap } from "../scoring/hierarchy";
 import { assignTier, type PslScaleSnapshot } from "./scale";
 import { analysisReliability, type ReliabilityLevel } from "../quality/reliability";
-import { AREA_META, CALIBRATION_ANCHORS, calibrate, calibrationSlope, CATEGORY_WEIGHTS, CRITERIA, DEFAULT_MIN_COVERAGE, DESCRIPTIVE_RATIOS, MIN_SCORABLE_COVERAGE, RUBRIC_AREAS, RUBRIC_VERSION, uncalibrate, AGGREGATION_P, type CriterionId, type RubricArea } from "./rubric";
+import { COVERAGE_PASS } from "../verify/control";
+import { AREA_META, CALIBRATION_ANCHORS, calibrate, calibrationSlope, CATEGORY_WEIGHTS, CRITERIA, DESCRIPTIVE_RATIOS, MIN_SCORABLE_COVERAGE, RUBRIC_AREAS, RUBRIC_VERSION, uncalibrate, AGGREGATION_P, type CriterionId, type RubricArea } from "./rubric";
 
 export interface VisualAssessment {
   /** 0–10 on the PSL-like criterion scale */
@@ -45,7 +46,6 @@ export interface RatingInput {
    */
   selfAssessment?: Partial<Record<CriterionId, number>> | null;
   scale: PslScaleSnapshot;
-  minCoverage?: number;
 }
 
 export type NotAssessableCode =
@@ -106,7 +106,10 @@ export interface RatingResult {
   sideViewVersion: string | null;
   createdAt: string;
   calibration: [number, number][];
-  minCoverage: number;
+  /** ratings before engine 3.1: the user-chosen minimum coverage for a valid score (removed; the quality control decides) */
+  minCoverage?: number;
+  /** engine 3.1: status of the quality control of the frontal analysis (null: analysis without quality control) */
+  qcStatus?: "passed" | "limited" | "failed" | null;
   scale: PslScaleSnapshot;
   criteria: CriterionScore[];
   areas: AreaScore[];
@@ -118,9 +121,9 @@ export interface RatingResult {
   displayDecimals?: number;
   /** 0–1 share of the rubric that was assessable */
   coverage: number;
-  /** coverage ≥ minCoverage and frontal quality usable */
+  /** engine 3.1: the quality control passed without restrictions (before: coverage ≥ minCoverage) */
   valid: boolean;
-  /** score computed from < minCoverage → shown as provisional */
+  /** a score exists but the quality control passed only with restrictions (or did not run) */
   provisional: boolean;
   tier: { id: string; name: string; short: string; group: string | null; min: number; max: number; color: string; description: string; percentile: string | null } | null;
   /** probability that the true score lies in another tier (rubric 2.0, from the MC samples) */
@@ -137,7 +140,7 @@ export interface RatingResult {
   selfAssessment?: Partial<Record<CriterionId, number>>;
   /** rubric 2.1: per visual criterion, the model's short reason */
   visualNotes?: Partial<Record<CriterionId, string>>;
-  warningCodes: ("frontalUnusable" | "lowCoverage" | "insufficientData" | /* rubric ≤ 2.x */ "noProfile" | "noVisualProvider" | "visualFailed" | "selfAssessment" | "lowConfidence" | "legacyEngine")[];
+  warningCodes: ("frontalUnusable" | "lowCoverage" | "insufficientData" | "qcFailed" | "qcLimited" | "noQc" | /* rubric ≤ 2.x */ "noProfile" | "noVisualProvider" | "visualFailed" | "selfAssessment" | "lowConfidence" | "legacyEngine")[];
   /** rubric 2.0 aggregation details */
   aggregation?: {
     method: "weighted-power-mean";
@@ -182,7 +185,6 @@ export function pslDecimals(sigma: number | null | undefined): number {
 export function rateFace(input: RatingInput): RatingResult {
   const { frontal, visual, scale } = input;
   const visualStatus: VisualStatus = input.visualStatus ?? (visual ? "used" : "notConfigured");
-  const minCoverage = input.minCoverage ?? DEFAULT_MIN_COVERAGE;
   const createdAt = new Date().toISOString();
   const frontalUsable = frontal.quality.analyzable;
   const legacyEngine = Number.parseInt(frontal.engineVersion, 10) < 2;
@@ -266,10 +268,14 @@ export function rateFace(input: RatingInput): RatingResult {
   const coverage = frontalUsable ? h.coverage : 0;
   // too much missing for a meaningful total: no (seemingly precise) overall score
   const insufficient = frontalUsable && h.overall != null && coverage < MIN_SCORABLE_COVERAGE;
-  const overallIndex = frontalUsable && !insufficient ? h.overall : null;
+  // engine 3.1: no result unless the quality control of the analysis let it through
+  const qcStatus = frontal.qc?.status ?? null;
+  const qcFailed = qcStatus === "failed";
+  const overallIndex = frontalUsable && !insufficient && !qcFailed ? h.overall : null;
   const score = overallIndex == null ? null : calibrate(overallIndex);
-  const valid = frontalUsable && score != null && coverage >= minCoverage;
-  const provisional = frontalUsable && score != null && coverage < minCoverage;
+  const lowCoverage = score != null && coverage < COVERAGE_PASS;
+  const valid = frontalUsable && score != null && qcStatus === "passed" && !lowCoverage;
+  const provisional = frontalUsable && score != null && !valid;
   const confidence = frontalUsable ? h.confidence : 0;
 
   let scoreSigma: number | null = null;
@@ -294,8 +300,11 @@ export function rateFace(input: RatingInput): RatingResult {
 
   const warningCodes: RatingResult["warningCodes"] = [];
   if (!frontalUsable) warningCodes.push("frontalUnusable");
-  if (provisional) warningCodes.push("lowCoverage");
+  if (lowCoverage) warningCodes.push("lowCoverage");
   if (insufficient) warningCodes.push("insufficientData");
+  if (qcFailed) warningCodes.push("qcFailed");
+  else if (qcStatus === "limited") warningCodes.push("qcLimited");
+  else if (qcStatus == null) warningCodes.push("noQc");
   if (!visual && visualStatus === "notConfigured" && criteria.some((c) => CRITERIA.some((d) => d.id === c.id && d.method === "visual") && !c.assessable)) warningCodes.push("noVisualProvider");
   if (visualStatus === "failed") warningCodes.push("visualFailed");
   if (criteria.some((c) => c.source === "self-assessment")) warningCodes.push("selfAssessment");
@@ -308,7 +317,7 @@ export function rateFace(input: RatingInput): RatingResult {
     sideViewVersion: null,
     createdAt,
     calibration: CALIBRATION_ANCHORS,
-    minCoverage,
+    qcStatus,
     scale,
     criteria,
     areas,

@@ -1,4 +1,4 @@
-# Übergabe / Handover — PSL ARENA (Stand 2026-11-09, Rubrik 3.0 „PSL Score – Front Profile“)
+# Übergabe / Handover — PSL ARENA (Stand 2026-11-12, Rubrik 3.0 „PSL Score – Front Profile“, Engine 3.1 mit mehrstufiger Qualitätskontrolle)
 
 Dieses Dokument ist die vollständige Übergabe an das nächste Modul (neue Sitzung).
 Es ist **kein Neustart**: alles hier Genannte ist umgesetzt, getestet, committet und
@@ -154,3 +154,52 @@ Bildbearbeitung in der App, kein externer Bilddienst. Tests:
 - Tests: `tests/unit/front-rubric.test.ts` (Gewichte, Rechenbeispiel 6,85,
   Renormierung, Mindestdaten, Bänder, Bericht), angepasste Unit-/E2E-Tests
   (`psl.spec.ts` u. a. „front profile only“ und „old method“).
+
+## 11. Mehrstufige Qualitätskontrolle, Engine 3.1.0 (2026-11-12)
+
+Auftrag: jeden Landmark einzeln prüfen (vergrößert, korrigieren, erneut prüfen),
+alle Messungen mit Plausibilitäts-/Fehlerkontrolle neu berechnen, Kontrollinstanz
+vor der Ergebnisanzeige (Ablehnung → Neuanalyse), keine Schein-Sicherheit, und den
+Abdeckungs-Schieberegler im Frontprofil vollständig entfernen. Details:
+`docs/QUALITY_CONTROL.md`.
+
+- **Erkennungsdurchgänge (Browser, auf dem Gerät):** `src/lib/vision/verify.ts` –
+  Original + gespiegelt, ±5° gedreht, vergrößerter Gesichtsausschnitt, vergrößert +
+  gespiegelt; alles auf Fotopixel zurückgerechnet; Fortschritt im Upload-Feld.
+- **Stufe 1 – Landmarks** (`src/engine/verify/landmarks.ts`): Median aller
+  Durchgänge, Toleranz je Punkt aus der gemessenen Wiederholgenauigkeit;
+  bestätigt / korrigiert (+ erneute Prüfung) / unsicher (Konfidenz × 0,6) /
+  verworfen; 11 anatomische Regeln, verletzender Punkt wird mit den
+  Durchgangspositionen neu analysiert (Verdächtiger per Residuum zum kanonischen
+  Gesicht), sonst verworfen.
+- **Stufe 2 – Messungen** (`measures.ts`, `run.ts`): jede Messung aus jedem
+  Durchgang neu; ≤ 0,5 s stabil, ≤ 1 s unsicher (halbes Gewicht), > 1 s bzw.
+  unplausibel ausgeschlossen; Gesamtergebnis-Streuung > 0,35 PSL → Ablehnung und
+  Neuanalyse ohne die instabilsten Messungen (≤ 3 Runden), protokolliert.
+- **Stufe 3 – Kontrollinstanz** (`control.ts`): 10 Prüfungen (Bildqualität,
+  Mehrfacherkennung, Landmarks, Anatomie, Messungen, Wertebereiche, unabhängige
+  Nachrechnung inkl. Leck-Prüfung, Reproduzierbarkeit, Abdeckung,
+  Widerspruchsfreiheit) → bestanden / eingeschränkt / nicht bestanden (dann kein
+  Gesamtscore in Analyse, Bewertung, Battle, Turnier).
+- **Schieberegler entfernt** (UI `rater-setup.tsx`, API-Schema, `rating.ts`,
+  `DEFAULT_MIN_COVERAGE`, Berichte): gültig = QC bestanden und Abdeckung ≥ 70 %;
+  vorläufig = QC eingeschränkt / Abdeckung < 70 % / Analyse ohne QC; alte
+  Bewertungen behalten ihren gespeicherten Wert und Status.
+- **Bei der Zoom-Prüfung gefundene Landmark-Fehler (behoben):** Exocanthion lag auf
+  dem Ring außerhalb des Auges (CT ≈ 1–1,5° zu niedrig) → Vertices 33/263;
+  Brauen-Scheitel sprang zwischen Nachbar-Vertices → Parabel-Scheitel; Gonion
+  wechselte hart zwischen zwei Konstruktionen → glatter Übergang. Ideal-Beispiel
+  neu erzeugt.
+- **Oberfläche:** Analyse-Reiter „Prüfung“ (`qc-panel.tsx`: Status, 10 Prüfungen,
+  Neuanalyse-Protokoll, jeder Landmark vergrößert mit allen Durchgängen und
+  Toleranzkreis, jede Messung mit Streuung), QC-Banner in Übersicht und
+  Bewertung (Link `…#qc`).
+- **Tests:** `tests/unit/verification.test.ts` (19 Tests, echte erfasste Eingaben in
+  `tests/fixtures/verification`, eingeschleuste Fehler), angepasste Unit-Tests,
+  E2E (Server `psl.spec.ts`, statisch `browser-edition.spec.ts`) für Banner,
+  Prüfbericht, Zoom-Ausschnitte und fehlenden Schieberegler.
+- **Grenzen (ehrlich):** Die Prüfung belegt Wiederholgenauigkeit und anatomische
+  Plausibilität, nicht Expertengenauigkeit; systematische Modellfehler, die in
+  allen Durchgängen gleich sind, bleiben unsichtbar. Kalibrierdaten: zwei
+  gemeinfreie Fotos (sechs Aufnahmen) + synthetisches Gesicht; Schwellen sind
+  dokumentierte Konventionen.

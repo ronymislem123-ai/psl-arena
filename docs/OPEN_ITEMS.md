@@ -16,10 +16,17 @@
 * Removed from the application on 2026-11-09 (rubric/engine 3.0, front profile only). Stored side-view records are kept and exported but no longer shown in the app; a viewer for them (read-only, "old method") would be a follow-up if needed.
 * Faces that differ mainly in profile (chin/nose projection, convexity) are no longer distinguished by the score — an intended consequence of the front-only rubric.
 
+## Quality control (engine 3.1)
+* **Precision, not expert accuracy.** The multi-pass check proves that landmarks and measures are reproducible and anatomically plausible; a systematic bias of the detection model that is the same in every pass cannot be detected. Proving expert-level accuracy needs photos annotated by trained raters, which this project does not have.
+* **Calibration data are small**: six captured inputs of two public-domain photos and the synthetic ideal face. Tolerances and the 0.5/1/12-unit, 0.35/0.75-PSL and 70/50 % thresholds are documented conventions; a larger data set could tune them.
+* **Time**: the five extra detections take ≈ 0.7–3 s per photo on a desktop CPU and longer on older phones.
+* **Old analyses** (engine < 3.1) carry no QC; their ratings count as provisional until the photo is analysed again. They are not recomputed automatically (no uncontrolled changes to stored data).
+* **Manual landmark edits** override the QC position of that point (status `manual`); the point itself is then not re-verified by the passes.
+
 ## PSL modules (rater, scales, tournaments)
 * **Visual criteria.** Since rubric 2.1 the app measures upper lid position (MRD1) and scleral show geometrically. Eye shape, lip shape, cheekbone projection and jawline definition are assessed by a real vision model (Claude API) only when it is set up and the user consents per rating; the integration is tested against the SDK request/response contract with mocked HTTP, but **no live call was possible in the development environment (no API key)**. Model scores are impressions, vary with the model version and are not validated against human ratings. Free alternatives: a labelled self-assessment (half weight) and six descriptive photo measures that are shown but deliberately not scored — turning them into scores would need reference ranges from human-rated data, which do not exist here.
 * **Calibration and weights are conventions.** The index→PSL anchors and the criterion weights are documented and versioned but not fitted to human ratings; no consented reference dataset with independent human raters exists in this project, so no empirical accuracy, inter-rater agreement or bias statistics are claimed (`docs/VALIDATION.md`).
-* **Minimum coverage** defaults to 70 %; a complete frontal photo reaches ≈ 95 % (≈ 88 % without a usable hairline); configurable per rating. Below 50 % of the category weight no overall score is given.
+* **Coverage threshold** is fixed at 70 % by the quality control since engine 3.1 (the user-set slider was removed); a complete frontal photo reaches ≈ 95 % (≈ 88 % without a usable hairline). Below 50 % of the category weight no overall score is given.
 * **Three-quarter and profile views** are not supported; rubric 3.0 rates the front view only.
 * **Potential rating** was not implemented (speculative by nature; the brief lists it as optional).
 * **Sharing** of ratings/tournaments is intentionally absent (privacy default); exports are downloads for the owner.

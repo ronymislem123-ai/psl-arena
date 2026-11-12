@@ -18,6 +18,7 @@
  */
 import { RATIO_BY_ID } from "../ratios/database";
 import type { AdditionalMeasurementResult, RatioResult, SymmetryResult } from "../types";
+import { isQcExcluded, UNSTABLE_MEASURE_FACTOR } from "../verify/plan";
 import { AGGREGATION_P, CATEGORY_WEIGHTS, CRITERIA, EYE_MOUTH_LENGTH, EYELID_RANGES, measureReliability, RUBRIC_AREAS, DERIVED_TOLERANCE, type CriterionDefinition, type CriterionId, type RubricArea } from "../psl/rubric";
 import { plateauIndex } from "./measurement";
 
@@ -69,13 +70,17 @@ const ADDITIONAL_RELIABILITY: Record<string, number> = {
 export function frontalMeasures(ratios: RatioResult[], symmetry: SymmetryResult, additional: AdditionalMeasurementResult[]): MeasureMap {
   const m: MeasureMap = new Map();
   for (const r of ratios) {
-    if (r.availability !== "available" || r.index == null || r.excludedFromScore) continue;
+    if (r.availability !== "available" || r.index == null || r.excludedFromScore || isQcExcluded(r.qc)) continue;
     const def = RATIO_BY_ID[r.id];
     m.set(`r:${r.id}`, { index: r.index, confidence: r.confidence, reliability: measureReliability(def.landmarks), weight: def.weight, source: "frontal" });
   }
-  for (const s of symmetry.metrics) m.set(`s:${s.id}`, { index: s.score, confidence: symmetry.confidence, reliability: measureReliability(s.landmarks), weight: 1, source: "frontal" });
+  for (const s of symmetry.metrics) {
+    if (isQcExcluded(s.qc)) continue;
+    const conf = symmetry.confidence * (s.qc?.status === "unstable" ? UNSTABLE_MEASURE_FACTOR : 1);
+    m.set(`s:${s.id}`, { index: s.score, confidence: conf, reliability: measureReliability(s.landmarks), weight: 1, source: "frontal" });
+  }
   for (const a of additional) {
-    if (a.availability !== "available" || a.value == null) continue;
+    if (a.availability !== "available" || a.value == null || isQcExcluded(a.qc)) continue;
     const idx = additionalIndex(a.id, a.value);
     if (idx == null) continue;
     m.set(`a:${a.id}`, { index: idx, confidence: a.confidence, reliability: ADDITIONAL_RELIABILITY[a.id] ?? 1, weight: 1, source: "frontal" });

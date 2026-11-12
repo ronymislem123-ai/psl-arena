@@ -26,6 +26,8 @@ export interface SlotState {
   /** engine 2.0: manual landmark / reference-axis corrections */
   corrections: AnalysisCorrections;
   correcting: boolean;
+  /** engine 3.1: progress of the landmark verification passes while loading */
+  progress?: { done: number; total: number } | null;
 }
 
 const noCorrections = (): AnalysisCorrections => ({ landmarks: {}, axisAdjustDeg: 0 });
@@ -131,7 +133,7 @@ export function createSetupStore(persistKey?: string) {
       set((s) => ({ [side]: { ...s[side], status: "loading", fileName: sv.fileName } }));
       try {
         const blob = await dataUrlToBlob(sv.dataUrl);
-        const prep = await queued(() => prepareImage(blob, sv.fileName ?? "photo.jpg"));
+        const prep = await queued(() => prepareImage(blob, sv.fileName ?? "photo.jpg", (p) => gen[side] === g && set((s) => ({ [side]: { ...s[side], progress: p } }))));
         if (gen[side] !== g || get()[side].status !== "loading") continue; // replaced or cleared meanwhile
         if (prep.faces.length === 0) {
           set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
@@ -141,6 +143,7 @@ export function createSetupStore(persistKey?: string) {
           [side]: {
             ...s[side],
             status: "ready",
+            progress: null,
             prep,
             faceIndex: Math.min(Math.max(0, sv.faceIndex), prep.faces.length - 1),
             label: s[side].label || sv.label,
@@ -167,13 +170,13 @@ export function createSetupStore(persistKey?: string) {
     const g = ++gen[side];
     set((s) => ({ [side]: { ...s[side], status: "loading", error: undefined, prep: null, preview: null, fileName: file.name } }));
     try {
-      const prep = await queued(() => prepareImage(file, file.name));
+      const prep = await queued(() => prepareImage(file, file.name, (p) => gen[side] === g && set((s) => ({ [side]: { ...s[side], progress: p } }))));
       if (gen[side] !== g || get()[side].status !== "loading") return; // superseded by a newer pick
       if (prep.faces.length === 0) {
         set((s) => ({ [side]: { ...s[side], status: "error", error: "no-face", prep: null } }));
         return;
       }
-      set((s) => ({ [side]: { ...s[side], status: "ready", prep, faceIndex: 0, trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, corrections: noCorrections(), correcting: false, label: s[side].label || (side === "a" ? "Person 1" : "Person 2") } }));
+      set((s) => ({ [side]: { ...s[side], status: "ready", progress: null, prep, faceIndex: 0, trichion: undefined, trichionConfirmed: false, neck: null, neckPlacing: false, corrections: noCorrections(), correcting: false, label: s[side].label || (side === "a" ? "Person 1" : "Person 2") } }));
       get().recompute(side);
     } catch (e) {
       if (gen[side] !== g) return;

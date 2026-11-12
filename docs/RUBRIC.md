@@ -6,7 +6,17 @@ frontal measures, optional vision-model or self-assessed visual impressions) →
 **32 criteria** (one anatomical trait each) → **7 categories** → overall index
 0–100 → **PSL Score – Front Profile** 0.0–10.0. The rubric is versioned
 (`RUBRIC_VERSION` in `src/engine/psl/rubric.ts`); every rating stores the version,
-minimum coverage and a snapshot of the scale.
+the quality-control status of its analysis and a snapshot of the scale.
+
+**Engine 3.1.0 (2026-11-12): multi-stage quality control.** Every landmark,
+measurement and the final result are checked before the score is shown
+(`docs/QUALITY_CONTROL.md`). Excluded measures and rejected landmarks do not enter
+the criteria; uncertain ones count with reduced confidence. The user-set minimum
+coverage (slider) was removed: a rating is *valid* when the QC passed and coverage
+is ≥ 70 %, *provisional* when the QC is limited, coverage is lower or the analysis
+predates the QC, and has no score when the QC failed. The rubric (criteria,
+weights, formula) is unchanged at 3.0.0; the canthus, brow-apex and gonion
+conventions changed (see the QC document).
 
 **3.0.0 (2026-11-09, engine 3.0.0): side profile removed, score rebuilt on the
 front view.** The side view (profile upload, automatic profile detection, the
@@ -188,8 +198,9 @@ strict; ratios that some faces meet stay scored.
    anthropometric norm.
 7. **Coverage** = category-weighted share of the non-visual criteria that were
    assessable. Frontal photo with hairline ≈ 0.95 (test faces; the jaw category
-   lacks the manual neck points), without a usable hairline ≈ 0.88. Below the
-   minimum coverage (default 0.7) the score is *provisional*.
+   lacks the manual neck points), without a usable hairline ≈ 0.88. Below 0.7
+   (fixed QC threshold since engine 3.1; before, a user-set minimum) the score is
+   *provisional*; a criterion whose measures the QC excluded is not assessable.
 8. **σ, precision, tier.** σ_PSL = SD of the overall score over the stored
    Monte-Carlo samples of every frontal measure (correlated landmark noise); the
    display uses one significant digit of σ (`displayDecimals`); `tierUncertainty`

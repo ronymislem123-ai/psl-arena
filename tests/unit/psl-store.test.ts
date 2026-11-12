@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { inputFromFixture, loadFixture } from "./helpers";
+import { inputFromFixture, loadFixture, loadVerifiedInput } from "./helpers";
 
 const dir = mkdtempSync(join(tmpdir(), "psl-store-"));
 process.env.PSL_ARENA_DATA_DIR = dir;
@@ -75,7 +75,7 @@ describe("ratings", () => {
   let analysisId = "";
   let profileId = "";
   it("creates a front-only rating (rubric 3.0) from an existing analysis and stores the scale snapshot", async () => {
-    const a = services.createAnalysis(userId, { profileLabel: "Alpha", storeImage: false, input: inputFromFixture(loadFixture("ai-face")) });
+    const a = services.createAnalysis(userId, { profileLabel: "Alpha", storeImage: false, input: loadVerifiedInput("portrait-a") });
     analysisId = a.id;
     profileId = a.profileId;
     const r1 = await sv.createRating(userId, { analysisId, consent: undefined } as never);

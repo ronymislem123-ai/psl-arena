@@ -7,7 +7,7 @@ import { de } from "@/lib/i18n/de";
 import { rateFace } from "@/engine/psl/rating";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
 import { aggregateHierarchy, measureKeys, type MeasureMap } from "@/engine/scoring/hierarchy";
-import { inputFromFixture, loadFixture } from "./helpers";
+import { inputFromFixture, loadFixture, loadVerifiedInput } from "./helpers";
 
 const scale = snapshotScale(buildStandardScale());
 
@@ -60,7 +60,7 @@ describe("PSL Score – Front Profile (rubric 3.0)", () => {
   });
 
   it("a real frontal rating: frontal sources only, score in range, consistent with the category formula", () => {
-    const frontal = analyzeFace(inputFromFixture(loadFixture("ai-face")));
+    const frontal = analyzeFace(loadVerifiedInput("portrait-a"));
     const r = rateFace({ frontal, scale });
     expect(r.rubricVersion).toBe("3.0.0");
     expect(r.score).not.toBeNull();

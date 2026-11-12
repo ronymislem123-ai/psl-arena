@@ -18,6 +18,7 @@ view, comparison, leaderboards, history, profiles) and the same rating engine, b
 | Record pages | `/rater/<id>`, `/tournaments/<id>` … | `/rater/view/?id=<id>`, `/tournaments/view/?id=<id>` … (static hosting cannot pre-render unknown ids) |
 | Offline | ML assets cached | the whole app (pages, code, SQLite runtime) is precached by the service worker; the face model and MediaPipe runtime are cached on first use |
 | Moving data | — (server holds it) | backup file download / restore in Settings |
+| Quality control (engine 3.1) | detection passes in the browser, checks re-run on the server | detection passes and all checks in the browser (`docs/QUALITY_CONTROL.md`) |
 
 **One codebase, two targets.** `next.config.ts` switches on `PSL_STATIC=1`:
 

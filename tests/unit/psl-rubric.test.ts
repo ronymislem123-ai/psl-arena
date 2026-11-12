@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { analyzeFace } from "@/engine/analysis";
-import { AGGREGATION_P, AREA_META, calibrate, calibrationSlope, CALIBRATION_ANCHORS, CATEGORY_WEIGHTS, CRITERIA, CRITERION_BY_ID, DEFAULT_MIN_COVERAGE, DESCRIPTIVE_RATIOS, measureReliability, RUBRIC_AREAS, RUBRIC_VERSION, totalWeight, uncalibrate } from "@/engine/psl/rubric";
+import { AGGREGATION_P, AREA_META, calibrate, calibrationSlope, CALIBRATION_ANCHORS, CATEGORY_WEIGHTS, CRITERIA, CRITERION_BY_ID, DESCRIPTIVE_RATIOS, measureReliability, RUBRIC_AREAS, RUBRIC_VERSION, totalWeight, uncalibrate } from "@/engine/psl/rubric";
 import { aggregateHierarchy, frontalMeasures, measureKeys, powerMean, type MeasureMap } from "@/engine/scoring/hierarchy";
 import { evidenceOf } from "@/engine/scoring/measurement";
 import { pslDecimals, rateFace, ratingSummary } from "@/engine/psl/rating";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
 import { RATIO_DEFINITIONS } from "@/engine/ratios/database";
-import { inputFromFixture, loadFixture } from "./helpers";
+import { inputFromFixture, loadFixture, loadVerifiedInput } from "./helpers";
 
 const scale = snapshotScale(buildStandardScale());
 
@@ -113,7 +113,8 @@ describe("aggregation (rubric 3.0: weighted arithmetic mean)", () => {
 });
 
 describe("rating engine on real fixtures", () => {
-  const frontal = analyzeFace(inputFromFixture(loadFixture("ai-face")));
+  // engine 3.1: a real input with detection passes (quality control can pass)
+  const frontal = analyzeFace(loadVerifiedInput("portrait-a"));
 
   it("rates a frontal analysis with documented coverage and a tier on the scale", () => {
     const r = rateFace({ frontal, scale });
@@ -128,9 +129,11 @@ describe("rating engine on real fixtures", () => {
     const h = aggregateHierarchy(frontalMeasures(frontal.ratios, frontal.symmetry, frontal.additional));
     expect(r.coverage).toBeCloseTo(h.coverage, 12);
     expect(r.coverage).toBeGreaterThan(0.9);
+    expect(frontal.qc!.status).toBe("passed");
+    expect(r.qcStatus).toBe("passed");
     expect(r.valid).toBe(true);
     expect(r.provisional).toBe(false);
-    expect(r.minCoverage).toBe(DEFAULT_MIN_COVERAGE);
+    expect(r).not.toHaveProperty("minCoverage"); // the user-set threshold is gone
     const sum = ratingSummary(r);
     expect(sum.total).toBe(CRITERIA.length);
     expect(r.notAssessable.filter((n) => n.code === "requiresProfile")).toHaveLength(0);
@@ -160,19 +163,47 @@ describe("rating engine on real fixtures", () => {
     expect(r.criteria.some((c) => c.usedInputs.includes("FWHR") || c.usedInputs.includes("JWHR"))).toBe(false);
   });
 
-  it("becomes provisional below the minimum coverage and respects the configurable threshold", () => {
-    const noHair = analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null }));
-    const r = rateFace({ frontal: noHair, scale });
+  it("analyses from before the quality control (engine < 3.1, no qc) are rated provisional, never valid", () => {
+    const { qc: _qc, ...legacy } = frontal;
+    void _qc;
+    const r = rateFace({ frontal: legacy as typeof frontal, scale });
+    expect(r.qcStatus).toBeNull();
+    expect(r.score).not.toBeNull();
+    expect(r.valid).toBe(false);
+    expect(r.provisional).toBe(true);
+    expect(r.warningCodes).toContain("noQc");
+  });
+
+  it("validity comes from the quality control (no user-set threshold); below 70 % coverage the score is provisional", () => {
+    // without detection passes the quality control can only pass with restrictions
+    const unverified = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("ai-face"))), scale });
+    expect(unverified.qcStatus).toBe("limited");
+    expect(unverified.valid).toBe(false);
+    expect(unverified.provisional).toBe(true);
+    expect(unverified.score).not.toBeNull();
+    expect(unverified.warningCodes).toContain("qcLimited");
+    // no hairline: fewer criteria, still above the fixed 70 % gate
+    const noHairInput = loadVerifiedInput("portrait-a");
+    const noHair = rateFace({ frontal: analyzeFace({ ...noHairInput, trichion: null }), scale });
     const base = rateFace({ frontal, scale });
-    expect(r.coverage).toBeLessThan(base.coverage);
-    expect(r.criteria.find((c) => c.id === "eyeMouthLength")!.assessable).toBe(false);
-    const strictNoHair = rateFace({ frontal: noHair, scale, minCoverage: (r.coverage + base.coverage) / 2 });
-    expect(strictNoHair.provisional).toBe(true);
-    expect(strictNoHair.valid).toBe(false);
-    expect(strictNoHair.score).not.toBeNull();
-    expect(strictNoHair.warningCodes).toContain("lowCoverage");
-    const strict = rateFace({ frontal, scale, minCoverage: Math.min(1, base.coverage + 0.01) });
-    expect(strict.provisional).toBe(true);
+    expect(noHair.coverage).toBeLessThan(base.coverage);
+    expect(noHair.coverage).toBeGreaterThan(0.7);
+    expect(noHair.criteria.find((c) => c.id === "eyeMouthLength")!.assessable).toBe(false);
+    // nose and midface not measurable: coverage between 50 and 70 % → score shown, provisional
+    const gone = new Set(["N_BYZGO", "N_H", "MF", "EME"]);
+    const thin = { ...frontal, ratios: frontal.ratios.map((x) => (gone.has(x.id) ? { ...x, availability: "unavailable" as const, value: null, index: null } : x)) };
+    const low = rateFace({ frontal: thin, scale });
+    expect(low.coverage).toBeGreaterThanOrEqual(0.5);
+    expect(low.coverage).toBeLessThan(0.7);
+    expect(low.score).not.toBeNull();
+    expect(low.valid).toBe(false);
+    expect(low.provisional).toBe(true);
+    expect(low.warningCodes).toContain("lowCoverage");
+    // a failed quality control gives no score at all
+    const failed = rateFace({ frontal: { ...frontal, qc: { ...frontal.qc!, status: "failed" } }, scale });
+    expect(failed.score).toBeNull();
+    expect(failed.tier).toBeNull();
+    expect(failed.warningCodes).toContain("qcFailed");
   });
 
   it("never scores an unusable frontal image", () => {

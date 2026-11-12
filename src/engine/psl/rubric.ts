@@ -234,9 +234,6 @@ export const CALIBRATION_ANCHORS: [number, number][] = [
   [100, 10],
 ];
 
-/** Minimum share of the geometric rubric (category-weighted) that must be assessable for a fully valid score. */
-export const DEFAULT_MIN_COVERAGE = 0.7;
-
 /**
  * Eyelid references in millimetres (iris diameter as scale). MRD1: normal 4–5 mm
  * (Putterman 2012; Bacharach et al. 2016); dispersion 1 mm. Inferior scleral show:

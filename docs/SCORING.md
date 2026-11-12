@@ -104,3 +104,16 @@ replay the samples through its own aggregation. Validation: `docs/MODEL_VALIDATI
   * *draw* if |ΔOverall| ≤ margin;
   * otherwise the higher overall score wins.
 * Key differences: ratios available on both sides with the largest index deltas (≥ 5).
+
+## 8. Quality control (engine 3.1)
+
+Before any of the scores above is shown, the analysis passes the multi-stage
+quality control (`docs/QUALITY_CONTROL.md`): landmarks are verified over six
+detections (median position, tolerance, anatomical rules, re-analysis of violating
+points), every measure is recomputed from every detection (stable ≤ 0.5 s,
+unstable ≤ 1 s with half confidence, excluded > 1 s or implausible), excluded
+measures and rejected landmarks never enter an index, and a control instance
+recomputes the category and overall indices independently and checks
+reproducibility (≤ 0.35 PSL), coverage and consistency. A failed control removes
+the overall score (`overall = null`); battles treat such an analysis like one
+without an overall score (*inconclusive*).

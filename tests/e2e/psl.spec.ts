@@ -232,6 +232,36 @@ test.describe("PSL platform: scale builder, rater, tournaments", () => {
     await page.getByTestId("criterion-eyeShape").click();
     await expect(page.getByRole("dialog")).toContainText(/only with a vision model/);
     await page.keyboard.press("Escape");
+
+    // multi-stage quality control (engine 3.1): no user-set coverage threshold anywhere
+    expect(rec.result).not.toHaveProperty("minCoverage");
+    expect(["passed", "limited"]).toContain(rec.result.qcStatus);
+    await expect(page.getByTestId("qc-banner")).toHaveAttribute("data-status", rec.result.qcStatus);
+    const analysis = (await (await page.request.get(`/api/analyses/${rec.analysisId}`)).json()).analysis;
+    const qc = analysis.result.qc;
+    expect(qc.passes.used).toBeGreaterThanOrEqual(5); // original + mirror + ±5° + zoom crops
+    expect(qc.landmarks.length).toBeGreaterThan(40);
+    for (const l of qc.landmarks) expect(["confirmed", "corrected", "uncertain", "rejected", "manual"], l.id).toContain(l.status);
+    expect(qc.measures.length).toBeGreaterThan(30);
+    expect(qc.checks.map((c: { id: string }) => c.id)).toEqual(["imageQuality", "multiPass", "landmarks", "anatomy", "measurements", "plausibility", "recompute", "reproducibility", "coverage", "consistency"]);
+    expect(qc.checks.find((c: { id: string }) => c.id === "recompute").status).toBe("pass");
+    expect(qc.overallSpread).toBeLessThan(3.5);
+    // the check report: the banner links to the analysis tab with the zoomed landmark crops
+    await page.getByTestId("qc-banner").getByRole("link").click();
+    await expect(page.getByTestId("qc-panel")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("qc-checks").locator("li")).toHaveCount(10);
+    await expect(page.getByTestId("qc-check-recompute")).toHaveAttribute("data-status", "pass");
+    await expect(page.getByTestId("qc-measures").locator("tbody tr")).toHaveCount(qc.measures.length);
+    await page.getByTestId("qc-panel").getByRole("tab", { name: /^All/ }).click();
+    await expect(page.getByTestId("qc-landmarks").locator("[data-testid^='qc-lm-']")).toHaveCount(qc.landmarks.length);
+    await expect(page.getByTestId("qc-lm-pupil_R").locator("canvas")).toBeVisible();
+    await page.waitForTimeout(800);
+    await shot(page, "56c-quality-control");
+    // the rater offers no coverage slider any more
+    await page.goto("/rater");
+    await expect(page.getByTestId("slot-a")).toBeVisible();
+    await expect(page.getByTestId("rater-min-coverage")).toHaveCount(0);
+    await expect(page.getByText(/Minimum rubric coverage/)).toHaveCount(0);
   });
 
   test("stored ratings of the old method (rubric 2.x) stay unchanged and are marked, not shown as front-profile scores", async ({ page }) => {

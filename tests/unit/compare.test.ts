@@ -4,15 +4,17 @@ import { compareRatings, progressSeries, type CompareItem } from "@/engine/psl/c
 import { rateFace, type RatingResult } from "@/engine/psl/rating";
 import { CRITERIA } from "@/engine/psl/rubric";
 import { buildStandardScale, snapshotScale } from "@/engine/psl/scale";
-import { inputFromFixture, loadFixture } from "./helpers";
+import { inputFromFixture, loadFixture, loadVerifiedInput } from "./helpers";
 
 const scale = snapshotScale(buildStandardScale());
-const frontal = analyzeFace(inputFromFixture(loadFixture("ai-face")));
-const other = analyzeFace(inputFromFixture(loadFixture("obama")));
+// engine 3.1: verified inputs (detection passes) → ratings that passed the quality control
+const frontal = analyzeFace(loadVerifiedInput("portrait-a"));
+const other = analyzeFace(loadVerifiedInput("portrait-b"));
 const base = rateFace({ frontal, scale });
 // a stored rating of the old method (rubric 2.x, front + profile): only the flag and score matter here
 const withSide: RatingResult = { ...base, rubricVersion: base.rubricVersion, score: base.score! + 0.3, coverage: base.coverage - 0.2, quality: { ...base.quality, sideUsed: true } };
-const noHair = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("ai-face"), { trichion: null })), scale, minCoverage: base.coverage - 0.001 });
+// an analysis without detection passes and without hairline: lower coverage, quality control only limited → provisional
+const noHair = rateFace({ frontal: analyzeFace(inputFromFixture(loadFixture("obama"), { trichion: null })), scale });
 const otherRating = rateFace({ frontal: other, scale });
 const item = (id: string, result: RatingResult, createdAt: string, label = id): CompareItem => ({ id, label, createdAt, result });
 

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AlertTriangle, Info, XCircle } from "lucide-react";
 import { Badge, levelTone, statusTone } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { ADDITIONAL_BY_ID, RATIO_BY_ID, RATIO_DEFINITIONS } from "@/engine/ratio
 import { CATEGORY_WEIGHTS, isFrontOnlyRubric, LEGACY_CATEGORY_WEIGHTS, RUBRIC_AREAS, type RubricArea } from "@/engine/psl/rubric";
 import { LegacyMethodTag } from "@/components/psl/legacy-tag";
 import { ReliabilityPanel } from "@/components/analysis/reliability-panel";
+import { QcBanner, QcPanel } from "@/components/analysis/qc-panel";
 import { IdealExampleButton } from "@/components/ideal/ideal-example";
 import { areaDescription, areaName } from "@/lib/i18n/psl-texts";
 import { formatT1, formatValue } from "@/engine/explain";
@@ -31,11 +32,19 @@ import { evidenceOf, isUnscored } from "@/engine/scoring/measurement";
 import { formatPsl } from "@/engine/psl/rating";
 import { ApiLink } from "@/components/shared/api-link";
 
-type Tab = "overview" | "ratios" | "landmarks" | "symmetry" | "features" | "quality";
+function subscribeHash(cb: () => void) {
+  window.addEventListener("hashchange", cb);
+  return () => window.removeEventListener("hashchange", cb);
+}
+
+type Tab = "overview" | "qc" | "ratios" | "landmarks" | "symmetry" | "features" | "quality";
 
 export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, analysisId, profileId, width, height }: { result: AnalysisResult; label: string; imageId: string | null; imageSrc?: string | null; createdAt: string; analysisId: string; profileId: string; width: number; height: number }) {
   const { t, lang } = useT();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [picked, setTab] = useState<Tab | null>(null);
+  // links to the check report open it directly (…#qc)
+  const hashQc = useSyncExternalStore(subscribeHash, () => window.location.hash === "#qc", () => false);
+  const tab: Tab = picked ?? (hashQc ? "qc" : "overview");
   const sessionSrc = useSessionImage(analysisId);
   const src = imageSrc ?? imageUrl(imageId) ?? sessionSrc;
   return (
@@ -59,6 +68,7 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
           <Tabs
             tabs={[
               { id: "overview", label: t("analysis.overview") },
+              { id: "qc", label: t("qc.tab") },
               { id: "ratios", label: t("analysis.ratios") },
               { id: "landmarks", label: t("analysis.landmarks") },
               { id: "symmetry", label: t("analysis.symmetry") },
@@ -70,7 +80,8 @@ export function AnalysisCenter({ result, label, imageId, imageSrc, createdAt, an
           />
         }
       />
-      {tab === "overview" && <Overview result={result} src={src} width={width} height={height} />}
+      {tab === "overview" && <Overview result={result} src={src} width={width} height={height} onOpenQc={() => setTab("qc")} />}
+      {tab === "qc" && <QcPanel result={result} src={src} />}
       {tab === "ratios" && <RatioTable result={result} src={src} width={width} height={height} />}
       {tab === "landmarks" && <Landmarks result={result} src={src} width={width} height={height} />}
       {tab === "symmetry" && <Symmetry result={result} src={src} width={width} height={height} />}
@@ -94,7 +105,7 @@ function ImagePanel({ result, src, width, height, layer, showMesh, onSelect, sel
   );
 }
 
-function Overview({ result, src, width, height }: { result: AnalysisResult; src: string | null; width: number; height: number }) {
+function Overview({ result, src, width, height, onOpenQc }: { result: AnalysisResult; src: string | null; width: number; height: number; onOpenQc: () => void }) {
   const { t, lang } = useT();
   const s = result.scores;
   // engine/rubric 3.0: front profile only; older analyses keep their stored categories and are marked as the old method
@@ -131,6 +142,7 @@ function Overview({ result, src, width, height }: { result: AnalysisResult; src:
         )}
       </div>
       <div className="space-y-5">
+        <QcBanner qc={result.qc} onOpen={onOpenQc} />
         {!front && (
           <div className="flex gap-2.5 rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-fg-1" data-testid="analysis-legacy-note">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" />

@@ -1,10 +1,11 @@
 "use client";
-import type { AnalysisConfig, AnalysisCorrections, AnalysisInput, Point } from "@/engine/types";
+import type { AnalysisConfig, AnalysisCorrections, AnalysisInput, Point, VerificationInput } from "@/engine/types";
 import { detectFaces, type DetectedFace } from "./detect";
 import { estimateHairline, type HairlineEstimate } from "./hairline";
 import { loadImageFile, type LoadedImage } from "./image";
 import { computeRawQuality } from "./quality";
 import { measureImageAppearance, type AppearanceImageInput } from "@/engine/appearance";
+import { runVerificationPasses, type VerificationProgress } from "./verify";
 
 /** Image-based appearance measures (jaw edge, cheekbone shading) from the photo pixels; never leaves the device. */
 function imageAppearance(canvas: HTMLCanvasElement, mesh: Point[]): AppearanceImageInput | null {
@@ -30,13 +31,23 @@ export interface PreparedImage {
   image: LoadedImage;
   faces: DetectedFace[];
   hairline: (HairlineEstimate | null)[];
+  /** engine 3.1: landmark verification passes per face (the three largest faces) */
+  verification?: (VerificationInput | null)[];
 }
 
-export async function prepareImage(file: File | Blob, name?: string): Promise<PreparedImage> {
+/** Faces (largest first) that get the verification passes; further faces are analysed unverified. */
+export const VERIFIED_FACES = 3;
+
+export async function prepareImage(file: File | Blob, name?: string, onProgress?: (p: VerificationProgress) => void): Promise<PreparedImage> {
   const image = await loadImageFile(file, name ?? (file instanceof File ? file.name : "image"));
   const faces = await detectFaces(image.canvas);
   const hairline = faces.map((f) => estimateHairline(image.canvas, f.mesh));
-  return { image, faces, hairline };
+  const verification: (VerificationInput | null)[] = [];
+  const nv = Math.min(faces.length, VERIFIED_FACES);
+  for (let i = 0; i < faces.length; i++) {
+    verification.push(i < nv ? await runVerificationPasses(image.canvas, faces[i], onProgress ? (p) => onProgress({ done: i * p.total + p.done, total: nv * p.total }) : undefined) : null);
+  }
+  return { image, faces, hairline, verification };
 }
 
 export interface ManualAdjustments {
@@ -66,6 +77,7 @@ export function buildAnalysisInput(prep: PreparedImage, faceIndex: number, confi
     transformMatrix: face.matrix,
     rawQuality: computeRawQuality(prep.image.canvas, face, prep.faces.length, prep.image),
     appearanceImage: imageAppearance(prep.image.canvas, face.mesh),
+    verification: prep.verification?.[faceIndex] ?? null,
     config,
   };
 }

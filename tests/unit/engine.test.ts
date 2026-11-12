@@ -18,9 +18,17 @@ describe("engine on real landmark fixtures", () => {
       expect(res.coverage.incomplete).toBe(6);
       expect(res.original.originalPercent).toBeNull();
       expect(res.original.pointsFromT1).toBe(res.original.t1Count * 10);
-      expect(res.scores.overall).not.toBeNull();
-      expect(res.scores.overall!).toBeGreaterThan(0);
-      expect(res.scores.overall!).toBeLessThanOrEqual(100);
+      if (res.quality.analyzable) {
+        expect(res.scores.overall).not.toBeNull();
+        expect(res.scores.overall!).toBeGreaterThan(0);
+        expect(res.scores.overall!).toBeLessThanOrEqual(100);
+      } else {
+        // engine 3.1: an unusable photo fails the quality control — no overall result
+        expect(res.qc!.status).toBe("failed");
+        expect(res.qc!.checks.find((c) => c.id === "imageQuality")!.status).toBe("fail");
+        expect(res.scores.overall).toBeNull();
+        expect(res.scores.rubric!.categories.eye).not.toBeNull(); // the parts stay visible for transparency
+      }
       // plausibility of a few anthropometric ratios
       const v = (id: keyof typeof RATIO_BY_ID) => res.ratios.find((r) => r.id === id)!.value!;
       expect(v("ESR")).toBeGreaterThan(38);

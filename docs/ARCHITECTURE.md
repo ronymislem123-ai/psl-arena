@@ -38,6 +38,7 @@
 | `scoring/tiers.ts` | Original T1–T5 system; harmony index function. |
 | `scoring/aggregate.ts` | Category indices, harmony/proportion/structure/overall, coverage, original scoring. |
 | `scoring/symmetry.ts` | Bilateral symmetry metrics against a fitted midline. |
+| `verify/` | Multi-stage quality control (engine 3.1): consensus of the detection passes and per-landmark check (`landmarks.ts`), anatomical rules with re-analysis, measurement reproducibility/plausibility (`measures.ts`), the plan the measurement chain applies (`plan.ts`), orchestration with the reject → re-analyse loop (`run.ts`) and the independent control instance (`control.ts`). See `docs/QUALITY_CONTROL.md`. |
 | `scoring/features.ts` | Section-6 feature observations (measured / approximate / not determinable). |
 | `scoring/uncertainty.ts` | Monte-Carlo propagation. |
 | `quality/assess.ts` | Pose from matrix, expression from blendshapes, metric levels, issues, analyzability. |
@@ -50,7 +51,7 @@
 `psl/` — the shared PSL rating architecture: `scale.ts` (scales, standard scale, validation, unrounded tier assignment, snapshots, export format), `rubric.ts` (32 versioned front-profile criteria in 7 categories with weights, inputs, calibration anchors, minimum coverage), `rating.ts` (frontal analysis + optional visual assessments → criterion/category scores, PSL Score – Front Profile, coverage, validity, tier, strengths/lower-rated, σ). `tournament/` — category scores, rankings with shared ranks, weighted overall with documented tie-breakers, seeded knockout brackets with byes, group stage + finals, results and statistics. Both run unchanged in the browser (live previews/standings) and on the server (persisted results).
 
 ### `src/lib/vision` (browser only)
-`landmarker.ts` (lazy singleton, CPU delegate with GPU fallback option), `image.ts` (decode/downscale, EXIF orientation), `detect.ts` (faces → pixel meshes, blendshapes, matrices), `quality.ts` (pixel statistics on a normalised face crop), `hairline.ts` (midline skin→hair transition scan), `pipeline.ts` (prepare image → `AnalysisInput`).
+`landmarker.ts` (lazy singleton, CPU delegate with GPU fallback option), `image.ts` (decode/downscale, EXIF orientation), `detect.ts` (faces → pixel meshes, blendshapes, matrices), `quality.ts` (pixel statistics on a normalised face crop), `hairline.ts` (midline skin→hair transition scan), `verify.ts` (five verification detections — mirrored, ±5°, zoomed crop, zoomed + mirrored — mapped back to the photo's pixels), `pipeline.ts` (prepare image → `AnalysisInput` incl. `verification`).
 
 ### `src/server`
 `repos-psl.ts` / `services-psl.ts` hold the PSL persistence and use-cases (scale editing/import, rating creation from the frontal analysis only (rubric 3.0), tournament lifecycle with locking and versions); `vision-provider.ts` is the (empty by default) integration point for a visual-assessment model.

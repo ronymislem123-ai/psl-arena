@@ -57,6 +57,19 @@ test("browser edition: rating, persistence, history, tournament, compare, backup
   // the stored photo comes from the local database as an object URL
   await expect(page.locator('img[src^="blob:"]').first()).toBeVisible();
   await shot(page, "s02-rating");
+  // multi-stage quality control runs on the device; its report opens from the rating
+  await expect(page.getByTestId("qc-banner")).toHaveAttribute("data-status", /passed|limited/);
+  await expect(page.getByTestId("rater-min-coverage")).toHaveCount(0);
+  await page.getByTestId("qc-banner").getByRole("link").click();
+  await page.waitForURL(/\/analysis\/view\/?\?id=.*#qc/);
+  await expect(page.getByTestId("qc-panel")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("qc-checks").locator("li")).toHaveCount(10);
+  await expect(page.getByTestId("qc-check-recompute")).toHaveAttribute("data-status", "pass");
+  await expect(page.getByTestId("qc-check-multiPass")).toHaveAttribute("data-status", "pass");
+  await page.getByTestId("qc-panel").getByRole("tab", { name: /^All/ }).click();
+  await expect(page.getByTestId("qc-lm-pupil_R").locator("canvas")).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId("rating-score")).toBeVisible();
   await page.reload();
   await expect(page.getByTestId("rating-score")).toBeVisible();
   await expect(page.locator('img[src^="blob:"]').first()).toBeVisible();

@@ -2,6 +2,7 @@
 import { pslBand } from "@/engine/psl/bands";
 import { formatPsl, type RatingResult } from "@/engine/psl/rating";
 import { isFrontOnlyRubric, MIN_SCORABLE_COVERAGE } from "@/engine/psl/rubric";
+import { COVERAGE_PASS } from "@/engine/verify/control";
 import { formatTierRange } from "@/engine/psl/scale";
 import type { Lang } from "@/lib/i18n";
 import { areaName, criterionName } from "@/lib/i18n/psl-texts";
@@ -15,11 +16,21 @@ export function reportLines(r: RatingResult, label: string, lang: Lang, t: T) {
   const reasoning = r.score == null
     ? r.warningCodes.includes("insufficientData")
       ? t("rater.result.reasoningInsufficient", { coverage: pct(r.coverage), min: pct(MIN_SCORABLE_COVERAGE) })
-      : t("rater.result.reasoningInvalid")
+      : r.warningCodes.includes("qcFailed")
+        ? t("rater.result.reasoningQcFailed")
+        : t("rater.result.reasoningInvalid")
     : t("rater.result.reasoningText", { n: r.criteria.filter((c) => c.assessable).length, coverage: pct(r.coverage), score: formatPsl(r.score), scale: r.scale.name, rubric: `${t("rater.result.rubric")} ${r.rubricVersion}`, tier: r.tier?.name ?? "—", range: r.tier ? formatTierRange(r.tier) : "—", areas });
   const strengths = r.strengths.length ? r.strengths.map((s) => t("rater.result.strengthLine", { name: criterionName(s.id, lang), score: formatPsl(s.score), source: t(`rater.result.source.${r.criteria.find((c) => c.id === s.id)?.source ?? "frontal"}`) })) : [t("rater.result.noneAbove")];
   const lower = r.lowerRated.length ? r.lowerRated.map((s) => t("rater.result.lowerLine", { name: criterionName(s.id, lang), score: formatPsl(s.score), source: t(`rater.result.source.${r.criteria.find((c) => c.id === s.id)?.source ?? "frontal"}`) })) : [t("rater.result.noneBelow")];
-  const provisional = r.provisional ? t("rater.result.provisionalText", { min: pct(r.minCoverage) }) : "";
+  const provisional = !r.provisional
+    ? ""
+    : r.minCoverage != null
+      ? t("rater.result.provisionalText", { min: pct(r.minCoverage) }) // ratings before engine 3.1
+      : r.coverage < COVERAGE_PASS
+        ? t("rater.result.provisionalCoverage")
+        : r.qcStatus === "limited"
+          ? t("rater.result.provisionalQc")
+          : t("rater.result.provisionalNoQc");
   const usedWeight = r.areas.filter((a) => a.score != null).reduce((sum, a) => sum + a.weight, 0);
   const totalWeight = r.areas.reduce((sum, a) => sum + a.weight, 0);
   const overall = (front

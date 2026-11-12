@@ -68,8 +68,8 @@ export function UploadSlot({ side, store = useBattleSetup, title: titleOverride 
           {slot.status === "loading" ? (
             <div className="space-y-3">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan border-t-transparent" />
-              <div className="text-sm text-fg-1">{t("upload.analyzing")}</div>
-              <div className="text-xs text-fg-3">{t("upload.loadingModel")}</div>
+              <div className="text-sm text-fg-1">{slot.progress ? t("upload.verifying", { done: slot.progress.done, total: slot.progress.total }) : t("upload.analyzing")}</div>
+              <div className="text-xs text-fg-3">{slot.progress ? t("upload.verifyingSub") : t("upload.loadingModel")}</div>
             </div>
           ) : (
             <div className="space-y-3">

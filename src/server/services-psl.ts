@@ -94,7 +94,6 @@ export interface CreateRatingArgs {
   sideAnalysisId?: string | null;
   useLatestSide?: boolean;
   scaleId?: string;
-  minCoverage?: number;
   /** explicit consent to send the frontal photo to the configured vision model for this rating */
   visualConsent?: boolean;
   /** the photo for the vision model when it is not stored (sent only with consent, never stored) */
@@ -145,7 +144,7 @@ export async function createRating(userId: string, args: CreateRatingArgs) {
     }
   }
 
-  const result: RatingResult = rateFace({ frontal: analysis.result, visual, visualStatus, visualError, selfAssessment: args.selfAssessment ?? null, scale: snapshotScale(scale), minCoverage: args.minCoverage });
+  const result: RatingResult = rateFace({ frontal: analysis.result, visual, visualStatus, visualError, selfAssessment: args.selfAssessment ?? null, scale: snapshotScale(scale) });
   return insertRating({ userId, profileId: analysis.profileId, analysisId: analysis.id, sideAnalysisId: null, scaleId: scale.id, result });
 }
 

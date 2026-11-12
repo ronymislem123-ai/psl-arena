@@ -53,3 +53,13 @@ export function inputFromFixture(f: Fixture, overrides: Partial<AnalysisInput> =
     ...overrides,
   };
 }
+
+/**
+ * Real analysis inputs captured from the app (engine 3.1): the detection of the
+ * unchanged photo plus the verification passes (mirrored, rotated ±5°, zoomed,
+ * zoomed + mirrored), as the browser sends them. Public-domain portraits A/B and
+ * the synthetic ideal-example render (tests/fixtures/verification/README.md).
+ */
+export function loadVerifiedInput(name: string): AnalysisInput {
+  return (JSON.parse(readFileSync(join(__dirname, "..", "fixtures", "verification", `${name}.json`), "utf8")) as { input: AnalysisInput }).input;
+}
